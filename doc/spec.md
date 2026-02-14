@@ -75,3 +75,8 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [ ] 英文
         [ ] 繁體中文
 
+    5. System Tray 支援
+        [ ] 支援將應用程式最小化至 System Tray。
+        [ ] 雙擊 Tray Icon 恢復視窗顯示。
+        [ ] Tray Icon 右鍵選單包含「最近開啟的程式」與「結束」選項。
+
