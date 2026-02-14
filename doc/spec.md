@@ -71,3 +71,7 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [ ] 頂部增加搜尋框 (AutoSuggestBox)。
         [ ] 輸入關鍵字時即時過濾列表內容。
 
+    4. 多語言支援
+        [ ] 英文
+        [ ] 繁體中文
+
