@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ace-run (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ace-run (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
