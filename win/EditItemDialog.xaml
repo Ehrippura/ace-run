@@ -10,38 +10,45 @@
 
     <StackPanel Spacing="16" MinWidth="400">
         <TextBox x:Name="DisplayNameBox"
+                 x:Uid="DisplayNameBox"
                  Header="Display Name"
                  PlaceholderText="Application name" />
 
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <TextBox x:Name="FilePathBox"
+                     x:Uid="FilePathBox"
                      Header="File Path"
                      PlaceholderText="Path to .exe file"
                      Grid.Column="0" />
-            <Button Content="Browse"
+            <Button x:Uid="BrowseFileButton"
+                    Content="Browse"
                     Click="BrowseFile_Click"
                     VerticalAlignment="Bottom"
                     Grid.Column="1" />
         </Grid>
 
         <TextBox x:Name="ArgumentsBox"
+                 x:Uid="ArgumentsBox"
                  Header="Arguments"
                  PlaceholderText="e.g. --incognito --new-window" />
 
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <TextBox x:Name="WorkingDirectoryBox"
+                     x:Uid="WorkingDirectoryBox"
                      Header="Working Directory"
                      PlaceholderText="Defaults to exe folder"
                      Grid.Column="0" />
-            <Button Content="Browse"
+            <Button x:Uid="BrowseFolderButton"
+                    Content="Browse"
                     Click="BrowseFolder_Click"
                     VerticalAlignment="Bottom"
                     Grid.Column="1" />
         </Grid>
 
         <ToggleSwitch x:Name="RunAsAdminSwitch"
-                       Header="Run as Administrator"
-                       OffContent="Off"
-                       OnContent="On" />
+                      x:Uid="RunAsAdminSwitch"
+                      Header="Run as Administrator"
+                      OffContent="Off"
+                      OnContent="On" />
     </StackPanel>
 </ContentDialog>

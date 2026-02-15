@@ -5,8 +5,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using ace_run.Models;
@@ -17,6 +21,9 @@ namespace ace_run;
 public sealed partial class MainWindow : Window
 {
     public ObservableCollection<AppItemViewModel> Items { get; } = new();
+    public ObservableCollection<AppItemViewModel> FilteredItems { get; } = new();
+
+    private string _searchText = string.Empty;
 
     public MainWindow()
     {
@@ -30,13 +37,35 @@ public sealed partial class MainWindow : Window
     {
         foreach (var item in DataService.Load())
         {
-            Items.Add(new AppItemViewModel(item));
+            var vm = new AppItemViewModel(item);
+            Items.Add(vm);
+            FilteredItems.Add(vm);
+            _ = vm.LoadIconAsync();
         }
     }
 
     private void SaveItems()
     {
         DataService.Save(Items.Select(vm => vm.ToModel()));
+    }
+
+    private void ApplyFilter(string text)
+    {
+        _searchText = text;
+        FilteredItems.Clear();
+        foreach (var vm in Items)
+        {
+            if (string.IsNullOrEmpty(text) ||
+                vm.DisplayName.Contains(text, StringComparison.OrdinalIgnoreCase))
+            {
+                FilteredItems.Add(vm);
+            }
+        }
+    }
+
+    private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        ApplyFilter(sender.Text);
     }
 
     private async void AddButton_Click(object sender, RoutedEventArgs e)
@@ -51,23 +80,30 @@ public sealed partial class MainWindow : Window
         if (file is null)
             return;
 
+        await AddItemFromPathAsync(file.Path);
+    }
+
+    private async Task AddItemFromPathAsync(string filePath)
+    {
         var item = new AppItem
         {
-            DisplayName = Path.GetFileNameWithoutExtension(file.Name),
-            FilePath = file.Path,
-            WorkingDirectory = Path.GetDirectoryName(file.Path) ?? string.Empty
+            DisplayName = Path.GetFileNameWithoutExtension(filePath),
+            FilePath = filePath,
+            WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
         };
 
         var vm = new AppItemViewModel(item);
-
+        var hwnd = WindowNative.GetWindowHandle(this);
         var dialog = new EditItemDialog(vm, hwnd);
         dialog.XamlRoot = Content.XamlRoot;
-        dialog.Title = "Add Item";
+        dialog.Title = Loc.GetString("AddItemTitle");
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
             dialog.ApplyTo(vm);
             Items.Add(vm);
+            ApplyFilter(_searchText);
+            _ = vm.LoadIconAsync();
             SaveItems();
         }
     }
@@ -116,6 +152,8 @@ public sealed partial class MainWindow : Window
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 dialog.ApplyTo(vm);
+                ApplyFilter(_searchText);
+                _ = vm.LoadIconAsync();
                 SaveItems();
             }
         }
@@ -131,10 +169,10 @@ public sealed partial class MainWindow : Window
 
             var confirmDialog = new ContentDialog
             {
-                Title = "Delete Item",
-                Content = $"Are you sure you want to delete \"{vm.DisplayName}\"?",
-                PrimaryButtonText = "Delete",
-                CloseButtonText = "Cancel",
+                Title = Loc.GetString("DeleteItemTitle"),
+                Content = string.Format(Loc.GetString("DeleteItemContent"), vm.DisplayName),
+                PrimaryButtonText = Loc.GetString("DeleteButton"),
+                CloseButtonText = Loc.GetString("CancelButton"),
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = Content.XamlRoot
             };
@@ -142,8 +180,70 @@ public sealed partial class MainWindow : Window
             if (await confirmDialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 Items.Remove(vm);
+                FilteredItems.Remove(vm);
                 SaveItems();
             }
+        }
+    }
+
+    private void RootGrid_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = Loc.GetString("DragDropCaption");
+            e.DragUIOverride.IsGlyphVisible = true;
+        }
+        else
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+        }
+    }
+
+    private async void RootGrid_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            return;
+
+        var deferral = e.GetDeferral();
+        try
+        {
+            var storageItems = await e.DataView.GetStorageItemsAsync();
+            foreach (var storageItem in storageItems.OfType<StorageFile>())
+            {
+                var filePath = storageItem.Path;
+
+                if (storageItem.FileType.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+                {
+                    filePath = ResolveLnkTarget(storageItem.Path) ?? storageItem.Path;
+                }
+
+                if (filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                    File.Exists(filePath))
+                {
+                    await AddItemFromPathAsync(filePath);
+                }
+            }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    private static string? ResolveLnkTarget(string lnkPath)
+    {
+        try
+        {
+            var shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType == null) return null;
+            dynamic shell = Activator.CreateInstance(shellType)!;
+            dynamic shortcut = shell.CreateShortcut(lnkPath);
+            return (string)shortcut.TargetPath;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -160,6 +260,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     private string _arguments = string.Empty;
     private string _workingDirectory = string.Empty;
     private bool _runAsAdmin;
+    private BitmapImage? _iconSource;
 
     public Guid Id { get; }
 
@@ -172,7 +273,16 @@ public class AppItemViewModel : INotifyPropertyChanged
     public string FilePath
     {
         get => _filePath;
-        set { if (_filePath != value) { _filePath = value; OnPropertyChanged(); } }
+        set
+        {
+            if (_filePath != value)
+            {
+                if (_filePath.Length > 0)
+                    IconService.InvalidateCache(Id);
+                _filePath = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public string Arguments
@@ -193,6 +303,12 @@ public class AppItemViewModel : INotifyPropertyChanged
         set { if (_runAsAdmin != value) { _runAsAdmin = value; OnPropertyChanged(); } }
     }
 
+    public BitmapImage? IconSource
+    {
+        get => _iconSource;
+        private set { _iconSource = value; OnPropertyChanged(); }
+    }
+
     public AppItemViewModel(AppItem model)
     {
         Id = model.Id;
@@ -201,6 +317,11 @@ public class AppItemViewModel : INotifyPropertyChanged
         _arguments = model.Arguments;
         _workingDirectory = model.WorkingDirectory;
         _runAsAdmin = model.RunAsAdmin;
+    }
+
+    public async Task LoadIconAsync()
+    {
+        IconSource = await IconService.GetIconAsync(FilePath, Id);
     }
 
     public AppItem ToModel() => new()

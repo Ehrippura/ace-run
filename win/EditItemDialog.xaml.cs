@@ -2,6 +2,7 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage.Pickers;
+using ace_run.Services;
 using WinRT.Interop;
 
 namespace ace_run;
@@ -16,6 +17,9 @@ public sealed partial class EditItemDialog : ContentDialog
         InitializeComponent();
         _viewModel = viewModel;
         _hwnd = hwnd;
+
+        PrimaryButtonText = Loc.GetString("SaveButton");
+        CloseButtonText = Loc.GetString("CancelButton");
 
         DisplayNameBox.Text = viewModel.DisplayName;
         FilePathBox.Text = viewModel.FilePath;

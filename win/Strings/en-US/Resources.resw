@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <!-- MainWindow -->
+  <data name="AddButtonLabel.Text" xml:space="preserve"><value>Add</value></data>
+  <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
+  <data name="EditMenuItem.Text" xml:space="preserve"><value>Edit</value></data>
+  <data name="DeleteMenuItem.Text" xml:space="preserve"><value>Delete</value></data>
+  <data name="LaunchButton.ToolTipService.ToolTip" xml:space="preserve"><value>Launch</value></data>
+
+  <!-- Dynamic strings used in code-behind -->
+  <data name="AddItemTitle" xml:space="preserve"><value>Add Item</value></data>
+  <data name="DeleteItemTitle" xml:space="preserve"><value>Delete Item</value></data>
+  <data name="DeleteItemContent" xml:space="preserve"><value>Are you sure you want to delete "{0}"?</value></data>
+  <data name="DeleteButton" xml:space="preserve"><value>Delete</value></data>
+  <data name="CancelButton" xml:space="preserve"><value>Cancel</value></data>
+  <data name="SaveButton" xml:space="preserve"><value>Save</value></data>
+  <data name="DragDropCaption" xml:space="preserve"><value>Add to Ace Run</value></data>
+
+  <!-- EditItemDialog -->
+  <data name="DisplayNameBox.Header" xml:space="preserve"><value>Display Name</value></data>
+  <data name="DisplayNameBox.PlaceholderText" xml:space="preserve"><value>Application name</value></data>
+  <data name="FilePathBox.Header" xml:space="preserve"><value>File Path</value></data>
+  <data name="FilePathBox.PlaceholderText" xml:space="preserve"><value>Path to .exe file</value></data>
+  <data name="ArgumentsBox.Header" xml:space="preserve"><value>Arguments</value></data>
+  <data name="ArgumentsBox.PlaceholderText" xml:space="preserve"><value>e.g. --incognito --new-window</value></data>
+  <data name="WorkingDirectoryBox.Header" xml:space="preserve"><value>Working Directory</value></data>
+  <data name="WorkingDirectoryBox.PlaceholderText" xml:space="preserve"><value>Defaults to exe folder</value></data>
+  <data name="RunAsAdminSwitch.Header" xml:space="preserve"><value>Run as Administrator</value></data>
+  <data name="BrowseFileButton.Content" xml:space="preserve"><value>Browse</value></data>
+  <data name="BrowseFolderButton.Content" xml:space="preserve"><value>Browse</value></data>
+</root>
