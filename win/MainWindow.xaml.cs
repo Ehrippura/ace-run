@@ -33,6 +33,7 @@ public sealed partial class MainWindow : Window
 
         SearchResultsView.ItemsSource = _searchResults;
         LoadItems();
+        RestoreWindowSize();
         Closed += MainWindow_Closed;
     }
 
@@ -650,14 +651,35 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        SaveWindowSize();
+
         // If tray is enabled, hide instead of closing
         if (App.TrayEnabled)
         {
             args.Handled = true;
-            var appWindow = this.AppWindow;
-            appWindow.Hide();
+            this.AppWindow.Hide();
             return;
         }
         SaveItems();
+    }
+
+    private void RestoreWindowSize()
+    {
+        var ws = _appData.WindowState;
+        if (ws is not null && ws.Width > 0 && ws.Height > 0)
+        {
+            this.AppWindow.Resize(new Windows.Graphics.SizeInt32(ws.Width, ws.Height));
+        }
+    }
+
+    private void SaveWindowSize()
+    {
+        var size = this.AppWindow.Size;
+        _appData.WindowState = new Models.WindowState
+        {
+            Width = size.Width,
+            Height = size.Height
+        };
+        DataService.Save(_appData);
     }
 }
