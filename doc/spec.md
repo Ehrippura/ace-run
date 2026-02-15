@@ -15,45 +15,45 @@ Windows App Launcher - 需求規格書 (Feature Spec)
 
 2. 功能列表 (Feature List)
 
-第一階段：核心功能 (MVP)
+第一階段：核心功能 (MVP) ✓ 已完成
 
 目標：完成最小可行性產品，能存、能看、能跑。
     1. 新增啟動項目 (Add Item)
-        [ ] 實作 FileOpenPicker 讓使用者選擇 .exe 檔案。
-        [ ] 自動從選擇的檔案路徑截取檔名作為「預設標題」。
+        [x] 實作 FileOpenPicker 讓使用者選擇 .exe 檔案。
+        [x] 自動從選擇的檔案路徑截取檔名作為「預設標題」。
 
     2. 項目列表 (List View)
-        [ ] 使用 ListView 或 GridView 顯示已加入的應用程式。
-        [ ] 每個項目需顯示：顯示名稱 (Display Name) 與 檔案路徑 (File Path)。
-        [ ] 項目顯示的名稱可以任意重新命名。
+        [x] 使用 ListView 顯示已加入的應用程式。
+        [x] 每個項目顯示顯示名稱 (Display Name)，檔案路徑以 ToolTip 方式於滑鼠懸停時呈現。
 
     3. 執行程式 (Execute)
-        [ ] 點擊列表項目或「啟動」按鈕。
-        [ ] 依據儲存的路徑啟動外部程式。
+        [x] 點擊「啟動」按鈕，依據儲存的路徑啟動外部程式。
 
     4. 資料持久化 (Persistence)
-        [ ] 定義資料模型 (Data Model)。
-        [ ] 應用程式關閉時，將列表序列化為 JSON 儲存。
-        [ ] 應用程式開啟時，讀取 JSON 並還原列表。
+        [x] 定義資料模型 (AppItem)，包含 Id、DisplayName、FilePath 等屬性。
+        [x] 應用程式關閉時，將列表序列化為 JSON 儲存至 LocalAppData\AceRun\apps.json。
+        [x] 應用程式開啟時，讀取 JSON 並還原列表。
 
-第二階段：進階設定 (Advanced Config)
+第二階段：進階設定 (Advanced Config) ✓ 已完成
 
 目標：解決特殊程式（如遊戲、開發工具）的啟動需求。
 
     1. 啟動參數 (Arguments)
-        [ ] 在新增/編輯頁面增加「參數」輸入框 (TextBox)。
-        [ ] 支援傳遞參數給執行檔 (例如：chrome.exe --incognito)。
+        [x] 在新增/編輯對話框 (EditItemDialog) 增加「參數」輸入框。
+        [x] 支援傳遞參數給執行檔 (例如：chrome.exe --incognito)。
 
     2. 自訂工作目錄 (Working Directory)
-        [ ] 預設將「工作目錄」設為該 .exe 所在的資料夾。
-        [ ] 允許使用者手動修改（解決舊遊戲找不到資源檔的問題）。
+        [x] 新增項目時，預設將「工作目錄」設為該 .exe 所在的資料夾。
+        [x] 允許使用者透過 FolderPicker 手動修改工作目錄。
 
     3. 管理員模式 (Run as Administrator)
-        [ ] 在項目設定中加入 ToggleSwitch。
+        [x] 在編輯對話框中加入 ToggleSwitch，啟用時以 runas verb 啟動程式。
 
     4. 編輯與刪除 (CRUD)
-        [ ] 實作右鍵選單 (Context Menu) 或項目內按鈕。
-        [ ] 功能：編輯 (修改路徑/參數)、刪除 (從列表中移除)。
+        [x] 實作右鍵選單 (MenuFlyout Context Menu)，包含「Edit」與「Delete」選項。
+        [x] 編輯：開啟 ContentDialog，可修改所有欄位（名稱、路徑、參數、工作目錄、管理員模式）。
+        [x] 刪除：彈出確認對話框後從列表中移除，變更即時儲存。
+        [x] 新增項目時同樣使用編輯對話框，讓使用者在加入前預覽與調整設定。
 
 第三階段：使用者體驗優化 (UX Polish)
 

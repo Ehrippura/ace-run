@@ -41,8 +41,9 @@ public sealed partial class MainWindow : Window
 
     private async void AddButton_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new FileOpenPicker();
         var hwnd = WindowNative.GetWindowHandle(this);
+
+        var picker = new FileOpenPicker();
         InitializeWithWindow.Initialize(picker, hwnd);
         picker.FileTypeFilter.Add(".exe");
 
@@ -53,10 +54,22 @@ public sealed partial class MainWindow : Window
         var item = new AppItem
         {
             DisplayName = Path.GetFileNameWithoutExtension(file.Name),
-            FilePath = file.Path
+            FilePath = file.Path,
+            WorkingDirectory = Path.GetDirectoryName(file.Path) ?? string.Empty
         };
-        Items.Add(new AppItemViewModel(item));
-        SaveItems();
+
+        var vm = new AppItemViewModel(item);
+
+        var dialog = new EditItemDialog(vm, hwnd);
+        dialog.XamlRoot = Content.XamlRoot;
+        dialog.Title = "Add Item";
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            dialog.ApplyTo(vm);
+            Items.Add(vm);
+            SaveItems();
+        }
     }
 
     private void LaunchButton_Click(object sender, RoutedEventArgs e)
@@ -69,11 +82,17 @@ public sealed partial class MainWindow : Window
 
             try
             {
-                Process.Start(new ProcessStartInfo
+                var psi = new ProcessStartInfo
                 {
                     FileName = item.FilePath,
+                    Arguments = item.Arguments,
+                    WorkingDirectory = item.WorkingDirectory,
                     UseShellExecute = true
-                });
+                };
+                if (item.RunAsAdmin)
+                    psi.Verb = "runas";
+
+                Process.Start(psi);
             }
             catch (Exception ex)
             {
@@ -82,9 +101,50 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void DisplayName_LostFocus(object sender, RoutedEventArgs e)
+    private async void EditItem_Click(object sender, RoutedEventArgs e)
     {
-        SaveItems();
+        if (sender is MenuFlyoutItem menuItem && menuItem.Tag is Guid id)
+        {
+            var vm = Items.FirstOrDefault(i => i.Id == id);
+            if (vm is null)
+                return;
+
+            var hwnd = WindowNative.GetWindowHandle(this);
+            var dialog = new EditItemDialog(vm, hwnd);
+            dialog.XamlRoot = Content.XamlRoot;
+
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                dialog.ApplyTo(vm);
+                SaveItems();
+            }
+        }
+    }
+
+    private async void DeleteItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem menuItem && menuItem.Tag is Guid id)
+        {
+            var vm = Items.FirstOrDefault(i => i.Id == id);
+            if (vm is null)
+                return;
+
+            var confirmDialog = new ContentDialog
+            {
+                Title = "Delete Item",
+                Content = $"Are you sure you want to delete \"{vm.DisplayName}\"?",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
+
+            if (await confirmDialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                Items.Remove(vm);
+                SaveItems();
+            }
+        }
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
@@ -96,35 +156,61 @@ public sealed partial class MainWindow : Window
 public class AppItemViewModel : INotifyPropertyChanged
 {
     private string _displayName = string.Empty;
+    private string _filePath = string.Empty;
+    private string _arguments = string.Empty;
+    private string _workingDirectory = string.Empty;
+    private bool _runAsAdmin;
 
     public Guid Id { get; }
-    public string FilePath { get; }
 
     public string DisplayName
     {
         get => _displayName;
-        set
-        {
-            if (_displayName != value)
-            {
-                _displayName = value;
-                OnPropertyChanged();
-            }
-        }
+        set { if (_displayName != value) { _displayName = value; OnPropertyChanged(); } }
+    }
+
+    public string FilePath
+    {
+        get => _filePath;
+        set { if (_filePath != value) { _filePath = value; OnPropertyChanged(); } }
+    }
+
+    public string Arguments
+    {
+        get => _arguments;
+        set { if (_arguments != value) { _arguments = value; OnPropertyChanged(); } }
+    }
+
+    public string WorkingDirectory
+    {
+        get => _workingDirectory;
+        set { if (_workingDirectory != value) { _workingDirectory = value; OnPropertyChanged(); } }
+    }
+
+    public bool RunAsAdmin
+    {
+        get => _runAsAdmin;
+        set { if (_runAsAdmin != value) { _runAsAdmin = value; OnPropertyChanged(); } }
     }
 
     public AppItemViewModel(AppItem model)
     {
         Id = model.Id;
-        FilePath = model.FilePath;
+        _filePath = model.FilePath;
         _displayName = model.DisplayName;
+        _arguments = model.Arguments;
+        _workingDirectory = model.WorkingDirectory;
+        _runAsAdmin = model.RunAsAdmin;
     }
 
     public AppItem ToModel() => new()
     {
         Id = Id,
         DisplayName = DisplayName,
-        FilePath = FilePath
+        FilePath = FilePath,
+        Arguments = Arguments,
+        WorkingDirectory = WorkingDirectory,
+        RunAsAdmin = RunAsAdmin
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;
