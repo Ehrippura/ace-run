@@ -70,9 +70,9 @@
                 <local:TreeItemTemplateSelector x:Key="TreeSelector">
                     <local:TreeItemTemplateSelector.AppTemplate>
                         <DataTemplate>
-                            <Grid Padding="4,8"
+                            <Grid Padding="4,4"
                                   ColumnDefinitions="Auto,*,Auto"
-                                  MinHeight="44">
+                                  MinHeight="32">
                                 <Image Grid.Column="0"
                                        Source="{Binding Content.IconSource, Mode=OneWay}"
                                        Width="20" Height="20"
@@ -98,9 +98,12 @@
                     </local:TreeItemTemplateSelector.AppTemplate>
                     <local:TreeItemTemplateSelector.FolderTemplate>
                         <DataTemplate>
-                            <Grid Padding="4,8"
-                                  ColumnDefinitions="Auto,*"
-                                  MinHeight="44">
+                            <Grid Padding="4,4"
+                                  MinHeight="32">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
                                 <FontIcon Grid.Column="0"
                                           Glyph="&#xE8B7;"
                                           FontSize="18"
@@ -129,9 +132,9 @@
                   SelectionMode="None">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:AppItemViewModel">
-                    <Grid Padding="4,8"
+                    <Grid Padding="4,4"
                           ColumnDefinitions="Auto,*,Auto"
-                          MinHeight="44"
+                          MinHeight="32"
                           ToolTipService.ToolTip="{x:Bind FilePath}">
                         <Image Grid.Column="0"
                                Source="{x:Bind IconSource, Mode=OneWay}"
