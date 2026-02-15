@@ -1,50 +1,144 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using System.Diagnostics;
+using System.Drawing;
+using System.Windows.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using H.NotifyIcon;
+using ace_run.Models;
+using ace_run.Services;
 
 namespace ace_run
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : Application
     {
-        private Window? _window;
+        private MainWindow? _window;
+        private TaskbarIcon? _trayIcon;
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
+        public static bool TrayEnabled { get; private set; }
+
         public App()
         {
             InitializeComponent();
         }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             _window = new MainWindow();
             _window.Activate();
+            _window.AttachContextMenus();
+
+            InitializeTrayIcon();
         }
+
+        private void InitializeTrayIcon()
+        {
+            try
+            {
+                _trayIcon = new TaskbarIcon();
+                _trayIcon.ToolTipText = "Ace Run";
+
+                // Use generated icon (blue "A" on transparent background)
+                using var bitmap = new Bitmap(32, 32);
+                using (var g = Graphics.FromImage(bitmap))
+                {
+                    g.Clear(Color.Transparent);
+                    using var font = new Font("Segoe UI", 18, FontStyle.Bold);
+                    using var brush = new SolidBrush(Color.FromArgb(0, 120, 212));
+                    g.DrawString("A", font, brush, 2, 2);
+                }
+                _trayIcon.Icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+
+                _trayIcon.DoubleClickCommand = new RelayCommand(ShowWindow);
+                _trayIcon.ContextMenuMode = ContextMenuMode.PopupMenu;
+
+                TrayEnabled = true;
+                UpdateTrayContextMenu();
+
+                _trayIcon.ForceCreate();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Tray icon init failed: {ex.Message}");
+                TrayEnabled = false;
+            }
+        }
+
+        private void UpdateTrayContextMenu()
+        {
+            if (_trayIcon is null || _window is null)
+                return;
+
+            var menu = new MenuFlyout();
+
+            // Show
+            var showItem = new MenuFlyoutItem { Text = Loc.GetString("TrayShow") };
+            showItem.Click += (_, _) => ShowWindow();
+            menu.Items.Add(showItem);
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
+            // Recent launches
+            var recents = _window.GetRecentLaunches();
+            if (recents.Count > 0)
+            {
+                foreach (var recent in recents)
+                {
+                    var recentItem = new MenuFlyoutItem { Text = recent.DisplayName };
+                    var filePath = recent.FilePath;
+                    recentItem.Click += (_, _) =>
+                    {
+                        try
+                        {
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = filePath,
+                                UseShellExecute = true
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Failed to launch recent: {ex.Message}");
+                        }
+                    };
+                    menu.Items.Add(recentItem);
+                }
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+
+            // Exit
+            var exitItem = new MenuFlyoutItem { Text = Loc.GetString("TrayExit") };
+            exitItem.Click += (_, _) => ExitApp();
+            menu.Items.Add(exitItem);
+
+            _trayIcon.ContextFlyout = menu;
+        }
+
+        private void ShowWindow()
+        {
+            if (_window is null) return;
+            _window.AppWindow.Show();
+            _window.Activate();
+            UpdateTrayContextMenu();
+        }
+
+        private void ExitApp()
+        {
+            TrayEnabled = false;
+            _trayIcon?.Dispose();
+            _trayIcon = null;
+            _window?.Close();
+        }
+    }
+
+    internal class RelayCommand : ICommand
+    {
+        private readonly Action _execute;
+        public RelayCommand(Action execute) => _execute = execute;
+#pragma warning disable CS0067
+        public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
+        public bool CanExecute(object? parameter) => true;
+        public void Execute(object? parameter) => _execute();
     }
 }

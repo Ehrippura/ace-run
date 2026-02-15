@@ -7,6 +7,7 @@
 
   <!-- MainWindow -->
   <data name="AddButtonLabel.Text" xml:space="preserve"><value>Add</value></data>
+  <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>New Folder</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>Edit</value></data>
   <data name="DeleteMenuItem.Text" xml:space="preserve"><value>Delete</value></data>
@@ -20,6 +21,18 @@
   <data name="CancelButton" xml:space="preserve"><value>Cancel</value></data>
   <data name="SaveButton" xml:space="preserve"><value>Save</value></data>
   <data name="DragDropCaption" xml:space="preserve"><value>Add to Ace Run</value></data>
+
+  <!-- Folder operations -->
+  <data name="NewFolderTitle" xml:space="preserve"><value>New Folder</value></data>
+  <data name="FolderNamePlaceholder" xml:space="preserve"><value>Folder name</value></data>
+  <data name="DefaultFolderName" xml:space="preserve"><value>New Folder</value></data>
+  <data name="RenameFolder" xml:space="preserve"><value>Rename</value></data>
+  <data name="DeleteFolder" xml:space="preserve"><value>Delete Folder</value></data>
+  <data name="DeleteFolderContent" xml:space="preserve"><value>Are you sure you want to delete folder "{0}" and all its contents?</value></data>
+
+  <!-- System Tray -->
+  <data name="TrayShow" xml:space="preserve"><value>Show</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
 
   <!-- EditItemDialog -->
   <data name="DisplayNameBox.Header" xml:space="preserve"><value>Display Name</value></data>

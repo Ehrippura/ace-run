@@ -15,6 +15,16 @@ internal static class Loc
         ["CancelButton"] = "Cancel",
         ["SaveButton"] = "Save",
         ["DragDropCaption"] = "Add to Ace Run",
+        ["EditMenuItem.Text"] = "Edit",
+        ["DeleteMenuItem.Text"] = "Delete",
+        ["NewFolderTitle"] = "New Folder",
+        ["FolderNamePlaceholder"] = "Folder name",
+        ["DefaultFolderName"] = "New Folder",
+        ["RenameFolder"] = "Rename",
+        ["DeleteFolder"] = "Delete Folder",
+        ["DeleteFolderContent"] = "Are you sure you want to delete folder \"{0}\" and all its contents?",
+        ["TrayShow"] = "Show",
+        ["TrayExit"] = "Exit",
     };
 
     static Loc()

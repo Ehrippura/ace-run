@@ -21,11 +21,21 @@
           Drop="RootGrid_Drop">
 
         <!-- Title bar area -->
-        <Grid Grid.Row="0" Padding="16,12" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="0" Padding="16,12" ColumnDefinitions="*,Auto,Auto">
             <TextBlock Text="Ace Run"
                        Style="{StaticResource TitleTextBlockStyle}"
                        VerticalAlignment="Center" />
             <Button Grid.Column="1"
+                    x:Name="NewFolderButton"
+                    Click="NewFolderButton_Click"
+                    VerticalAlignment="Center"
+                    Margin="0,0,8,0">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+                    <TextBlock x:Uid="NewFolderButtonLabel" Text="New Folder" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="2"
                     x:Name="AddButton"
                     Click="AddButton_Click"
                     Style="{StaticResource AccentButtonStyle}"
@@ -46,10 +56,75 @@
                         QueryIcon="Find"
                         TextChanged="SearchBox_TextChanged" />
 
-        <!-- App list -->
+        <!-- Tree view (normal mode) -->
+        <TreeView Grid.Row="2"
+                  x:Name="AppTreeView"
+                  Padding="8,0,8,8"
+                  SelectionMode="None"
+                  CanDragItems="True"
+                  CanReorderItems="False"
+                  ItemInvoked="AppTreeView_ItemInvoked"
+                  DragItemsStarting="AppTreeView_DragItemsStarting"
+                  DragItemsCompleted="AppTreeView_DragItemsCompleted">
+            <TreeView.Resources>
+                <local:TreeItemTemplateSelector x:Key="TreeSelector">
+                    <local:TreeItemTemplateSelector.AppTemplate>
+                        <DataTemplate>
+                            <Grid Padding="4,8"
+                                  ColumnDefinitions="Auto,*,Auto"
+                                  MinHeight="44">
+                                <Image Grid.Column="0"
+                                       Source="{Binding Content.IconSource, Mode=OneWay}"
+                                       Width="20" Height="20"
+                                       Margin="4,0,8,0"
+                                       VerticalAlignment="Center"
+                                       Stretch="Uniform" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Content.DisplayName, Mode=OneWay}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTipService.ToolTip="{Binding Content.FilePath, Mode=OneWay}" />
+                                <Button Grid.Column="2"
+                                        x:Uid="LaunchButton"
+                                        Tag="{Binding Content.Id}"
+                                        Click="LaunchButton_Click"
+                                        VerticalAlignment="Center"
+                                        ToolTipService.ToolTip="Launch">
+                                    <FontIcon Glyph="&#xE768;" FontSize="16" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </local:TreeItemTemplateSelector.AppTemplate>
+                    <local:TreeItemTemplateSelector.FolderTemplate>
+                        <DataTemplate>
+                            <Grid Padding="4,8"
+                                  ColumnDefinitions="Auto,*"
+                                  MinHeight="44">
+                                <FontIcon Grid.Column="0"
+                                          Glyph="&#xE8B7;"
+                                          FontSize="18"
+                                          Margin="4,0,8,0"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Content.DisplayName, Mode=OneWay}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </DataTemplate>
+                    </local:TreeItemTemplateSelector.FolderTemplate>
+                </local:TreeItemTemplateSelector>
+            </TreeView.Resources>
+            <TreeView.ItemTemplateSelector>
+                <StaticResource ResourceKey="TreeSelector" />
+            </TreeView.ItemTemplateSelector>
+        </TreeView>
+
+        <!-- Search results (filtered mode) -->
         <ListView Grid.Row="2"
-                  x:Name="AppListView"
-                  ItemsSource="{x:Bind FilteredItems}"
+                  x:Name="SearchResultsView"
+                  Visibility="Collapsed"
                   Padding="8,0,8,8"
                   SelectionMode="None">
             <ListView.ItemTemplate>
@@ -58,43 +133,17 @@
                           ColumnDefinitions="Auto,*,Auto"
                           MinHeight="44"
                           ToolTipService.ToolTip="{x:Bind FilePath}">
-                        <Grid.ContextFlyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem x:Uid="EditMenuItem"
-                                                Text="Edit"
-                                                Click="EditItem_Click"
-                                                Tag="{x:Bind Id}">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE70F;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Uid="DeleteMenuItem"
-                                                Text="Delete"
-                                                Click="DeleteItem_Click"
-                                                Tag="{x:Bind Id}">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE74D;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </Grid.ContextFlyout>
-
-                        <!-- App icon -->
                         <Image Grid.Column="0"
                                Source="{x:Bind IconSource, Mode=OneWay}"
                                Width="20" Height="20"
                                Margin="4,0,8,0"
                                VerticalAlignment="Center"
                                Stretch="Uniform" />
-
-                        <!-- Display name -->
                         <TextBlock Grid.Column="1"
                                    Text="{x:Bind DisplayName, Mode=OneWay}"
                                    FontSize="14" FontWeight="SemiBold"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis" />
-
-                        <!-- Launch button -->
                         <Button Grid.Column="2"
                                 x:Uid="LaunchButton"
                                 Tag="{x:Bind Id}"

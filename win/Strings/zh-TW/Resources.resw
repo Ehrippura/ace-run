@@ -7,6 +7,7 @@
 
   <!-- MainWindow -->
   <data name="AddButtonLabel.Text" xml:space="preserve"><value>新增</value></data>
+  <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>新增資料夾</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>搜尋應用程式...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>編輯</value></data>
   <data name="DeleteMenuItem.Text" xml:space="preserve"><value>刪除</value></data>
@@ -20,6 +21,18 @@
   <data name="CancelButton" xml:space="preserve"><value>取消</value></data>
   <data name="SaveButton" xml:space="preserve"><value>儲存</value></data>
   <data name="DragDropCaption" xml:space="preserve"><value>新增至 Ace Run</value></data>
+
+  <!-- Folder operations -->
+  <data name="NewFolderTitle" xml:space="preserve"><value>新增資料夾</value></data>
+  <data name="FolderNamePlaceholder" xml:space="preserve"><value>資料夾名稱</value></data>
+  <data name="DefaultFolderName" xml:space="preserve"><value>新增資料夾</value></data>
+  <data name="RenameFolder" xml:space="preserve"><value>重新命名</value></data>
+  <data name="DeleteFolder" xml:space="preserve"><value>刪除資料夾</value></data>
+  <data name="DeleteFolderContent" xml:space="preserve"><value>確定要刪除資料夾「{0}」及其所有內容嗎？</value></data>
+
+  <!-- System Tray -->
+  <data name="TrayShow" xml:space="preserve"><value>顯示</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>結束</value></data>
 
   <!-- EditItemDialog -->
   <data name="DisplayNameBox.Header" xml:space="preserve"><value>顯示名稱</value></data>
