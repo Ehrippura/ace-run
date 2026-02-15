@@ -72,8 +72,11 @@ namespace ace_run
             var menu = new MenuFlyout();
 
             // Show
-            var showItem = new MenuFlyoutItem { Text = Loc.GetString("TrayShow") };
-            showItem.Click += (_, _) => ShowWindow();
+            var showItem = new MenuFlyoutItem
+            {
+                Text = Loc.GetString("TrayShow"),
+                Command = new RelayCommand(ShowWindow)
+            };
             menu.Items.Add(showItem);
 
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -84,22 +87,25 @@ namespace ace_run
             {
                 foreach (var recent in recents)
                 {
-                    var recentItem = new MenuFlyoutItem { Text = recent.DisplayName };
                     var filePath = recent.FilePath;
-                    recentItem.Click += (_, _) =>
+                    var recentItem = new MenuFlyoutItem
                     {
-                        try
+                        Text = recent.DisplayName,
+                        Command = new RelayCommand(() =>
                         {
-                            Process.Start(new ProcessStartInfo
+                            try
                             {
-                                FileName = filePath,
-                                UseShellExecute = true
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Failed to launch recent: {ex.Message}");
-                        }
+                                Process.Start(new ProcessStartInfo
+                                {
+                                    FileName = filePath,
+                                    UseShellExecute = true
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Failed to launch recent: {ex.Message}");
+                            }
+                        })
                     };
                     menu.Items.Add(recentItem);
                 }
@@ -107,8 +113,11 @@ namespace ace_run
             }
 
             // Exit
-            var exitItem = new MenuFlyoutItem { Text = Loc.GetString("TrayExit") };
-            exitItem.Click += (_, _) => ExitApp();
+            var exitItem = new MenuFlyoutItem
+            {
+                Text = Loc.GetString("TrayExit"),
+                Command = new RelayCommand(ExitApp)
+            };
             menu.Items.Add(exitItem);
 
             _trayIcon.ContextFlyout = menu;
@@ -128,6 +137,7 @@ namespace ace_run
             _trayIcon?.Dispose();
             _trayIcon = null;
             _window?.Close();
+            Environment.Exit(0);
         }
     }
 
