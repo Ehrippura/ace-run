@@ -42,6 +42,8 @@ public sealed partial class EditItemDialog : ContentDialog
         var picker = new FileOpenPicker();
         InitializeWithWindow.Initialize(picker, _hwnd);
         picker.FileTypeFilter.Add(".exe");
+        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+        picker.SettingsIdentifier = "AceRunOpenFilePicker";
 
         var file = await picker.PickSingleFileAsync();
         if (file is not null)
