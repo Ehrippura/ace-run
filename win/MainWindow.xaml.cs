@@ -31,6 +31,8 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        AppWindow.SetIcon("Assets/app-icon.ico");
+
         SearchResultsView.ItemsSource = _searchResults;
         LoadItems();
         RestoreWindowSize();

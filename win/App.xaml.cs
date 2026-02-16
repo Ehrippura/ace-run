@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Drawing;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,16 +37,8 @@ namespace ace_run
                 _trayIcon = new TaskbarIcon();
                 _trayIcon.ToolTipText = "Ace Run";
 
-                // Use generated icon (blue "A" on transparent background)
-                using var bitmap = new Bitmap(32, 32);
-                using (var g = Graphics.FromImage(bitmap))
-                {
-                    g.Clear(Color.Transparent);
-                    using var font = new Font("Segoe UI", 18, FontStyle.Bold);
-                    using var brush = new SolidBrush(Color.FromArgb(0, 120, 212));
-                    g.DrawString("A", font, brush, 2, 2);
-                }
-                _trayIcon.Icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+                var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "app-icon.ico");
+                _trayIcon.Icon = new System.Drawing.Icon(iconPath);
 
                 _trayIcon.DoubleClickCommand = new RelayCommand(ShowWindow);
                 _trayIcon.ContextMenuMode = ContextMenuMode.PopupMenu;
