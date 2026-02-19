@@ -24,6 +24,11 @@
   <data name="SaveButton" xml:space="preserve"><value>儲存</value></data>
   <data name="DragDropCaption" xml:space="preserve"><value>新增至 Ace Run</value></data>
 
+  <!-- Multi-select operations -->
+  <data name="DeleteSelectedMenuItem" xml:space="preserve"><value>刪除 {0} 個項目</value></data>
+  <data name="DeleteSelectedTitle" xml:space="preserve"><value>刪除項目</value></data>
+  <data name="DeleteSelectedContent" xml:space="preserve"><value>確定要刪除 {0} 個項目？資料夾將連同其內容一併刪除。</value></data>
+
   <!-- Folder operations -->
   <data name="NewFolderTitle" xml:space="preserve"><value>新增資料夾</value></data>
   <data name="FolderNamePlaceholder" xml:space="preserve"><value>資料夾名稱</value></data>

@@ -26,7 +26,7 @@ public sealed partial class MainWindow : Window
     private string _searchText = string.Empty;
 
     // Drag state
-    private TreeItemViewModel? _draggedItem;
+    private readonly List<TreeItemViewModel> _draggedItems = new();
     private TreeViewNode? _dragHoverNode;
     private readonly DispatcherTimer _dragExpandTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
 
@@ -106,16 +106,87 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void CommitSave()
+    {
+        SyncExpansionState(AppTreeView.RootNodes);
+        _appData.Items = BuildModelList(_rootItems);
+        DataService.Save(_appData);
+    }
+
     private void SaveItems()
     {
         if (!string.IsNullOrEmpty(_searchText))
             return; // Don't save while filtering
+        CommitSave();
+    }
 
-        // Sync expansion state from tree nodes
-        SyncExpansionState(AppTreeView.RootNodes);
+    private async Task DeleteItemsAsync(IList<TreeItemViewModel> targets)
+    {
+        if (targets.Count == 0) return;
 
-        _appData.Items = BuildModelList(_rootItems);
-        DataService.Save(_appData);
+        ContentDialog dialog;
+        if (targets.Count == 1 && targets[0] is AppItemViewModel singleApp)
+        {
+            dialog = new ContentDialog
+            {
+                Title = Loc.GetString("DeleteItemTitle"),
+                Content = string.Format(Loc.GetString("DeleteItemContent"), singleApp.DisplayName),
+                PrimaryButtonText = Loc.GetString("DeleteButton"),
+                CloseButtonText = Loc.GetString("CancelButton"),
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
+        }
+        else if (targets.Count == 1 && targets[0] is FolderViewModel singleFolder)
+        {
+            dialog = new ContentDialog
+            {
+                Title = Loc.GetString("DeleteFolder"),
+                Content = string.Format(Loc.GetString("DeleteFolderContent"), singleFolder.DisplayName),
+                PrimaryButtonText = Loc.GetString("DeleteButton"),
+                CloseButtonText = Loc.GetString("CancelButton"),
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
+        }
+        else
+        {
+            dialog = new ContentDialog
+            {
+                Title = Loc.GetString("DeleteSelectedTitle"),
+                Content = string.Format(Loc.GetString("DeleteSelectedContent"), targets.Count),
+                PrimaryButtonText = Loc.GetString("DeleteButton"),
+                CloseButtonText = Loc.GetString("CancelButton"),
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
+        }
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        foreach (var vm in targets)
+        {
+            RemoveViewModel(vm, _rootItems, AppTreeView.RootNodes);
+            foreach (var app in CollectAppItems(new[] { vm }))
+                _searchResults.Remove(app);
+        }
+
+        PurgeStaleRecentLaunches();
+        CommitSave();
+        ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    private static IEnumerable<AppItemViewModel> CollectAppItems(IEnumerable<TreeItemViewModel> items)
+    {
+        foreach (var item in items)
+        {
+            if (item is AppItemViewModel app)
+                yield return app;
+            else if (item is FolderViewModel folder)
+                foreach (var child in CollectAppItems(folder.Children))
+                    yield return child;
+        }
     }
 
     private bool PurgeStaleRecentLaunches()
@@ -171,7 +242,26 @@ public sealed partial class MainWindow : Window
     {
         var flyout = new MenuFlyout();
 
-        if (node.Content is AppItemViewModel appVm)
+        var selectedNodes = AppTreeView.SelectedNodes.Cast<TreeViewNode>().ToList();
+        bool isMultiSelect = selectedNodes.Count > 1 && selectedNodes.Contains(node);
+
+        if (isMultiSelect)
+        {
+            var targets = selectedNodes
+                .Select(n => n.Content as TreeItemViewModel)
+                .Where(v => v is not null)
+                .Cast<TreeItemViewModel>()
+                .ToList();
+
+            var deleteItem = new MenuFlyoutItem
+            {
+                Text = string.Format(Loc.GetString("DeleteSelectedMenuItem"), selectedNodes.Count),
+                Icon = new FontIcon { Glyph = "\uE74D" }
+            };
+            deleteItem.Click += async (_, _) => await DeleteItemsAsync(targets);
+            flyout.Items.Add(deleteItem);
+        }
+        else if (node.Content is AppItemViewModel appVm)
         {
             var editItem = new MenuFlyoutItem
             {
@@ -365,25 +455,7 @@ public sealed partial class MainWindow : Window
     private async void DeleteTreeItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem { Tag: AppItemViewModel vm })
-        {
-            var confirmDialog = new ContentDialog
-            {
-                Title = Loc.GetString("DeleteItemTitle"),
-                Content = string.Format(Loc.GetString("DeleteItemContent"), vm.DisplayName),
-                PrimaryButtonText = Loc.GetString("DeleteButton"),
-                CloseButtonText = Loc.GetString("CancelButton"),
-                DefaultButton = ContentDialogButton.Close,
-                XamlRoot = Content.XamlRoot
-            };
-
-            if (await confirmDialog.ShowAsync() == ContentDialogResult.Primary)
-            {
-                RemoveViewModel(vm, _rootItems, AppTreeView.RootNodes);
-                PurgeStaleRecentLaunches();
-                SaveItems();
-                ((App)Application.Current).UpdateTrayContextMenu();
-            }
-        }
+            await DeleteItemsAsync(new[] { vm });
     }
 
     private async void RenameFolder_Click(object sender, RoutedEventArgs e)
@@ -418,25 +490,7 @@ public sealed partial class MainWindow : Window
     private async void DeleteFolder_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem { Tag: FolderViewModel vm })
-        {
-            var confirmDialog = new ContentDialog
-            {
-                Title = Loc.GetString("DeleteFolder"),
-                Content = string.Format(Loc.GetString("DeleteFolderContent"), vm.DisplayName),
-                PrimaryButtonText = Loc.GetString("DeleteButton"),
-                CloseButtonText = Loc.GetString("CancelButton"),
-                DefaultButton = ContentDialogButton.Close,
-                XamlRoot = Content.XamlRoot
-            };
-
-            if (await confirmDialog.ShowAsync() == ContentDialogResult.Primary)
-            {
-                RemoveViewModel(vm, _rootItems, AppTreeView.RootNodes);
-                PurgeStaleRecentLaunches();
-                SaveItems();
-                ((App)Application.Current).UpdateTrayContextMenu();
-            }
-        }
+            await DeleteItemsAsync(new[] { vm });
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
@@ -565,14 +619,10 @@ public sealed partial class MainWindow : Window
 
     private void AppTreeView_DragItemsStarting(TreeView sender, TreeViewDragItemsStartingEventArgs args)
     {
-        if (args.Items.Count > 0 && args.Items[0] is TreeViewNode node)
-        {
-            _draggedItem = node.Content as TreeItemViewModel;
-        }
-        else
-        {
-            _draggedItem = null;
-        }
+        _draggedItems.Clear();
+        foreach (var obj in args.Items)
+            if (obj is TreeViewNode node && node.Content is TreeItemViewModel vm)
+                _draggedItems.Add(vm);
     }
 
     private void AppTreeView_DragItemsCompleted(TreeView sender, TreeViewDragItemsCompletedEventArgs args)
@@ -580,12 +630,12 @@ public sealed partial class MainWindow : Window
         _dragExpandTimer.Stop();
         _dragHoverNode = null;
 
-        if (_draggedItem is null)
+        if (_draggedItems.Count == 0)
             return;
 
         // Rebuild _rootItems from tree nodes
         RebuildRootItemsFromNodes();
-        _draggedItem = null;
+        _draggedItems.Clear();
         SaveItems();
     }
 
@@ -619,7 +669,7 @@ public sealed partial class MainWindow : Window
             e.DragUIOverride.Caption = Loc.GetString("DragDropCaption");
             e.DragUIOverride.IsGlyphVisible = true;
         }
-        else if (_draggedItem is not null)
+        else if (_draggedItems.Count > 0)
         {
             // Only allow move when the cursor is over a folder node
             var pos = e.GetPosition(null);
@@ -631,20 +681,22 @@ public sealed partial class MainWindow : Window
                 if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
             }
             var node = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
-            if (node?.Content is FolderViewModel)
+            var nodeVm = node?.Content as TreeItemViewModel;
+
+            if (nodeVm is FolderViewModel && !_draggedItems.Contains(nodeVm))
             {
                 e.AcceptedOperation = DataPackageOperation.Move;
                 if (_dragHoverNode != node)
                 {
                     _dragHoverNode = node;
                     _dragExpandTimer.Stop();
-                    if (!node.IsExpanded)
+                    if (!node!.IsExpanded)
                         _dragExpandTimer.Start();
                 }
             }
-            else if (node?.Content is AppItemViewModel)
+            else if (nodeVm is AppItemViewModel || (nodeVm is not null && _draggedItems.Contains(nodeVm)))
             {
-                // Cannot drop onto another app item
+                // Cannot drop onto an app item or a dragged item itself
                 e.AcceptedOperation = DataPackageOperation.None;
                 _dragHoverNode = null;
                 _dragExpandTimer.Stop();
@@ -719,6 +771,36 @@ public sealed partial class MainWindow : Window
     {
         AppTreeView.RightTapped += AppTreeView_RightTapped;
         AppTreeView.DoubleTapped += AppTreeView_DoubleTapped;
+        AppTreeView.KeyDown += AppTreeView_KeyDown;
+        SearchResultsView.KeyDown += SearchResultsView_KeyDown;
+    }
+
+    private async void AppTreeView_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Delete)
+        {
+            e.Handled = true;
+            var targets = AppTreeView.SelectedNodes
+                .Cast<TreeViewNode>()
+                .Select(n => n.Content as TreeItemViewModel)
+                .Where(v => v is not null)
+                .Cast<TreeItemViewModel>()
+                .ToList();
+            await DeleteItemsAsync(targets);
+        }
+    }
+
+    private async void SearchResultsView_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Delete)
+        {
+            e.Handled = true;
+            var targets = SearchResultsView.SelectedItems
+                .Cast<AppItemViewModel>()
+                .Cast<TreeItemViewModel>()
+                .ToList();
+            await DeleteItemsAsync(targets);
+        }
     }
 
     private void SearchResultsView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
