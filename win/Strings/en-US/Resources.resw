@@ -11,6 +11,7 @@
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>Edit</value></data>
   <data name="DeleteMenuItem.Text" xml:space="preserve"><value>Delete</value></data>
+  <data name="OpenFolderMenuItem.Text" xml:space="preserve"><value>Open File Location</value></data>
   <data name="LaunchButton.ToolTipService.ToolTip" xml:space="preserve"><value>Launch</value></data>
 
   <!-- Dynamic strings used in code-behind -->

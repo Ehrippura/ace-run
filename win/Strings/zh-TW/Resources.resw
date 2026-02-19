@@ -11,6 +11,7 @@
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>搜尋應用程式...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>編輯</value></data>
   <data name="DeleteMenuItem.Text" xml:space="preserve"><value>刪除</value></data>
+  <data name="OpenFolderMenuItem.Text" xml:space="preserve"><value>開啟資料夾</value></data>
   <data name="LaunchButton.ToolTipService.ToolTip" xml:space="preserve"><value>啟動</value></data>
 
   <!-- Dynamic strings used in code-behind -->

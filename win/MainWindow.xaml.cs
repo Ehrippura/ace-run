@@ -158,6 +158,17 @@ public sealed partial class MainWindow : Window
             };
             deleteItem.Click += DeleteTreeItem_Click;
             flyout.Items.Add(deleteItem);
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            var openFolderItem = new MenuFlyoutItem
+            {
+                Text = Loc.GetString("OpenFolderMenuItem.Text"),
+                Icon = new FontIcon { Glyph = "\uE838" },
+                Tag = appVm
+            };
+            openFolderItem.Click += OpenFolder_Click;
+            flyout.Items.Add(openFolderItem);
         }
         else if (node.Content is FolderViewModel folderVm)
         {
@@ -387,6 +398,23 @@ public sealed partial class MainWindow : Window
             {
                 RemoveViewModel(vm, _rootItems, AppTreeView.RootNodes);
                 SaveItems();
+            }
+        }
+    }
+
+    private void OpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: AppItemViewModel vm })
+        {
+            var dir = Path.GetDirectoryName(vm.FilePath);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{vm.FilePath}\"",
+                    UseShellExecute = true
+                });
             }
         }
     }
