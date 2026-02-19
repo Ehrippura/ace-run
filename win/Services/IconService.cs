@@ -14,15 +14,19 @@ internal static class IconService
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                      "AceRun", "icons");
 
-    public static async Task<BitmapImage?> GetIconAsync(string filePath, Guid itemId)
+    public static async Task<BitmapImage?> GetIconAsync(string filePath, Guid itemId, string? customIconPath = null)
     {
-        if (!File.Exists(filePath))
+        var iconSource = !string.IsNullOrEmpty(customIconPath) && File.Exists(customIconPath)
+            ? customIconPath
+            : filePath;
+
+        if (!File.Exists(iconSource))
             return null;
 
         var cachePath = Path.Combine(CacheDir, $"{itemId:N}.png");
 
         if (!File.Exists(cachePath))
-            await ExtractAndCacheIconAsync(filePath, cachePath);
+            await ExtractAndCacheIconAsync(iconSource, cachePath);
 
         if (!File.Exists(cachePath))
             return null;

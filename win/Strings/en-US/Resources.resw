@@ -48,4 +48,7 @@
   <data name="RunAsAdminSwitch.Header" xml:space="preserve"><value>Run as Administrator</value></data>
   <data name="BrowseFileButton.Content" xml:space="preserve"><value>Browse</value></data>
   <data name="BrowseFolderButton.Content" xml:space="preserve"><value>Browse</value></data>
+  <data name="CustomIconPathBox.Header" xml:space="preserve"><value>Custom Icon</value></data>
+  <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>Leave empty to use default (.ico or .exe)</value></data>
+  <data name="BrowseIconButton.Content" xml:space="preserve"><value>Browse</value></data>
 </root>

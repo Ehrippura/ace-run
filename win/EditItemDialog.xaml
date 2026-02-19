@@ -44,6 +44,19 @@
                     Grid.Column="1" />
         </Grid>
 
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="CustomIconPathBox"
+                     x:Uid="CustomIconPathBox"
+                     Header="Custom Icon"
+                     PlaceholderText="Leave empty to use default (.ico or .exe)"
+                     Grid.Column="0" />
+            <Button x:Uid="BrowseIconButton"
+                    Content="Browse"
+                    Click="BrowseIcon_Click"
+                    VerticalAlignment="Bottom"
+                    Grid.Column="1" />
+        </Grid>
+
         <ToggleSwitch x:Name="RunAsAdminSwitch"
                       x:Uid="RunAsAdminSwitch"
                       Header="Run as Administrator"

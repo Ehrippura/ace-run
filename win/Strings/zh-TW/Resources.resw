@@ -48,4 +48,7 @@
   <data name="RunAsAdminSwitch.Header" xml:space="preserve"><value>以系統管理員身分執行</value></data>
   <data name="BrowseFileButton.Content" xml:space="preserve"><value>瀏覽</value></data>
   <data name="BrowseFolderButton.Content" xml:space="preserve"><value>瀏覽</value></data>
+  <data name="CustomIconPathBox.Header" xml:space="preserve"><value>自訂圖示</value></data>
+  <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>留空則使用預設圖示（.ico 或 .exe）</value></data>
+  <data name="BrowseIconButton.Content" xml:space="preserve"><value>瀏覽</value></data>
 </root>

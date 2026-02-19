@@ -43,6 +43,7 @@ public class AppItemViewModel : TreeItemViewModel
     private string _arguments = string.Empty;
     private string _workingDirectory = string.Empty;
     private bool _runAsAdmin;
+    private string _customIconPath = string.Empty;
     private BitmapImage? _iconSource;
 
     public string FilePath
@@ -78,6 +79,20 @@ public class AppItemViewModel : TreeItemViewModel
         set { if (_runAsAdmin != value) { _runAsAdmin = value; OnPropertyChanged(); } }
     }
 
+    public string CustomIconPath
+    {
+        get => _customIconPath;
+        set
+        {
+            if (_customIconPath != value)
+            {
+                IconService.InvalidateCache(Id);
+                _customIconPath = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public BitmapImage? IconSource
     {
         get => _iconSource;
@@ -91,11 +106,12 @@ public class AppItemViewModel : TreeItemViewModel
         _arguments = model.Arguments;
         _workingDirectory = model.WorkingDirectory;
         _runAsAdmin = model.RunAsAdmin;
+        _customIconPath = model.CustomIconPath;
     }
 
     public async Task LoadIconAsync()
     {
-        IconSource = await IconService.GetIconAsync(FilePath, Id);
+        IconSource = await IconService.GetIconAsync(FilePath, Id, _customIconPath);
     }
 
     public override TreeItem ToModel() => new AppItem
@@ -105,7 +121,8 @@ public class AppItemViewModel : TreeItemViewModel
         FilePath = FilePath,
         Arguments = Arguments,
         WorkingDirectory = WorkingDirectory,
-        RunAsAdmin = RunAsAdmin
+        RunAsAdmin = RunAsAdmin,
+        CustomIconPath = CustomIconPath
     };
 }
 

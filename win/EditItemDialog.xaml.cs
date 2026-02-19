@@ -26,6 +26,7 @@ public sealed partial class EditItemDialog : ContentDialog
         ArgumentsBox.Text = viewModel.Arguments;
         WorkingDirectoryBox.Text = viewModel.WorkingDirectory;
         RunAsAdminSwitch.IsOn = viewModel.RunAsAdmin;
+        CustomIconPathBox.Text = viewModel.CustomIconPath;
     }
 
     public void ApplyTo(AppItemViewModel viewModel)
@@ -35,6 +36,7 @@ public sealed partial class EditItemDialog : ContentDialog
         viewModel.Arguments = ArgumentsBox.Text;
         viewModel.WorkingDirectory = WorkingDirectoryBox.Text;
         viewModel.RunAsAdmin = RunAsAdminSwitch.IsOn;
+        viewModel.CustomIconPath = CustomIconPathBox.Text;
     }
 
     private async void BrowseFile_Click(object sender, RoutedEventArgs e)
@@ -50,6 +52,20 @@ public sealed partial class EditItemDialog : ContentDialog
         {
             FilePathBox.Text = file.Path;
         }
+    }
+
+    private async void BrowseIcon_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker();
+        InitializeWithWindow.Initialize(picker, _hwnd);
+        picker.FileTypeFilter.Add(".ico");
+        picker.FileTypeFilter.Add(".exe");
+        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+        picker.SettingsIdentifier = "AceRunIconPicker";
+
+        var file = await picker.PickSingleFileAsync();
+        if (file is not null)
+            CustomIconPathBox.Text = file.Path;
     }
 
     private async void BrowseFolder_Click(object sender, RoutedEventArgs e)
