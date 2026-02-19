@@ -615,9 +615,17 @@ public sealed partial class MainWindow : Window
                         _dragExpandTimer.Start();
                 }
             }
+            else if (node?.Content is AppItemViewModel)
+            {
+                // Cannot drop onto another app item
+                e.AcceptedOperation = DataPackageOperation.None;
+                _dragHoverNode = null;
+                _dragExpandTimer.Stop();
+            }
             else
             {
-                e.AcceptedOperation = DataPackageOperation.None;
+                // No node under cursor = empty area, allow drop to root level
+                e.AcceptedOperation = DataPackageOperation.Move;
                 _dragHoverNode = null;
                 _dragExpandTimer.Stop();
             }
