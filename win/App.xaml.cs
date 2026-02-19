@@ -37,8 +37,8 @@ namespace ace_run
                 _trayIcon = new TaskbarIcon();
                 _trayIcon.ToolTipText = "Ace Run";
 
-                var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "app-icon.ico");
-                _trayIcon.Icon = new System.Drawing.Icon(iconPath);
+                using var stream = typeof(App).Assembly.GetManifestResourceStream("ace_run.Assets.app-icon.ico")!;
+                _trayIcon.Icon = new System.Drawing.Icon(stream);
 
                 _trayIcon.DoubleClickCommand = new RelayCommand(ShowWindow);
                 _trayIcon.ContextMenuMode = ContextMenuMode.PopupMenu;
