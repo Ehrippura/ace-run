@@ -27,12 +27,21 @@ public sealed partial class MainWindow : Window
 
     // Drag state
     private TreeItemViewModel? _draggedItem;
+    private TreeViewNode? _dragHoverNode;
+    private readonly DispatcherTimer _dragExpandTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
 
     public MainWindow()
     {
         InitializeComponent();
 
         AppWindow.SetIcon("Assets/app-icon.ico");
+
+        _dragExpandTimer.Tick += (_, _) =>
+        {
+            _dragExpandTimer.Stop();
+            if (_dragHoverNode is not null)
+                _dragHoverNode.IsExpanded = true;
+        };
 
         SearchResultsView.ItemsSource = _searchResults;
         LoadItems();
@@ -540,6 +549,9 @@ public sealed partial class MainWindow : Window
 
     private void AppTreeView_DragItemsCompleted(TreeView sender, TreeViewDragItemsCompletedEventArgs args)
     {
+        _dragExpandTimer.Stop();
+        _dragHoverNode = null;
+
         if (_draggedItem is null)
             return;
 
@@ -591,9 +603,23 @@ public sealed partial class MainWindow : Window
                 if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
             }
             var node = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
-            e.AcceptedOperation = node?.Content is FolderViewModel
-                ? DataPackageOperation.Move
-                : DataPackageOperation.None;
+            if (node?.Content is FolderViewModel)
+            {
+                e.AcceptedOperation = DataPackageOperation.Move;
+                if (_dragHoverNode != node)
+                {
+                    _dragHoverNode = node;
+                    _dragExpandTimer.Stop();
+                    if (!node.IsExpanded)
+                        _dragExpandTimer.Start();
+                }
+            }
+            else
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                _dragHoverNode = null;
+                _dragExpandTimer.Stop();
+            }
         }
         else
         {
