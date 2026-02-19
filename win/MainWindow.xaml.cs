@@ -621,6 +621,24 @@ public sealed partial class MainWindow : Window
     public void AttachContextMenus()
     {
         AppTreeView.RightTapped += AppTreeView_RightTapped;
+        AppTreeView.DoubleTapped += AppTreeView_DoubleTapped;
+    }
+
+    private void AppTreeView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is FrameworkElement fe)
+        {
+            var tvi = FindParent<TreeViewItem>(fe);
+            if (tvi is not null)
+            {
+                var node = AppTreeView.NodeFromContainer(tvi);
+                if (node?.Content is AppItemViewModel app)
+                {
+                    LaunchApp(app);
+                    e.Handled = true;
+                }
+            }
+        }
     }
 
     private void AppTreeView_RightTapped(object sender, RightTappedRoutedEventArgs e)
