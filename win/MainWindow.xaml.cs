@@ -406,7 +406,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void AddItemDirectly(string filePath)
+    private void AddItemDirectly(string filePath, FolderViewModel? targetFolder = null, TreeViewNode? targetFolderNode = null)
     {
         var item = new AppItem
         {
@@ -416,9 +416,19 @@ public sealed partial class MainWindow : Window
         };
 
         var vm = new AppItemViewModel(item);
-        _rootItems.Add(vm);
         var node = new TreeViewNode { Content = vm };
-        AppTreeView.RootNodes.Add(node);
+
+        if (targetFolder is not null && targetFolderNode is not null)
+        {
+            targetFolder.Children.Add(vm);
+            targetFolderNode.Children.Add(node);
+        }
+        else
+        {
+            _rootItems.Add(vm);
+            AppTreeView.RootNodes.Add(node);
+        }
+
         _ = vm.LoadIconAsync();
         SaveItems();
     }
@@ -685,6 +695,32 @@ public sealed partial class MainWindow : Window
             e.AcceptedOperation = DataPackageOperation.Copy;
             e.DragUIOverride.Caption = Loc.GetString("DragDropCaption");
             e.DragUIOverride.IsGlyphVisible = true;
+
+            // Auto-expand folder when hovering over it
+            var pos = e.GetPosition(null);
+            var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
+            TreeViewItem? tvi = null;
+            foreach (var elem in elements)
+            {
+                if (elem is TreeViewItem t) { tvi = t; break; }
+                if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
+            }
+            var node = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
+            if (node?.Content is FolderViewModel)
+            {
+                if (_dragHoverNode != node)
+                {
+                    _dragHoverNode = node;
+                    _dragExpandTimer.Stop();
+                    if (!node.IsExpanded)
+                        _dragExpandTimer.Start();
+                }
+            }
+            else
+            {
+                _dragHoverNode = null;
+                _dragExpandTimer.Stop();
+            }
         }
         else if (_draggedItems.Count > 0)
         {
@@ -737,6 +773,21 @@ public sealed partial class MainWindow : Window
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
             return;
 
+        // Resolve drop target before await (position is only valid synchronously)
+        var pos = e.GetPosition(null);
+        var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
+        TreeViewItem? tvi = null;
+        foreach (var elem in elements)
+        {
+            if (elem is TreeViewItem t) { tvi = t; break; }
+            if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
+        }
+        var targetNode = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
+        var targetFolder = targetNode?.Content as FolderViewModel;
+
+        _dragExpandTimer.Stop();
+        _dragHoverNode = null;
+
         var deferral = e.GetDeferral();
         try
         {
@@ -753,7 +804,7 @@ public sealed partial class MainWindow : Window
                 if (filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
                     File.Exists(filePath))
                 {
-                    AddItemDirectly(filePath);
+                    AddItemDirectly(filePath, targetFolder, targetNode);
                 }
             }
         }
