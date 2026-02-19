@@ -129,7 +129,8 @@
                   x:Name="SearchResultsView"
                   Visibility="Collapsed"
                   Padding="8,0,8,8"
-                  SelectionMode="None">
+                  SelectionMode="Single"
+                  DoubleTapped="SearchResultsView_DoubleTapped">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:AppItemViewModel">
                     <Grid Padding="4,4"

@@ -686,6 +686,19 @@ public sealed partial class MainWindow : Window
         AppTreeView.DoubleTapped += AppTreeView_DoubleTapped;
     }
 
+    private void SearchResultsView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is FrameworkElement fe)
+        {
+            var lvi = FindParent<ListViewItem>(fe);
+            if (lvi is not null && SearchResultsView.ItemFromContainer(lvi) is AppItemViewModel app)
+            {
+                LaunchApp(app);
+                e.Handled = true;
+            }
+        }
+    }
+
     private void AppTreeView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (e.OriginalSource is FrameworkElement fe)
