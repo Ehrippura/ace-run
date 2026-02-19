@@ -59,6 +59,9 @@ public sealed partial class MainWindow : Window
 
         foreach (var item in _appData.Items)
             AddTreeItem(item, null);
+
+        if (PurgeStaleRecentLaunches())
+            DataService.Save(_appData);
     }
 
     private void AddTreeItem(TreeItem model, TreeViewNode? parentNode)
@@ -113,6 +116,26 @@ public sealed partial class MainWindow : Window
 
         _appData.Items = BuildModelList(_rootItems);
         DataService.Save(_appData);
+    }
+
+    private bool PurgeStaleRecentLaunches()
+    {
+        var allIds = new HashSet<Guid>();
+        CollectAllAppIds(_rootItems, allIds);
+        int before = _appData.RecentLaunches.Count;
+        _appData.RecentLaunches.RemoveAll(r => !allIds.Contains(r.AppId));
+        return _appData.RecentLaunches.Count < before;
+    }
+
+    private static void CollectAllAppIds(IEnumerable<TreeItemViewModel> items, HashSet<Guid> ids)
+    {
+        foreach (var item in items)
+        {
+            if (item is AppItemViewModel app)
+                ids.Add(app.Id);
+            else if (item is FolderViewModel folder)
+                CollectAllAppIds(folder.Children, ids);
+        }
     }
 
     private void SyncExpansionState(IList<TreeViewNode> nodes)
@@ -356,7 +379,9 @@ public sealed partial class MainWindow : Window
             if (await confirmDialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 RemoveViewModel(vm, _rootItems, AppTreeView.RootNodes);
+                PurgeStaleRecentLaunches();
                 SaveItems();
+                ((App)Application.Current).UpdateTrayContextMenu();
             }
         }
     }
@@ -407,7 +432,9 @@ public sealed partial class MainWindow : Window
             if (await confirmDialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 RemoveViewModel(vm, _rootItems, AppTreeView.RootNodes);
+                PurgeStaleRecentLaunches();
                 SaveItems();
+                ((App)Application.Current).UpdateTrayContextMenu();
             }
         }
     }
