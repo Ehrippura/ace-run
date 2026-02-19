@@ -1,12 +1,43 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace ace_run.Services;
 
 internal static class Loc
 {
-    private static Microsoft.Windows.ApplicationModel.Resources.ResourceLoader? _loader;
+    private static readonly Microsoft.Windows.ApplicationModel.Resources.ResourceLoader? _loader;
+    private static readonly Dictionary<string, string> _fallbacks;
 
-    private static readonly Dictionary<string, string> Fallbacks = new()
+    static Loc()
+    {
+        try
+        {
+            _loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+        }
+        catch
+        {
+            // ignore
+        }
+
+        var isZh = CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+        _fallbacks = isZh ? ZhTwStrings : EnUsStrings;
+    }
+
+    public static string GetString(string key)
+    {
+        try
+        {
+            var value = _loader?.GetString(key);
+            if (!string.IsNullOrEmpty(value))
+                return value;
+        }
+        catch { }
+
+        return _fallbacks.TryGetValue(key, out var fallback) ? fallback : key;
+    }
+
+    private static readonly Dictionary<string, string> EnUsStrings = new()
     {
         ["AddItemTitle"] = "Add Item",
         ["DeleteItemTitle"] = "Delete Item",
@@ -27,28 +58,24 @@ internal static class Loc
         ["TrayExit"] = "Exit",
     };
 
-    static Loc()
+    private static readonly Dictionary<string, string> ZhTwStrings = new()
     {
-        try
-        {
-            _loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
-        }
-        catch
-        {
-            _loader = null;
-        }
-    }
-
-    public static string GetString(string key)
-    {
-        try
-        {
-            var value = _loader?.GetString(key);
-            if (!string.IsNullOrEmpty(value))
-                return value;
-        }
-        catch { }
-
-        return Fallbacks.TryGetValue(key, out var fallback) ? fallback : key;
-    }
+        ["AddItemTitle"] = "新增項目",
+        ["DeleteItemTitle"] = "刪除項目",
+        ["DeleteItemContent"] = "確定要刪除「{0}」嗎？",
+        ["DeleteButton"] = "刪除",
+        ["CancelButton"] = "取消",
+        ["SaveButton"] = "儲存",
+        ["DragDropCaption"] = "新增至 Ace Run",
+        ["EditMenuItem.Text"] = "編輯",
+        ["DeleteMenuItem.Text"] = "刪除",
+        ["NewFolderTitle"] = "新增資料夾",
+        ["FolderNamePlaceholder"] = "資料夾名稱",
+        ["DefaultFolderName"] = "新增資料夾",
+        ["RenameFolder"] = "重新命名",
+        ["DeleteFolder"] = "刪除資料夾",
+        ["DeleteFolderContent"] = "確定要刪除資料夾「{0}」及其所有內容嗎？",
+        ["TrayShow"] = "顯示",
+        ["TrayExit"] = "結束",
+    };
 }
