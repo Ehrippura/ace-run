@@ -70,18 +70,18 @@
                 <local:TreeItemTemplateSelector x:Key="TreeSelector">
                     <local:TreeItemTemplateSelector.AppTemplate>
                         <DataTemplate>
-                            <Grid Padding="4,4"
+                            <Grid Padding="4,2"
                                   ColumnDefinitions="Auto,*,Auto"
-                                  MinHeight="32">
+                                  MinHeight="28">
                                 <Image Grid.Column="0"
                                        Source="{Binding Content.IconSource, Mode=OneWay}"
-                                       Width="20" Height="20"
+                                       Width="16" Height="16"
                                        Margin="4,0,8,0"
                                        VerticalAlignment="Center"
                                        Stretch="Uniform" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Content.DisplayName, Mode=OneWay}"
-                                           FontSize="14" FontWeight="SemiBold"
+                                           FontSize="14" FontWeight="Normal"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            ToolTipService.ToolTip="{Binding Content.FilePath, Mode=OneWay}" />
@@ -98,8 +98,8 @@
                     </local:TreeItemTemplateSelector.AppTemplate>
                     <local:TreeItemTemplateSelector.FolderTemplate>
                         <DataTemplate>
-                            <Grid Padding="4,4"
-                                  MinHeight="32">
+                            <Grid Padding="4,2"
+                                  MinHeight="28">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>

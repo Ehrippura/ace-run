@@ -3,7 +3,6 @@
     x:Class="ace_run.EditItemDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Edit Item"
     PrimaryButtonText="Save"
     CloseButtonText="Cancel"
     DefaultButton="Primary">

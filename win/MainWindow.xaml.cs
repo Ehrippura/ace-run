@@ -328,6 +328,7 @@ public sealed partial class MainWindow : Window
             var hwnd = WindowNative.GetWindowHandle(this);
             var dialog = new EditItemDialog(vm, hwnd);
             dialog.XamlRoot = Content.XamlRoot;
+            dialog.Title = Loc.GetString("EditItemTitle");
 
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {

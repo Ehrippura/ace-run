@@ -16,6 +16,7 @@
 
   <!-- Dynamic strings used in code-behind -->
   <data name="AddItemTitle" xml:space="preserve"><value>新增項目</value></data>
+  <data name="EditItemTitle" xml:space="preserve"><value>編輯項目</value></data>
   <data name="DeleteItemTitle" xml:space="preserve"><value>刪除項目</value></data>
   <data name="DeleteItemContent" xml:space="preserve"><value>確定要刪除「{0}」嗎？</value></data>
   <data name="DeleteButton" xml:space="preserve"><value>刪除</value></data>

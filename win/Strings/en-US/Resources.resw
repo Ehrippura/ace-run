@@ -16,6 +16,7 @@
 
   <!-- Dynamic strings used in code-behind -->
   <data name="AddItemTitle" xml:space="preserve"><value>Add Item</value></data>
+  <data name="EditItemTitle" xml:space="preserve"><value>Edit Item</value></data>
   <data name="DeleteItemTitle" xml:space="preserve"><value>Delete Item</value></data>
   <data name="DeleteItemContent" xml:space="preserve"><value>Are you sure you want to delete "{0}"?</value></data>
   <data name="DeleteButton" xml:space="preserve"><value>Delete</value></data>
