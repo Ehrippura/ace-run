@@ -524,7 +524,7 @@ public sealed partial class MainWindow : Window
 
     #endregion
 
-    #region Drag & Drop (internal tree reorder)
+    #region Drag & Drop
 
     private void AppTreeView_DragItemsStarting(TreeView sender, TreeViewDragItemsStartingEventArgs args)
     {
@@ -571,11 +571,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    #endregion
-
-    #region Drag & Drop (external files)
-
-    private void RootGrid_DragOver(object sender, DragEventArgs e)
+    private void AppTreeView_DragOver(object sender, DragEventArgs e)
     {
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
@@ -585,7 +581,6 @@ public sealed partial class MainWindow : Window
         }
         else if (_draggedItem is not null)
         {
-            // Internal tree drag - allow move
             e.AcceptedOperation = DataPackageOperation.Move;
         }
         else
@@ -594,7 +589,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void RootGrid_Drop(object sender, DragEventArgs e)
+    private async void AppTreeView_Drop(object sender, DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
             return;

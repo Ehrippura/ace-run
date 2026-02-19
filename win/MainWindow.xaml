@@ -15,10 +15,7 @@
 
     <Grid x:Name="RootGrid"
           Margin="0"
-          RowDefinitions="Auto,Auto,*"
-          AllowDrop="True"
-          DragOver="RootGrid_DragOver"
-          Drop="RootGrid_Drop">
+          RowDefinitions="Auto,Auto,*">
 
         <!-- Title bar area -->
         <Grid Grid.Row="0" Padding="16,12" ColumnDefinitions="*,Auto,Auto">
@@ -63,9 +60,12 @@
                   SelectionMode="Single"
                   CanDragItems="True"
                   CanReorderItems="False"
+                  AllowDrop="True"
                   ItemInvoked="AppTreeView_ItemInvoked"
                   DragItemsStarting="AppTreeView_DragItemsStarting"
-                  DragItemsCompleted="AppTreeView_DragItemsCompleted">
+                  DragItemsCompleted="AppTreeView_DragItemsCompleted"
+                  DragOver="AppTreeView_DragOver"
+                  Drop="AppTreeView_Drop">
             <TreeView.Resources>
                 <local:TreeItemTemplateSelector x:Key="TreeSelector">
                     <local:TreeItemTemplateSelector.AppTemplate>
