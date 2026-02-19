@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -134,7 +135,7 @@ public sealed partial class MainWindow : Window
         // Right-click is handled via context menu attached in code-behind
     }
 
-    public void ShowContextMenuForNode(TreeViewNode node, FrameworkElement anchor)
+    public void ShowContextMenuForNode(TreeViewNode node, FrameworkElement anchor, Windows.Foundation.Point? position = null)
     {
         var flyout = new MenuFlyout();
 
@@ -179,7 +180,10 @@ public sealed partial class MainWindow : Window
             flyout.Items.Add(deleteItem);
         }
 
-        flyout.ShowAt(anchor);
+        if (position.HasValue)
+            flyout.ShowAt(anchor, new FlyoutShowOptions { Position = position.Value });
+        else
+            flyout.ShowAt(anchor);
     }
 
     #endregion
@@ -630,7 +634,7 @@ public sealed partial class MainWindow : Window
                 var node = AppTreeView.NodeFromContainer(tvi);
                 if (node is not null)
                 {
-                    ShowContextMenuForNode(node, tvi);
+                    ShowContextMenuForNode(node, tvi, e.GetPosition(tvi));
                     e.Handled = true;
                 }
             }

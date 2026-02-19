@@ -60,7 +60,7 @@
         <TreeView Grid.Row="2"
                   x:Name="AppTreeView"
                   Padding="8,0,8,8"
-                  SelectionMode="None"
+                  SelectionMode="Single"
                   CanDragItems="True"
                   CanReorderItems="False"
                   ItemInvoked="AppTreeView_ItemInvoked"
