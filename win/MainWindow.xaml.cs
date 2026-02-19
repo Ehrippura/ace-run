@@ -697,15 +697,7 @@ public sealed partial class MainWindow : Window
             e.DragUIOverride.IsGlyphVisible = true;
 
             // Auto-expand folder when hovering over it
-            var pos = e.GetPosition(null);
-            var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
-            TreeViewItem? tvi = null;
-            foreach (var elem in elements)
-            {
-                if (elem is TreeViewItem t) { tvi = t; break; }
-                if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
-            }
-            var node = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
+            var node = GetNodeAtPosition(e.GetPosition(null));
             if (node?.Content is FolderViewModel)
             {
                 if (_dragHoverNode != node)
@@ -725,15 +717,7 @@ public sealed partial class MainWindow : Window
         else if (_draggedItems.Count > 0)
         {
             // Only allow move when the cursor is over a folder node
-            var pos = e.GetPosition(null);
-            var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
-            TreeViewItem? tvi = null;
-            foreach (var elem in elements)
-            {
-                if (elem is TreeViewItem t) { tvi = t; break; }
-                if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
-            }
-            var node = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
+            var node = GetNodeAtPosition(e.GetPosition(null));
             var nodeVm = node?.Content as TreeItemViewModel;
 
             if (nodeVm is FolderViewModel && !_draggedItems.Contains(nodeVm))
@@ -774,15 +758,7 @@ public sealed partial class MainWindow : Window
             return;
 
         // Resolve drop target before await (position is only valid synchronously)
-        var pos = e.GetPosition(null);
-        var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
-        TreeViewItem? tvi = null;
-        foreach (var elem in elements)
-        {
-            if (elem is TreeViewItem t) { tvi = t; break; }
-            if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
-        }
-        var targetNode = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
+        var targetNode = GetNodeAtPosition(e.GetPosition(null));
         var targetFolder = targetNode?.Content as FolderViewModel;
 
         _dragExpandTimer.Stop();
@@ -929,6 +905,18 @@ public sealed partial class MainWindow : Window
             parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent);
         }
         return null;
+    }
+
+    private TreeViewNode? GetNodeAtPosition(Windows.Foundation.Point pos)
+    {
+        var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
+        TreeViewItem? tvi = null;
+        foreach (var elem in elements)
+        {
+            if (elem is TreeViewItem t) { tvi = t; break; }
+            if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
+        }
+        return tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
     }
 
     #endregion
