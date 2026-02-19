@@ -406,6 +406,23 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void AddItemDirectly(string filePath)
+    {
+        var item = new AppItem
+        {
+            DisplayName = Path.GetFileNameWithoutExtension(filePath),
+            FilePath = filePath,
+            WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
+        };
+
+        var vm = new AppItemViewModel(item);
+        _rootItems.Add(vm);
+        var node = new TreeViewNode { Content = vm };
+        AppTreeView.RootNodes.Add(node);
+        _ = vm.LoadIconAsync();
+        SaveItems();
+    }
+
     private async void NewFolderButton_Click(object sender, RoutedEventArgs e)
     {
         var nameBox = new TextBox
@@ -736,7 +753,7 @@ public sealed partial class MainWindow : Window
                 if (filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
                     File.Exists(filePath))
                 {
-                    await AddItemFromPathAsync(filePath);
+                    AddItemDirectly(filePath);
                 }
             }
         }
