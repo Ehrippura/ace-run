@@ -581,7 +581,19 @@ public sealed partial class MainWindow : Window
         }
         else if (_draggedItem is not null)
         {
-            e.AcceptedOperation = DataPackageOperation.Move;
+            // Only allow move when the cursor is over a folder node
+            var pos = e.GetPosition(null);
+            var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, AppTreeView);
+            TreeViewItem? tvi = null;
+            foreach (var elem in elements)
+            {
+                if (elem is TreeViewItem t) { tvi = t; break; }
+                if (elem is DependencyObject dep) { tvi = FindParent<TreeViewItem>(dep); if (tvi != null) break; }
+            }
+            var node = tvi is not null ? AppTreeView.NodeFromContainer(tvi) : null;
+            e.AcceptedOperation = node?.Content is FolderViewModel
+                ? DataPackageOperation.Move
+                : DataPackageOperation.None;
         }
         else
         {
