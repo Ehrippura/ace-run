@@ -39,6 +39,15 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Strings\en-US\Resources.resw">
+      <LogicalName>ace_run.Strings.en-US.Resources.resw</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Strings\zh-TW\Resources.resw">
+      <LogicalName>ace_run.Strings.zh-TW.Resources.resw</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.1.3" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />

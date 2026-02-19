@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Xml.Linq;
 
 namespace ace_run.Services;
 
@@ -21,7 +24,10 @@ internal static class Loc
         }
 
         var isZh = CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
-        _fallbacks = isZh ? ZhTwStrings : EnUsStrings;
+        var resourceName = isZh
+            ? "ace_run.Strings.zh-TW.Resources.resw"
+            : "ace_run.Strings.en-US.Resources.resw";
+        _fallbacks = LoadFromEmbeddedResw(resourceName);
     }
 
     public static string GetString(string key)
@@ -37,47 +43,38 @@ internal static class Loc
         return _fallbacks.TryGetValue(key, out var fallback) ? fallback : key;
     }
 
-    private static readonly Dictionary<string, string> EnUsStrings = new()
+    private static Dictionary<string, string> LoadFromEmbeddedResw(string resourceName)
     {
-        ["AddItemTitle"] = "Add Item",
-        ["DeleteItemTitle"] = "Delete Item",
-        ["DeleteItemContent"] = "Are you sure you want to delete \"{0}\"?",
-        ["DeleteButton"] = "Delete",
-        ["CancelButton"] = "Cancel",
-        ["SaveButton"] = "Save",
-        ["DragDropCaption"] = "Add to Ace Run",
-        ["EditMenuItem.Text"] = "Edit",
-        ["DeleteMenuItem.Text"] = "Delete",
-        ["OpenFolderMenuItem.Text"] = "Open File Location",
-        ["NewFolderTitle"] = "New Folder",
-        ["FolderNamePlaceholder"] = "Folder name",
-        ["DefaultFolderName"] = "New Folder",
-        ["RenameFolder"] = "Rename",
-        ["DeleteFolder"] = "Delete Folder",
-        ["DeleteFolderContent"] = "Are you sure you want to delete folder \"{0}\" and all its contents?",
-        ["TrayShow"] = "Show",
-        ["TrayExit"] = "Exit",
-    };
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var stream = assembly.GetManifestResourceStream(resourceName);
 
-    private static readonly Dictionary<string, string> ZhTwStrings = new()
-    {
-        ["AddItemTitle"] = "新增項目",
-        ["DeleteItemTitle"] = "刪除項目",
-        ["DeleteItemContent"] = "確定要刪除「{0}」嗎？",
-        ["DeleteButton"] = "刪除",
-        ["CancelButton"] = "取消",
-        ["SaveButton"] = "儲存",
-        ["DragDropCaption"] = "新增至 Ace Run",
-        ["EditMenuItem.Text"] = "編輯",
-        ["DeleteMenuItem.Text"] = "刪除",
-        ["OpenFolderMenuItem.Text"] = "開啟資料夾",
-        ["NewFolderTitle"] = "新增資料夾",
-        ["FolderNamePlaceholder"] = "資料夾名稱",
-        ["DefaultFolderName"] = "新增資料夾",
-        ["RenameFolder"] = "重新命名",
-        ["DeleteFolder"] = "刪除資料夾",
-        ["DeleteFolderContent"] = "確定要刪除資料夾「{0}」及其所有內容嗎？",
-        ["TrayShow"] = "顯示",
-        ["TrayExit"] = "結束",
-    };
+            if (stream is null)
+            {
+                // Name mismatch fallback: search all embedded resources for a matching locale
+                var locale = resourceName.Contains("zh-TW") ? "zh-TW" : "en-US";
+                var match = assembly.GetManifestResourceNames()
+                    .FirstOrDefault(n => n.Contains(locale, StringComparison.Ordinal)
+                                     && n.EndsWith(".resw", StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                    stream = assembly.GetManifestResourceStream(match);
+            }
+
+            if (stream is null)
+                return new Dictionary<string, string>();
+
+            var doc = XDocument.Load(stream);
+            return doc.Descendants("data")
+                .Where(e => e.Attribute("name") is not null)
+                .ToDictionary(
+                    e => e.Attribute("name")!.Value,
+                    e => e.Element("value")?.Value ?? string.Empty
+                );
+        }
+        catch
+        {
+            return new Dictionary<string, string>();
+        }
+    }
 }
