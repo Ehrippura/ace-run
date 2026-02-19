@@ -60,7 +60,7 @@
                   Padding="8,0,8,8"
                   SelectionMode="Single"
                   CanDragItems="True"
-                  CanReorderItems="False"
+                  CanReorderItems="True"
                   AllowDrop="True"
                   ItemInvoked="AppTreeView_ItemInvoked"
                   DragItemsStarting="AppTreeView_DragItemsStarting"
