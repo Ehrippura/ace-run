@@ -21,11 +21,9 @@ namespace ace_run;
 public sealed partial class MainWindow : Window
 {
     private readonly ObservableCollection<FolderViewModel> _folders = new();
-    private readonly ObservableCollection<FolderViewModel> _sidebarItems = new();
     private readonly ObservableCollection<AppItemViewModel> _ungroupedApps = new();
     private readonly ObservableCollection<AppItemViewModel> _searchResults = new();
     private FolderViewModel? _selectedFolder; // null = ungrouped
-    private FolderViewModel _ungroupedSentinel = null!;
     private AppData _appData = new();
     private string _searchText = string.Empty;
 
@@ -35,8 +33,8 @@ public sealed partial class MainWindow : Window
 
         ExtendsContentIntoTitleBar = true;
 
-        _ungroupedSentinel = new FolderViewModel(Guid.Empty, Loc.GetString("UngroupedFolderName"));
-        SidebarListView.ItemsSource = _sidebarItems;
+        UngroupedItemLabel.Text = Loc.GetString("UngroupedFolderName");
+        SidebarListView.ItemsSource = _folders;
         SearchResultsView.ItemsSource = _searchResults;
 
         LoadItems();
@@ -50,10 +48,7 @@ public sealed partial class MainWindow : Window
     {
         _appData = DataService.Load();
         _folders.Clear();
-        _sidebarItems.Clear();
         _ungroupedApps.Clear();
-
-        _sidebarItems.Add(_ungroupedSentinel);
 
         foreach (var app in _appData.UngroupedItems)
         {
@@ -72,11 +67,11 @@ public sealed partial class MainWindow : Window
                 _ = vm.LoadIconAsync();
             }
             _folders.Add(fvm);
-            _sidebarItems.Add(fvm);
         }
 
         _selectedFolder = null;
-        SidebarListView.SelectedItem = _ungroupedSentinel;
+        SidebarListView.SelectedItem = null;
+        UngroupedItem.IsSelected = true;
         RefreshContentArea();
 
         if (PurgeStaleRecentLaunches())
@@ -191,12 +186,12 @@ public sealed partial class MainWindow : Window
             _searchResults.Remove(app);
 
         _folders.Remove(folder);
-        _sidebarItems.Remove(folder);
 
         if (_selectedFolder == folder)
         {
             _selectedFolder = null;
-            SidebarListView.SelectedItem = _ungroupedSentinel;
+            SidebarListView.SelectedItem = null;
+            UngroupedItem.IsSelected = true;
             RefreshContentArea();
         }
 
@@ -213,30 +208,22 @@ public sealed partial class MainWindow : Window
     {
         if (SidebarListView.SelectedItem is FolderViewModel folder)
         {
-            _selectedFolder = folder == _ungroupedSentinel ? null : folder;
+            UngroupedItem.IsSelected = false;
+            _selectedFolder = folder;
             RefreshContentArea();
         }
     }
 
-    private void SidebarListView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    private void UngroupedItem_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (e.Items.Contains(_ungroupedSentinel))
-            e.Cancel = true;
+        SidebarListView.SelectedItem = null;
+        _selectedFolder = null;
+        UngroupedItem.IsSelected = true;
+        RefreshContentArea();
     }
 
     private void SidebarListView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
     {
-        // Keep sentinel pinned at index 0
-        var idx = _sidebarItems.IndexOf(_ungroupedSentinel);
-        if (idx != 0)
-            _sidebarItems.Move(idx, 0);
-
-        // Rebuild _folders to match the new order (sentinel excluded)
-        _folders.Clear();
-        foreach (var item in _sidebarItems)
-            if (item != _ungroupedSentinel)
-                _folders.Add(item);
-
         CommitSave();
     }
 
@@ -352,7 +339,6 @@ public sealed partial class MainWindow : Window
                 : nameBox.Text.Trim();
             var vm = new FolderViewModel(name);
             _folders.Add(vm);
-            _sidebarItems.Add(vm);
             SaveItems();
         }
     }
@@ -503,7 +489,7 @@ public sealed partial class MainWindow : Window
         if (lvi is null) return;
 
         var folder = SidebarListView.ItemFromContainer(lvi) as FolderViewModel;
-        if (folder is null || folder == _ungroupedSentinel) return;
+        if (folder is null) return;
 
         var flyout = new MenuFlyout();
 

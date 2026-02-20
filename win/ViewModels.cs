@@ -130,14 +130,6 @@ public class FolderViewModel : INotifyPropertyChanged
 
     public ObservableCollection<AppItemViewModel> Apps { get; } = new();
 
-    public string IconGlyph => Id == Guid.Empty ? "\uE8FD" : "\uE8B7";
-
-    public FolderViewModel(Guid id, string name)
-    {
-        Id = id;
-        _displayName = name;
-    }
-
     public FolderViewModel(FolderItem model)
     {
         Id = model.Id;
