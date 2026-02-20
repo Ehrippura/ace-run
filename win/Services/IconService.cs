@@ -60,7 +60,7 @@ internal static class IconService
 
             var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
             using var thumbnail = await storageFile.GetThumbnailAsync(
-                ThumbnailMode.SingleItem, 32, ThumbnailOptions.UseCurrentScale);
+                ThumbnailMode.SingleItem, 48, ThumbnailOptions.UseCurrentScale);
 
             if (thumbnail == null || thumbnail.Size == 0)
                 return;

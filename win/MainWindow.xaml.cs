@@ -218,6 +218,28 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void SidebarListView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        if (e.Items.Contains(_ungroupedSentinel))
+            e.Cancel = true;
+    }
+
+    private void SidebarListView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        // Keep sentinel pinned at index 0
+        var idx = _sidebarItems.IndexOf(_ungroupedSentinel);
+        if (idx != 0)
+            _sidebarItems.Move(idx, 0);
+
+        // Rebuild _folders to match the new order (sentinel excluded)
+        _folders.Clear();
+        foreach (var item in _sidebarItems)
+            if (item != _ungroupedSentinel)
+                _folders.Add(item);
+
+        CommitSave();
+    }
+
     #endregion
 
     #region Search

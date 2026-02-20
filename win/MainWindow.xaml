@@ -53,6 +53,11 @@
                     BorderThickness="0,0,1,0">
                 <ListView x:Name="SidebarListView"
                           SelectionChanged="SidebarListView_SelectionChanged"
+                          CanReorderItems="True"
+                          CanDragItems="True"
+                          AllowDrop="True"
+                          DragItemsStarting="SidebarListView_DragItemsStarting"
+                          DragItemsCompleted="SidebarListView_DragItemsCompleted"
                           Padding="4,4,4,4">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:FolderViewModel">
