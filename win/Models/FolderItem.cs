@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 
 namespace ace_run.Models;
 
-public class FolderItem : TreeItem
+public class FolderItem
 {
-    public List<TreeItem> Children { get; set; } = new();
-    public bool IsExpanded { get; set; } = true;
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string DisplayName { get; set; } = string.Empty;
+    public List<AppItem> Children { get; set; } = new();
 }

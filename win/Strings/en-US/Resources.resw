@@ -37,6 +37,12 @@
   <data name="DeleteFolder" xml:space="preserve"><value>Delete Folder</value></data>
   <data name="DeleteFolderContent" xml:space="preserve"><value>Are you sure you want to delete folder "{0}" and all its contents?</value></data>
 
+  <!-- Sidebar / GridView -->
+  <data name="UngroupedFolderName" xml:space="preserve"><value>Ungrouped</value></data>
+  <data name="LaunchMenuItem" xml:space="preserve"><value>Launch</value></data>
+  <data name="LaunchAllMenuItem" xml:space="preserve"><value>Launch All</value></data>
+  <data name="MoveToMenuItem" xml:space="preserve"><value>Move To</value></data>
+
   <!-- System Tray -->
   <data name="TrayShow" xml:space="preserve"><value>Show</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>

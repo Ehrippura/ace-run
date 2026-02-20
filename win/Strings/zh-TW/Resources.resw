@@ -37,6 +37,12 @@
   <data name="DeleteFolder" xml:space="preserve"><value>刪除資料夾</value></data>
   <data name="DeleteFolderContent" xml:space="preserve"><value>確定要刪除資料夾「{0}」及其所有內容嗎？</value></data>
 
+  <!-- Sidebar / GridView -->
+  <data name="UngroupedFolderName" xml:space="preserve"><value>未分類</value></data>
+  <data name="LaunchMenuItem" xml:space="preserve"><value>啟動</value></data>
+  <data name="LaunchAllMenuItem" xml:space="preserve"><value>全部啟動</value></data>
+  <data name="MoveToMenuItem" xml:space="preserve"><value>移至</value></data>
+
   <!-- System Tray -->
   <data name="TrayShow" xml:space="preserve"><value>顯示</value></data>
   <data name="TrayExit" xml:space="preserve"><value>結束</value></data>

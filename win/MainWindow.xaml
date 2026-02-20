@@ -15,8 +15,7 @@
 
     <Grid x:Name="RootGrid"
           Padding="0,30,0,0"
-          Margin="0"
-          RowDefinitions="Auto,Auto,*">
+          RowDefinitions="Auto,*">
 
         <!-- Title bar area -->
         <Grid Grid.Row="0" Padding="16,12" ColumnDefinitions="*,Auto,Auto">
@@ -45,122 +44,121 @@
             </Button>
         </Grid>
 
-        <!-- Search bar -->
-        <AutoSuggestBox Grid.Row="1"
-                        x:Name="SearchBox"
-                        x:Uid="SearchBox"
-                        PlaceholderText="Search apps..."
-                        Margin="16,0,16,8"
-                        QueryIcon="Find"
-                        TextChanged="SearchBox_TextChanged" />
+        <!-- Main content area: sidebar + content -->
+        <Grid Grid.Row="1" ColumnDefinitions="200,*">
 
-        <!-- Tree view (normal mode) -->
-        <TreeView Grid.Row="2"
-                  x:Name="AppTreeView"
-                  Padding="8,0,8,8"
-                  SelectionMode="Multiple"
-                  CanDragItems="True"
-                  CanReorderItems="True"
-                  AllowDrop="True"
-                  ItemInvoked="AppTreeView_ItemInvoked"
-                  DragItemsStarting="AppTreeView_DragItemsStarting"
-                  DragItemsCompleted="AppTreeView_DragItemsCompleted"
-                  DragOver="AppTreeView_DragOver"
-                  Drop="AppTreeView_Drop">
-            <TreeView.Resources>
-                <local:TreeItemTemplateSelector x:Key="TreeSelector">
-                    <local:TreeItemTemplateSelector.AppTemplate>
-                        <DataTemplate>
-                            <Grid Padding="4,2"
-                                  ColumnDefinitions="Auto,*,Auto"
-                                  MinHeight="28">
-                                <Image Grid.Column="0"
-                                       Source="{Binding Content.IconSource, Mode=OneWay}"
-                                       Width="16" Height="16"
-                                       Margin="4,0,8,0"
-                                       VerticalAlignment="Center"
-                                       Stretch="Uniform" />
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Content.DisplayName, Mode=OneWay}"
-                                           FontSize="14" FontWeight="Normal"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTipService.ToolTip="{Binding Content.FilePath, Mode=OneWay}" />
-                                <Button Grid.Column="2"
-                                        x:Uid="LaunchButton"
-                                        Tag="{Binding Content.Id}"
-                                        Click="LaunchButton_Click"
-                                        VerticalAlignment="Center"
-                                        ToolTipService.ToolTip="Launch">
-                                    <FontIcon Glyph="&#xE768;" FontSize="16" />
-                                </Button>
-                            </Grid>
-                        </DataTemplate>
-                    </local:TreeItemTemplateSelector.AppTemplate>
-                    <local:TreeItemTemplateSelector.FolderTemplate>
-                        <DataTemplate>
-                            <Grid Padding="4,2"
-                                  MinHeight="28">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+            <!-- Sidebar -->
+            <Border Grid.Column="0"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,1,0">
+                <ListView x:Name="SidebarListView"
+                          SelectionChanged="SidebarListView_SelectionChanged"
+                          Padding="4,4,4,4">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:FolderViewModel">
+                            <Grid ColumnDefinitions="Auto,*" Padding="4,0">
                                 <FontIcon Grid.Column="0"
-                                          Glyph="&#xE8B7;"
-                                          FontSize="18"
-                                          Margin="4,0,8,0"
+                                          Glyph="{x:Bind IconGlyph}"
+                                          FontSize="14"
+                                          Margin="0,0,8,0"
                                           VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1"
-                                           Text="{Binding Content.DisplayName, Mode=OneWay}"
-                                           FontSize="14" FontWeight="SemiBold"
+                                           Text="{x:Bind DisplayName, Mode=OneWay}"
+                                           FontSize="14"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis" />
                             </Grid>
                         </DataTemplate>
-                    </local:TreeItemTemplateSelector.FolderTemplate>
-                </local:TreeItemTemplateSelector>
-            </TreeView.Resources>
-            <TreeView.ItemTemplateSelector>
-                <StaticResource ResourceKey="TreeSelector" />
-            </TreeView.ItemTemplateSelector>
-        </TreeView>
+                    </ListView.ItemTemplate>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="Padding" Value="12,8" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+            </Border>
 
-        <!-- Search results (filtered mode) -->
-        <ListView Grid.Row="2"
-                  x:Name="SearchResultsView"
-                  Visibility="Collapsed"
-                  Padding="8,0,8,8"
-                  SelectionMode="Multiple"
-                  DoubleTapped="SearchResultsView_DoubleTapped">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:AppItemViewModel">
-                    <Grid Padding="4,4"
-                          ColumnDefinitions="Auto,*,Auto"
-                          MinHeight="32"
-                          ToolTipService.ToolTip="{x:Bind FilePath}">
-                        <Image Grid.Column="0"
-                               Source="{x:Bind IconSource, Mode=OneWay}"
-                               Width="20" Height="20"
-                               Margin="4,0,8,0"
-                               VerticalAlignment="Center"
-                               Stretch="Uniform" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{x:Bind DisplayName, Mode=OneWay}"
-                                   FontSize="14" FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" />
-                        <Button Grid.Column="2"
-                                x:Uid="LaunchButton"
-                                Tag="{x:Bind Id}"
-                                Click="LaunchButton_Click"
-                                VerticalAlignment="Center"
-                                ToolTipService.ToolTip="Launch">
-                            <FontIcon Glyph="&#xE768;" FontSize="16" />
-                        </Button>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            <!-- Content area -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
 
+                <!-- Search bar -->
+                <AutoSuggestBox Grid.Row="0"
+                                x:Name="SearchBox"
+                                x:Uid="SearchBox"
+                                PlaceholderText="Search apps..."
+                                Margin="12,8,12,8"
+                                QueryIcon="Find"
+                                TextChanged="SearchBox_TextChanged" />
+
+                <!-- App grid (normal mode) -->
+                <GridView Grid.Row="1"
+                          x:Name="AppGridView"
+                          Padding="12,4,12,12"
+                          SelectionMode="Single"
+                          CanReorderItems="True"
+                          CanDragItems="True"
+                          AllowDrop="True"
+                          DoubleTapped="AppGridView_DoubleTapped"
+                          DragOver="AppGridView_DragOver"
+                          Drop="AppGridView_Drop"
+                          DragItemsCompleted="AppGridView_DragItemsCompleted"
+                          RightTapped="AppGridView_RightTapped">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="local:AppItemViewModel">
+                            <Grid Width="96" Height="88"
+                                  ToolTipService.ToolTip="{x:Bind FilePath}">
+                                <Image Source="{x:Bind IconSource, Mode=OneWay}"
+                                       Width="48" Height="48"
+                                       VerticalAlignment="Top"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,4,0,0"
+                                       Stretch="Uniform" />
+                                <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
+                                           FontSize="11"
+                                           TextWrapping="WrapWholeWords"
+                                           MaxLines="2"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Bottom"
+                                           HorizontalAlignment="Center"
+                                           Margin="2,0,2,4" />
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+
+                <!-- Search results (filtered mode) -->
+                <ListView Grid.Row="1"
+                          x:Name="SearchResultsView"
+                          Visibility="Collapsed"
+                          Padding="8,0,8,8"
+                          SelectionMode="Multiple"
+                          DoubleTapped="SearchResultsView_DoubleTapped"
+                          KeyDown="SearchResultsView_KeyDown">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:AppItemViewModel">
+                            <Grid Padding="4,4"
+                                  ColumnDefinitions="Auto,*"
+                                  MinHeight="32"
+                                  ToolTipService.ToolTip="{x:Bind FilePath}">
+                                <Image Grid.Column="0"
+                                       Source="{x:Bind IconSource, Mode=OneWay}"
+                                       Width="20" Height="20"
+                                       Margin="4,0,8,0"
+                                       VerticalAlignment="Center"
+                                       Stretch="Uniform" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{x:Bind DisplayName, Mode=OneWay}"
+                                           FontSize="14"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

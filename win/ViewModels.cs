@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -9,9 +10,15 @@ using ace_run.Services;
 
 namespace ace_run;
 
-public abstract class TreeItemViewModel : INotifyPropertyChanged
+public class AppItemViewModel : INotifyPropertyChanged
 {
     private string _displayName = string.Empty;
+    private string _filePath = string.Empty;
+    private string _arguments = string.Empty;
+    private string _workingDirectory = string.Empty;
+    private bool _runAsAdmin;
+    private string _customIconPath = string.Empty;
+    private BitmapImage? _iconSource;
 
     public Guid Id { get; }
 
@@ -20,31 +27,6 @@ public abstract class TreeItemViewModel : INotifyPropertyChanged
         get => _displayName;
         set { if (_displayName != value) { _displayName = value; OnPropertyChanged(); } }
     }
-
-    protected TreeItemViewModel(Guid id, string displayName)
-    {
-        Id = id;
-        _displayName = displayName;
-    }
-
-    public abstract TreeItem ToModel();
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-}
-
-public class AppItemViewModel : TreeItemViewModel
-{
-    private string _filePath = string.Empty;
-    private string _arguments = string.Empty;
-    private string _workingDirectory = string.Empty;
-    private bool _runAsAdmin;
-    private string _customIconPath = string.Empty;
-    private BitmapImage? _iconSource;
 
     public string FilePath
     {
@@ -100,8 +82,9 @@ public class AppItemViewModel : TreeItemViewModel
     }
 
     public AppItemViewModel(AppItem model)
-        : base(model.Id, model.DisplayName)
     {
+        Id = model.Id;
+        _displayName = model.DisplayName;
         _filePath = model.FilePath;
         _arguments = model.Arguments;
         _workingDirectory = model.WorkingDirectory;
@@ -114,7 +97,7 @@ public class AppItemViewModel : TreeItemViewModel
         IconSource = await IconService.GetIconAsync(FilePath, Id, _customIconPath);
     }
 
-    public override TreeItem ToModel() => new AppItem
+    public AppItem ToModel() => new AppItem
     {
         Id = Id,
         DisplayName = DisplayName,
@@ -124,42 +107,65 @@ public class AppItemViewModel : TreeItemViewModel
         RunAsAdmin = RunAsAdmin,
         CustomIconPath = CustomIconPath
     };
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
-public class FolderViewModel : TreeItemViewModel
+public class FolderViewModel : INotifyPropertyChanged
 {
-    private bool _isExpanded;
+    private string _displayName = string.Empty;
 
-    public ObservableCollection<TreeItemViewModel> Children { get; } = new();
+    public Guid Id { get; }
 
-    public bool IsExpanded
+    public string DisplayName
     {
-        get => _isExpanded;
-        set { if (_isExpanded != value) { _isExpanded = value; OnPropertyChanged(); } }
+        get => _displayName;
+        set { if (_displayName != value) { _displayName = value; OnPropertyChanged(); } }
+    }
+
+    public ObservableCollection<AppItemViewModel> Apps { get; } = new();
+
+    public string IconGlyph => Id == Guid.Empty ? "\uE8FD" : "\uE8B7";
+
+    public FolderViewModel(Guid id, string name)
+    {
+        Id = id;
+        _displayName = name;
     }
 
     public FolderViewModel(FolderItem model)
-        : base(model.Id, model.DisplayName)
     {
-        _isExpanded = model.IsExpanded;
+        Id = model.Id;
+        _displayName = model.DisplayName;
     }
 
     public FolderViewModel(string name)
-        : base(Guid.NewGuid(), name)
     {
-        _isExpanded = true;
+        Id = Guid.NewGuid();
+        _displayName = name;
     }
 
-    public override TreeItem ToModel()
+    public FolderItem ToModel()
     {
         var folder = new FolderItem
         {
             Id = Id,
-            DisplayName = DisplayName,
-            IsExpanded = IsExpanded
+            DisplayName = DisplayName
         };
-        foreach (var child in Children)
-            folder.Children.Add(child.ToModel());
+        foreach (var app in Apps)
+            folder.Children.Add(app.ToModel());
         return folder;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
