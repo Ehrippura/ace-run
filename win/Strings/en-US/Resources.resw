@@ -22,6 +22,7 @@
   <data name="DeleteButton" xml:space="preserve"><value>Delete</value></data>
   <data name="CancelButton" xml:space="preserve"><value>Cancel</value></data>
   <data name="SaveButton" xml:space="preserve"><value>Save</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>Close</value></data>
   <data name="DragDropCaption" xml:space="preserve"><value>Add to Ace Run</value></data>
 
   <!-- Multi-select operations -->
@@ -62,4 +63,26 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>Custom Icon</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>Leave empty to use default (.ico or .exe)</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>Browse</value></data>
+
+  <!-- Workspace management -->
+  <data name="Workspace_Manage" xml:space="preserve"><value>Manage Workspaces</value></data>
+  <data name="Workspace_New" xml:space="preserve"><value>New Workspace</value></data>
+  <data name="Workspace_Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="Workspace_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Workspace_SetDefault" xml:space="preserve"><value>Set as Default</value></data>
+  <data name="Workspace_Default" xml:space="preserve"><value>(Default)</value></data>
+  <data name="Workspace_Export" xml:space="preserve"><value>Export</value></data>
+  <data name="Workspace_Import" xml:space="preserve"><value>Import</value></data>
+  <data name="Workspace_ImportAsNew" xml:space="preserve"><value>Import as New Workspace</value></data>
+  <data name="Workspace_ImportMerge" xml:space="preserve"><value>Merge into Current</value></data>
+  <data name="Workspace_CannotDeleteLast" xml:space="preserve"><value>Cannot delete the last workspace.</value></data>
+  <data name="Workspace_DeleteConfirm" xml:space="preserve"><value>Delete "{0}"? All apps will be lost.</value></data>
+  <data name="Workspace_CopyCurrent" xml:space="preserve"><value>Copy current workspace</value></data>
+  <data name="Workspace_CreateBlank" xml:space="preserve"><value>Create blank workspace</value></data>
+  <data name="Workspace_InvalidFile" xml:space="preserve"><value>Invalid .acerun file format.</value></data>
+  <data name="Workspace_NameLabel" xml:space="preserve"><value>Name</value></data>
+  <data name="Workspace_ColorLabel" xml:space="preserve"><value>Color</value></data>
+  <data name="Workspace_AppCount" xml:space="preserve"><value>{0} apps</value></data>
+  <data name="Workspace_ManageTitle" xml:space="preserve"><value>Manage Workspaces</value></data>
+  <data name="Workspace_NewTitle" xml:space="preserve"><value>New Workspace</value></data>
 </root>

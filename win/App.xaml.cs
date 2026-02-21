@@ -55,7 +55,7 @@ namespace ace_run
             }
         }
 
-        internal void UpdateTrayContextMenu()
+        public void UpdateTrayContextMenu()
         {
             if (_trayIcon is null || _window is null)
                 return;

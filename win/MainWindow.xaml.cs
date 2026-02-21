@@ -23,9 +23,15 @@ public sealed partial class MainWindow : Window
     private readonly ObservableCollection<FolderViewModel> _folders = new();
     private readonly ObservableCollection<AppItemViewModel> _ungroupedApps = new();
     private readonly ObservableCollection<AppItemViewModel> _searchResults = new();
+    private readonly ObservableCollection<WorkspaceViewModel> _workspaces = new();
+
     private FolderViewModel? _selectedFolder; // null = ungrouped
     private AppData _appData = new();
     private string _searchText = string.Empty;
+
+    private WorkspaceConfig _workspaceConfig = new();
+    private WorkspaceInfo _currentWorkspace = new();
+    private bool _suppressWorkspaceSwitch;
 
     public MainWindow()
     {
@@ -36,17 +42,38 @@ public sealed partial class MainWindow : Window
         UngroupedItemLabel.Text = Loc.GetString("UngroupedFolderName");
         SidebarListView.ItemsSource = _folders;
         SearchResultsView.ItemsSource = _searchResults;
+        WorkspaceComboBox.ItemsSource = _workspaces;
 
-        LoadItems();
-        RestoreWindowSize();
+        _ = InitializeWorkspacesAsync();
         Closed += MainWindow_Closed;
     }
 
-    #region Data Load/Save
+    #region Workspace Initialization
 
-    private void LoadItems()
+    private async Task InitializeWorkspacesAsync()
     {
-        _appData = DataService.Load();
+        _workspaceConfig = DataService.MigrateOrInitialize();
+
+        _workspaces.Clear();
+        foreach (var ws in _workspaceConfig.Workspaces)
+            _workspaces.Add(new WorkspaceViewModel(ws, _workspaceConfig.DefaultWorkspaceId == ws.Id));
+
+        var active = _workspaceConfig.Workspaces.FirstOrDefault(w => w.Id == _workspaceConfig.ActiveWorkspaceId)
+                     ?? _workspaceConfig.Workspaces.First();
+        _currentWorkspace = active;
+
+        _suppressWorkspaceSwitch = true;
+        WorkspaceComboBox.SelectedItem = _workspaces.FirstOrDefault(v => v.Id == active.Id);
+        _suppressWorkspaceSwitch = false;
+
+        await LoadWorkspaceDataAsync(active);
+        RestoreWindowSize();
+        UpdateWindowTitle();
+    }
+
+    private async Task LoadWorkspaceDataAsync(WorkspaceInfo ws)
+    {
+        _appData = DataService.LoadWorkspace(ws.Id);
         _folders.Clear();
         _ungroupedApps.Clear();
 
@@ -75,8 +102,75 @@ public sealed partial class MainWindow : Window
         RefreshContentArea();
 
         if (PurgeStaleRecentLaunches())
-            DataService.Save(_appData);
+            DataService.SaveWorkspace(ws.Id, _appData);
     }
+
+    private async Task SwitchWorkspaceAsync(WorkspaceInfo target)
+    {
+        if (target.Id == _currentWorkspace.Id) return;
+
+        CommitSave();
+
+        _ungroupedApps.Clear();
+        _folders.Clear();
+        _searchResults.Clear();
+        _selectedFolder = null;
+
+        // Clear search state
+        SearchBox.Text = string.Empty;
+        _searchText = string.Empty;
+        SearchResultsView.Visibility = Visibility.Collapsed;
+        AppGridView.Visibility = Visibility.Visible;
+
+        _currentWorkspace = target;
+        _workspaceConfig.ActiveWorkspaceId = target.Id;
+        DataService.SaveConfig(_workspaceConfig);
+
+        await LoadWorkspaceDataAsync(target);
+        UpdateWindowTitle();
+        ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    public async Task ReloadAfterWorkspaceManagement()
+    {
+        _workspaceConfig = DataService.LoadConfig();
+
+        _suppressWorkspaceSwitch = true;
+        _workspaces.Clear();
+        foreach (var ws in _workspaceConfig.Workspaces)
+            _workspaces.Add(new WorkspaceViewModel(ws, _workspaceConfig.DefaultWorkspaceId == ws.Id));
+
+        var current = _workspaceConfig.Workspaces.FirstOrDefault(w => w.Id == _currentWorkspace.Id)
+                      ?? _workspaceConfig.Workspaces.First();
+        _currentWorkspace = current;
+
+        WorkspaceComboBox.SelectedItem = _workspaces.FirstOrDefault(v => v.Id == current.Id);
+        _suppressWorkspaceSwitch = false;
+
+        _ungroupedApps.Clear();
+        _folders.Clear();
+        _searchResults.Clear();
+        _selectedFolder = null;
+        SearchBox.Text = string.Empty;
+        _searchText = string.Empty;
+        SearchResultsView.Visibility = Visibility.Collapsed;
+        AppGridView.Visibility = Visibility.Visible;
+
+        await LoadWorkspaceDataAsync(current);
+        UpdateWindowTitle();
+        ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    private void UpdateWindowTitle() =>
+        AppWindow.Title = $"Ace Run \u2014 {_currentWorkspace.Name}";
+
+    // Exposed for ManageWorkspacesDialog
+    public WorkspaceConfig WorkspaceConfig => _workspaceConfig;
+    public WorkspaceInfo CurrentWorkspace => _currentWorkspace;
+
+    #endregion
+
+    #region Data Load/Save
 
     private void RefreshContentArea()
     {
@@ -87,7 +181,16 @@ public sealed partial class MainWindow : Window
     {
         _appData.UngroupedItems = _ungroupedApps.Select(v => v.ToModel()).ToList();
         _appData.Folders = _folders.Select(f => f.ToModel()).ToList();
-        DataService.Save(_appData);
+
+        var info = _workspaceConfig.Workspaces.FirstOrDefault(w => w.Id == _currentWorkspace.Id);
+        if (info is not null)
+        {
+            info.AppCount = _appData.UngroupedItems.Count + _appData.Folders.Sum(f => f.Children.Count);
+            info.LastModifiedAt = DateTime.UtcNow;
+            DataService.SaveConfig(_workspaceConfig);
+        }
+
+        DataService.SaveWorkspace(_currentWorkspace.Id, _appData);
     }
 
     private void SaveItems()
@@ -198,6 +301,26 @@ public sealed partial class MainWindow : Window
         PurgeStaleRecentLaunches();
         CommitSave();
         ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    #endregion
+
+    #region Workspace ComboBox / Manage Button
+
+    private async void WorkspaceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressWorkspaceSwitch) return;
+        if (WorkspaceComboBox.SelectedItem is WorkspaceViewModel wsVm)
+            await SwitchWorkspaceAsync(wsVm.ToInfo());
+    }
+
+    private async void ManageWorkspacesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        var dialog = new ManageWorkspacesDialog(hwnd, _currentWorkspace.Id);
+        dialog.XamlRoot = Content.XamlRoot;
+        await dialog.ShowAsync();
+        await ReloadAfterWorkspaceManagement();
     }
 
     #endregion
@@ -748,29 +871,28 @@ public sealed partial class MainWindow : Window
 
         if (App.TrayEnabled)
         {
+            CommitSave();
             args.Handled = true;
             this.AppWindow.Hide();
             return;
         }
-        SaveItems();
-    }
 
-    private void RestoreWindowSize()
-    {
-        var ws = _appData.WindowState;
-        if (ws is not null && ws.Width > 0 && ws.Height > 0)
-            this.AppWindow.Resize(new Windows.Graphics.SizeInt32(ws.Width, ws.Height));
+        CommitSave();
     }
 
     private void SaveWindowSize()
     {
-        var size = this.AppWindow.Size;
-        _appData.WindowState = new Models.WindowState
-        {
-            Width = size.Width,
-            Height = size.Height
-        };
-        DataService.Save(_appData);
+        var size = AppWindow.Size;
+        if (size.Width <= 0 || size.Height <= 0) return;
+        _workspaceConfig.WindowState = new Models.WindowState { Width = size.Width, Height = size.Height };
+        DataService.SaveConfig(_workspaceConfig);
+    }
+
+    private void RestoreWindowSize()
+    {
+        var ws = _workspaceConfig.WindowState;
+        if (ws is not null && ws.Width > 0 && ws.Height > 0)
+            this.AppWindow.Resize(new Windows.Graphics.SizeInt32(ws.Width, ws.Height));
     }
 
     #endregion

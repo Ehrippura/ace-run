@@ -1,10 +1,13 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.UI;
 using ace_run.Models;
 using ace_run.Services;
 
@@ -152,6 +155,108 @@ public class FolderViewModel : INotifyPropertyChanged
         foreach (var app in Apps)
             folder.Children.Add(app.ToModel());
         return folder;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+public class WorkspaceViewModel : INotifyPropertyChanged
+{
+    private readonly WorkspaceInfo _info;
+    private bool _isDefault;
+
+    public Guid Id => _info.Id;
+
+    public string Name
+    {
+        get => _info.Name;
+        set
+        {
+            if (_info.Name != value)
+            {
+                _info.Name = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AppCountText));
+            }
+        }
+    }
+
+    public string? ColorTag
+    {
+        get => _info.ColorTag;
+        set
+        {
+            if (_info.ColorTag != value)
+            {
+                _info.ColorTag = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ColorBrush));
+                OnPropertyChanged(nameof(HasColorVisibility));
+            }
+        }
+    }
+
+    public int AppCount
+    {
+        get => _info.AppCount;
+        set
+        {
+            if (_info.AppCount != value)
+            {
+                _info.AppCount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AppCountText));
+            }
+        }
+    }
+
+    public bool IsDefault
+    {
+        get => _isDefault;
+        set
+        {
+            if (_isDefault != value)
+            {
+                _isDefault = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DefaultGlyph));
+            }
+        }
+    }
+
+    public Brush ColorBrush => _info.ColorTag switch
+    {
+        "Blue"   => new SolidColorBrush(Color.FromArgb(255, 0, 120, 212)),
+        "Green"  => new SolidColorBrush(Color.FromArgb(255, 16, 124, 16)),
+        "Red"    => new SolidColorBrush(Color.FromArgb(255, 196, 43, 28)),
+        "Yellow" => new SolidColorBrush(Color.FromArgb(255, 247, 99, 12)),
+        "Purple" => new SolidColorBrush(Color.FromArgb(255, 136, 23, 152)),
+        _        => new SolidColorBrush(Colors.Transparent)
+    };
+
+    public Visibility HasColorVisibility =>
+        _info.ColorTag is not null ? Visibility.Visible : Visibility.Collapsed;
+
+    public string AppCountText =>
+        string.Format(Loc.GetString("Workspace_AppCount"), _info.AppCount);
+
+    public string DefaultGlyph => _isDefault ? "\uE735" : "\uE734";
+
+    public string SetDefaultTooltip => Loc.GetString("Workspace_SetDefault");
+    public string ExportTooltip => Loc.GetString("Workspace_Export");
+    public string DeleteTooltip => Loc.GetString("Workspace_Delete");
+
+    public WorkspaceInfo ToInfo() => _info;
+
+    public WorkspaceViewModel(WorkspaceInfo info, bool isDefault)
+    {
+        _info = info;
+        _isDefault = isDefault;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

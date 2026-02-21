@@ -22,6 +22,7 @@
   <data name="DeleteButton" xml:space="preserve"><value>刪除</value></data>
   <data name="CancelButton" xml:space="preserve"><value>取消</value></data>
   <data name="SaveButton" xml:space="preserve"><value>儲存</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>關閉</value></data>
   <data name="DragDropCaption" xml:space="preserve"><value>新增至 Ace Run</value></data>
 
   <!-- Multi-select operations -->
@@ -62,4 +63,26 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>自訂圖示</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>留空則使用預設圖示（.ico 或 .exe）</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>瀏覽</value></data>
+
+  <!-- Workspace management -->
+  <data name="Workspace_Manage" xml:space="preserve"><value>管理工作區</value></data>
+  <data name="Workspace_New" xml:space="preserve"><value>新增工作區</value></data>
+  <data name="Workspace_Rename" xml:space="preserve"><value>重新命名</value></data>
+  <data name="Workspace_Delete" xml:space="preserve"><value>刪除</value></data>
+  <data name="Workspace_SetDefault" xml:space="preserve"><value>設為預設</value></data>
+  <data name="Workspace_Default" xml:space="preserve"><value>（預設）</value></data>
+  <data name="Workspace_Export" xml:space="preserve"><value>匯出</value></data>
+  <data name="Workspace_Import" xml:space="preserve"><value>匯入</value></data>
+  <data name="Workspace_ImportAsNew" xml:space="preserve"><value>匯入為新工作區</value></data>
+  <data name="Workspace_ImportMerge" xml:space="preserve"><value>合併到目前工作區</value></data>
+  <data name="Workspace_CannotDeleteLast" xml:space="preserve"><value>無法刪除最後一個工作區。</value></data>
+  <data name="Workspace_DeleteConfirm" xml:space="preserve"><value>刪除「{0}」？此工作區所有應用程式將被刪除。</value></data>
+  <data name="Workspace_CopyCurrent" xml:space="preserve"><value>複製目前工作區</value></data>
+  <data name="Workspace_CreateBlank" xml:space="preserve"><value>建立空白工作區</value></data>
+  <data name="Workspace_InvalidFile" xml:space="preserve"><value>無效的 .acerun 檔案格式。</value></data>
+  <data name="Workspace_NameLabel" xml:space="preserve"><value>名稱</value></data>
+  <data name="Workspace_ColorLabel" xml:space="preserve"><value>顏色標記</value></data>
+  <data name="Workspace_AppCount" xml:space="preserve"><value>{0} 個應用程式</value></data>
+  <data name="Workspace_ManageTitle" xml:space="preserve"><value>管理工作區</value></data>
+  <data name="Workspace_NewTitle" xml:space="preserve"><value>新增工作區</value></data>
 </root>

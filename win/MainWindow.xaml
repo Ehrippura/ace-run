@@ -98,14 +98,48 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0"
-                    Padding="0,35,12,0">
+                <!-- Toolbar row: workspace selector + action buttons -->
+                <Grid Grid.Row="0" Padding="12,35,12,0">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
+
+                    <!-- Workspace ComboBox -->
+                    <ComboBox Grid.Column="0"
+                        x:Name="WorkspaceComboBox"
+                        MinWidth="140"
+                        VerticalAlignment="Center"
+                        SelectionChanged="WorkspaceComboBox_SelectionChanged">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="local:WorkspaceViewModel">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse Width="10" Height="10"
+                                             Fill="{x:Bind ColorBrush, Mode=OneWay}"
+                                             Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
+                                             VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <!-- Manage workspaces button -->
                     <Button Grid.Column="1"
+                        x:Name="ManageWorkspacesButton"
+                        Margin="4,0,0,0"
+                        Height="32"
+                        VerticalAlignment="Center"
+                        Click="ManageWorkspacesButton_Click">
+                        <FontIcon Glyph="&#xE713;" FontSize="14" />
+                    </Button>
+
+                    <!-- New Folder -->
+                    <Button Grid.Column="3"
                         x:Name="NewFolderButton"
                         Click="NewFolderButton_Click"
                         VerticalAlignment="Center"
@@ -115,7 +149,9 @@
                             <TextBlock x:Uid="NewFolderButtonLabel" Text="New Folder" />
                         </StackPanel>
                     </Button>
-                    <Button Grid.Column="2"
+
+                    <!-- Add -->
+                    <Button Grid.Column="4"
                         x:Name="AddButton"
                         Click="AddButton_Click"
                         Style="{StaticResource AccentButtonStyle}"
