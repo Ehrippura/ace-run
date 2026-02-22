@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -121,6 +122,24 @@ namespace ace_run
             _window.Activate();
             UpdateTrayContextMenu();
         }
+
+        public void BringToForeground()
+        {
+            _window?.DispatcherQueue.TryEnqueue(() =>
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
+                if (IsIconic(hwnd))
+                    ShowWindowWin32(hwnd, SW_RESTORE);
+                _window.AppWindow.Show();
+                SetForegroundWindow(hwnd);
+                _window.Activate();
+            });
+        }
+
+        [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hWnd);
+        [DllImport("user32.dll", EntryPoint = "ShowWindow")] private static extern bool ShowWindowWin32(IntPtr hWnd, int nCmdShow);
+        private const int SW_RESTORE = 9;
 
         private void ExitApp()
         {
