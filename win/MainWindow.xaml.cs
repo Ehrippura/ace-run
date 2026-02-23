@@ -494,7 +494,7 @@ public sealed partial class MainWindow : Window
         var selectedApps = AppGridView.SelectedItems.Cast<AppItemViewModel>().ToList();
         bool isMultiSelect = selectedApps.Count > 1 && tappedApp is not null && selectedApps.Contains(tappedApp);
 
-        if (tappedApp is null && selectedApps.Count == 0) return;
+        if (tappedApp is null) return;
 
         if (tappedApp is not null && !selectedApps.Contains(tappedApp))
         {
