@@ -121,6 +121,7 @@ namespace ace_run
             _window.AppWindow.Show();
             _window.Activate();
             UpdateTrayContextMenu();
+            BringToForeground();
         }
 
         public void BringToForeground()
