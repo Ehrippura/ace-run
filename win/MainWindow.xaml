@@ -221,7 +221,7 @@
                     x:Name="SearchResultsView"
                     Visibility="Collapsed"
                     Padding="8,0,8,8"
-                    SelectionMode="Multiple"
+                    SelectionMode="Single"
                     DoubleTapped="SearchResultsView_DoubleTapped"
                     KeyDown="SearchResultsView_KeyDown">
                     <ListView.ItemTemplate>
