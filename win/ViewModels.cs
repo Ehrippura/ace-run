@@ -100,6 +100,8 @@ public class AppItemViewModel : INotifyPropertyChanged
         IconSource = await IconService.GetIconAsync(FilePath, Id, _customIconPath);
     }
 
+    public void ReleaseIcon() => IconSource = null;
+
     public AppItem ToModel() => new AppItem
     {
         Id = Id,

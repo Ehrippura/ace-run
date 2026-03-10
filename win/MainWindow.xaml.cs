@@ -81,7 +81,6 @@ public sealed partial class MainWindow : Window
         {
             var vm = new AppItemViewModel(app);
             _ungroupedApps.Add(vm);
-            _ = vm.LoadIconAsync();
         }
 
         foreach (var folder in _appData.Folders)
@@ -91,7 +90,6 @@ public sealed partial class MainWindow : Window
             {
                 var vm = new AppItemViewModel(app);
                 fvm.Apps.Add(vm);
-                _ = vm.LoadIconAsync();
             }
             _folders.Add(fvm);
         }
@@ -175,6 +173,27 @@ public sealed partial class MainWindow : Window
     private void RefreshContentArea()
     {
         AppGridView.ItemsSource = _selectedFolder?.Apps ?? _ungroupedApps;
+        ReleaseHiddenIcons();
+        LoadVisibleIcons();
+    }
+
+    private void ReleaseHiddenIcons()
+    {
+        var visible = _selectedFolder?.Apps ?? (IEnumerable<AppItemViewModel>)_ungroupedApps;
+
+        if (visible != (IEnumerable<AppItemViewModel>)_ungroupedApps)
+            foreach (var vm in _ungroupedApps) vm.ReleaseIcon();
+
+        foreach (var folder in _folders)
+            if (visible != (IEnumerable<AppItemViewModel>)folder.Apps)
+                foreach (var vm in folder.Apps) vm.ReleaseIcon();
+    }
+
+    private void LoadVisibleIcons()
+    {
+        var visible = _selectedFolder?.Apps ?? (IEnumerable<AppItemViewModel>)_ungroupedApps;
+        foreach (var vm in visible)
+            _ = vm.LoadIconAsync();
     }
 
     private void CommitSave()
@@ -363,6 +382,7 @@ public sealed partial class MainWindow : Window
             SearchResultsView.Visibility = Visibility.Collapsed;
             AppGridView.Visibility = Visibility.Visible;
             _searchResults.Clear();
+            LoadVisibleIcons();
         }
         else
         {
@@ -377,6 +397,9 @@ public sealed partial class MainWindow : Window
                 foreach (var app in folder.Apps)
                     if (app.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
                         _searchResults.Add(app);
+
+            foreach (var app in _searchResults)
+                _ = app.LoadIconAsync();
         }
     }
 
