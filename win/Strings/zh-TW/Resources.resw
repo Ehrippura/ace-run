@@ -46,6 +46,7 @@
 
   <!-- System Tray -->
   <data name="TrayShow" xml:space="preserve"><value>顯示</value></data>
+  <data name="TrayClearRecent" xml:space="preserve"><value>清除最近啟動記錄</value></data>
   <data name="TrayExit" xml:space="preserve"><value>結束</value></data>
 
   <!-- EditItemDialog -->

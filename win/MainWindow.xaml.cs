@@ -773,9 +773,17 @@ public sealed partial class MainWindow : Window
         if (_appData.RecentLaunches.Count > 10)
             _appData.RecentLaunches.RemoveRange(10, _appData.RecentLaunches.Count - 10);
         SaveItems();
+        ((App)Application.Current).UpdateTrayContextMenu();
     }
 
     public List<RecentLaunch> GetRecentLaunches() => _appData.RecentLaunches;
+
+    public void ClearRecentLaunches()
+    {
+        _appData.RecentLaunches.Clear();
+        SaveItems();
+        ((App)Application.Current).UpdateTrayContextMenu();
+    }
 
     #endregion
 

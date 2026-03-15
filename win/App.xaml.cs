@@ -71,10 +71,20 @@ namespace ace_run
             };
             menu.Items.Add(showItem);
 
-            menu.Items.Add(new MenuFlyoutSeparator());
-
             // Recent launches
             var recents = _window.GetRecentLaunches();
+            if (recents.Count > 0)
+            {
+                var clearItem = new MenuFlyoutItem
+                {
+                    Text = Loc.GetString("TrayClearRecent"),
+                    Command = new RelayCommand(() => _window?.ClearRecentLaunches())
+                };
+                menu.Items.Add(clearItem);
+            }
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
             if (recents.Count > 0)
             {
                 foreach (var recent in recents)
