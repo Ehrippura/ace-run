@@ -94,9 +94,22 @@ public sealed partial class MainWindow : Window
             _folders.Add(fvm);
         }
 
-        _selectedFolder = null;
-        SidebarListView.SelectedItem = null;
-        UngroupedItem.IsSelected = true;
+        var savedFolder = ws.SelectedFolderId is Guid fid
+            ? _folders.FirstOrDefault(f => f.Id == fid)
+            : null;
+
+        if (savedFolder is not null)
+        {
+            _selectedFolder = savedFolder;
+            SidebarListView.SelectedItem = savedFolder;
+            UngroupedItem.IsSelected = false;
+        }
+        else
+        {
+            _selectedFolder = null;
+            SidebarListView.SelectedItem = null;
+            UngroupedItem.IsSelected = true;
+        }
         RefreshContentArea();
 
         if (PurgeStaleRecentLaunches())
@@ -206,6 +219,7 @@ public sealed partial class MainWindow : Window
         {
             info.AppCount = _appData.UngroupedItems.Count + _appData.Folders.Sum(f => f.Children.Count);
             info.LastModifiedAt = DateTime.UtcNow;
+            info.SelectedFolderId = _selectedFolder?.Id;
             DataService.SaveConfig(_workspaceConfig);
         }
 

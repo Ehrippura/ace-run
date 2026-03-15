@@ -10,4 +10,5 @@ public class WorkspaceInfo
     public DateTime LastModifiedAt { get; set; } = DateTime.UtcNow;
     public string? ColorTag { get; set; }  // "Blue","Green","Red","Yellow","Purple" or null
     public int AppCount { get; set; }      // denormalized, updated on save
+    public Guid? SelectedFolderId { get; set; }
 }
