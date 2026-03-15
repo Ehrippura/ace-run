@@ -8,7 +8,6 @@ using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -53,7 +52,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     {
         _workspaceVMs.Clear();
         foreach (var ws in _config.Workspaces)
-            _workspaceVMs.Add(new WorkspaceViewModel(ws, _config.DefaultWorkspaceId == ws.Id));
+            _workspaceVMs.Add(new WorkspaceViewModel(ws));
     }
 
     // ---- New workspace (inline form) ----
@@ -88,7 +87,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         DataService.SaveWorkspace(wsInfo.Id, appData);
         DataService.SaveConfig(_config);
 
-        _workspaceVMs.Add(new WorkspaceViewModel(wsInfo, false));
+        _workspaceVMs.Add(new WorkspaceViewModel(wsInfo));
         NewWorkspaceForm.Visibility = Visibility.Collapsed;
     }
 
@@ -140,7 +139,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
             DataService.SaveWorkspace(wsInfo.Id, export.AppData);
             DataService.SaveConfig(_config);
 
-            _workspaceVMs.Add(new WorkspaceViewModel(wsInfo, false));
+            _workspaceVMs.Add(new WorkspaceViewModel(wsInfo));
         }
         catch (Exception ex)
         {
@@ -234,25 +233,9 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         if (_config.ActiveWorkspaceId == vm.Id)
             _config.ActiveWorkspaceId = _config.Workspaces[0].Id;
 
-        if (_config.DefaultWorkspaceId == vm.Id)
-            _config.DefaultWorkspaceId = _config.Workspaces[0].Id;
-
         DataService.DeleteWorkspace(vm.Id);
         DataService.SaveConfig(_config);
         _workspaceVMs.Remove(vm);
-    }
-
-    // ---- Default toggle ----
-
-    private void DefaultToggle_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not ToggleButton { Tag: WorkspaceViewModel vm }) return;
-
-        _config.DefaultWorkspaceId = vm.Id;
-        DataService.SaveConfig(_config);
-
-        foreach (var wsVm in _workspaceVMs)
-            wsVm.IsDefault = wsVm.Id == vm.Id;
     }
 
     // ---- Inline rename ----

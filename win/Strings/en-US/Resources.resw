@@ -69,8 +69,7 @@
   <data name="Workspace_New" xml:space="preserve"><value>New Workspace</value></data>
   <data name="Workspace_Rename" xml:space="preserve"><value>Rename</value></data>
   <data name="Workspace_Delete" xml:space="preserve"><value>Delete</value></data>
-  <data name="Workspace_SetDefault" xml:space="preserve"><value>Set as Default</value></data>
-  <data name="Workspace_Default" xml:space="preserve"><value>(Default)</value></data>
+<data name="Workspace_Default" xml:space="preserve"><value>(Default)</value></data>
   <data name="Workspace_Export" xml:space="preserve"><value>Export</value></data>
   <data name="Workspace_Import" xml:space="preserve"><value>Import</value></data>
   <data name="Workspace_ImportAsNew" xml:space="preserve"><value>Import as New Workspace</value></data>

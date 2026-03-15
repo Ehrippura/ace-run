@@ -69,8 +69,7 @@ public static class DataService
         var config = new WorkspaceConfig
         {
             Workspaces = { ws },
-            ActiveWorkspaceId = ws.Id,
-            DefaultWorkspaceId = ws.Id
+            ActiveWorkspaceId = ws.Id
         };
 
         var appData = File.Exists(_legacyAppsPath) ? Load() : new AppData();

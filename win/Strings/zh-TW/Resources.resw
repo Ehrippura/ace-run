@@ -69,8 +69,7 @@
   <data name="Workspace_New" xml:space="preserve"><value>新增工作區</value></data>
   <data name="Workspace_Rename" xml:space="preserve"><value>重新命名</value></data>
   <data name="Workspace_Delete" xml:space="preserve"><value>刪除</value></data>
-  <data name="Workspace_SetDefault" xml:space="preserve"><value>設為預設</value></data>
-  <data name="Workspace_Default" xml:space="preserve"><value>（預設）</value></data>
+<data name="Workspace_Default" xml:space="preserve"><value>（預設）</value></data>
   <data name="Workspace_Export" xml:space="preserve"><value>匯出</value></data>
   <data name="Workspace_Import" xml:space="preserve"><value>匯入</value></data>
   <data name="Workspace_ImportAsNew" xml:space="preserve"><value>匯入為新工作區</value></data>

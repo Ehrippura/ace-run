@@ -56,7 +56,6 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <!-- Color dot -->
@@ -83,18 +82,8 @@
                                    Margin="4,0"
                                    VerticalAlignment="Center" />
 
-                        <!-- Default star toggle -->
-                        <ToggleButton Grid.Column="3"
-                                      Tag="{x:Bind}"
-                                      IsChecked="{x:Bind IsDefault, Mode=OneWay}"
-                                      Click="DefaultToggle_Click"
-                                      Padding="6,4"
-                                      ToolTipService.ToolTip="{x:Bind SetDefaultTooltip}">
-                            <FontIcon Glyph="{x:Bind DefaultGlyph, Mode=OneWay}" FontSize="14" />
-                        </ToggleButton>
-
                         <!-- Export button -->
-                        <Button Grid.Column="4"
+                        <Button Grid.Column="3"
                                 Tag="{x:Bind}"
                                 Click="ExportWorkspace_Click"
                                 Padding="6,4"
@@ -103,7 +92,7 @@
                         </Button>
 
                         <!-- Delete button -->
-                        <Button Grid.Column="5"
+                        <Button Grid.Column="4"
                                 Tag="{x:Bind}"
                                 Click="DeleteWorkspace_Click"
                                 Padding="6,4"

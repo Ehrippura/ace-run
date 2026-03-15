@@ -56,7 +56,7 @@ public sealed partial class MainWindow : Window
 
         _workspaces.Clear();
         foreach (var ws in _workspaceConfig.Workspaces)
-            _workspaces.Add(new WorkspaceViewModel(ws, _workspaceConfig.DefaultWorkspaceId == ws.Id));
+            _workspaces.Add(new WorkspaceViewModel(ws));
 
         var active = _workspaceConfig.Workspaces.FirstOrDefault(w => w.Id == _workspaceConfig.ActiveWorkspaceId)
                      ?? _workspaceConfig.Workspaces.First();
@@ -136,7 +136,7 @@ public sealed partial class MainWindow : Window
         _suppressWorkspaceSwitch = true;
         _workspaces.Clear();
         foreach (var ws in _workspaceConfig.Workspaces)
-            _workspaces.Add(new WorkspaceViewModel(ws, _workspaceConfig.DefaultWorkspaceId == ws.Id));
+            _workspaces.Add(new WorkspaceViewModel(ws));
 
         var current = _workspaceConfig.Workspaces.FirstOrDefault(w => w.Id == _currentWorkspace.Id)
                       ?? _workspaceConfig.Workspaces.First();

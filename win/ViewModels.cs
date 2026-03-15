@@ -170,7 +170,6 @@ public class FolderViewModel : INotifyPropertyChanged
 public class WorkspaceViewModel : INotifyPropertyChanged
 {
     private readonly WorkspaceInfo _info;
-    private bool _isDefault;
 
     public Guid Id => _info.Id;
 
@@ -217,20 +216,6 @@ public class WorkspaceViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool IsDefault
-    {
-        get => _isDefault;
-        set
-        {
-            if (_isDefault != value)
-            {
-                _isDefault = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DefaultGlyph));
-            }
-        }
-    }
-
     public Brush ColorBrush => _info.ColorTag switch
     {
         "Blue"   => new SolidColorBrush(Color.FromArgb(255, 0, 120, 212)),
@@ -247,18 +232,14 @@ public class WorkspaceViewModel : INotifyPropertyChanged
     public string AppCountText =>
         string.Format(Loc.GetString("Workspace_AppCount"), _info.AppCount);
 
-    public string DefaultGlyph => _isDefault ? "\uE735" : "\uE734";
-
-    public string SetDefaultTooltip => Loc.GetString("Workspace_SetDefault");
     public string ExportTooltip => Loc.GetString("Workspace_Export");
     public string DeleteTooltip => Loc.GetString("Workspace_Delete");
 
     public WorkspaceInfo ToInfo() => _info;
 
-    public WorkspaceViewModel(WorkspaceInfo info, bool isDefault)
+    public WorkspaceViewModel(WorkspaceInfo info)
     {
         _info = info;
-        _isDefault = isDefault;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
