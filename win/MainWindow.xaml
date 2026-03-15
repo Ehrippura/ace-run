@@ -223,7 +223,7 @@
                     Padding="8,0,8,8"
                     SelectionMode="Single"
                     DoubleTapped="SearchResultsView_DoubleTapped"
-                    KeyDown="SearchResultsView_KeyDown">
+                    PreviewKeyDown="SearchResultsView_KeyDown">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:AppItemViewModel">
                             <Grid Padding="4,4"

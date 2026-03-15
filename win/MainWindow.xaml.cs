@@ -874,7 +874,13 @@ public sealed partial class MainWindow : Window
 
     private async void SearchResultsView_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == Windows.System.VirtualKey.Delete)
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            if (SearchResultsView.SelectedItem is AppItemViewModel app)
+                LaunchApp(app);
+        }
+        else if (e.Key == Windows.System.VirtualKey.Delete)
         {
             e.Handled = true;
             var targets = SearchResultsView.SelectedItems.Cast<AppItemViewModel>().ToList();
@@ -888,13 +894,19 @@ public sealed partial class MainWindow : Window
 
     public void AttachContextMenus()
     {
-        AppGridView.KeyDown += AppGridView_KeyDown;
+        AppGridView.PreviewKeyDown += AppGridView_KeyDown;
         SidebarListView.RightTapped += SidebarListView_RightTapped;
     }
 
     private async void AppGridView_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == Windows.System.VirtualKey.Delete)
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            if (AppGridView.SelectedItem is AppItemViewModel app)
+                LaunchApp(app);
+        }
+        else if (e.Key == Windows.System.VirtualKey.Delete)
         {
             e.Handled = true;
             var targets = AppGridView.SelectedItems.Cast<AppItemViewModel>().ToList();
