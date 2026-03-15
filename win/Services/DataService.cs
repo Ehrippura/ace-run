@@ -74,8 +74,6 @@ public static class DataService
 
         var appData = File.Exists(_legacyAppsPath) ? Load() : new AppData();
         ws.AppCount = appData.UngroupedItems.Count + appData.Folders.Sum(f => f.Children.Count);
-        config.WindowState = appData.WindowState;
-
         SaveWorkspace(ws.Id, appData);
 
         if (File.Exists(_legacyAppsPath))
