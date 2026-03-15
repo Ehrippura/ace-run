@@ -186,7 +186,8 @@
                     DragOver="AppGridView_DragOver"
                     Drop="AppGridView_Drop"
                     DragItemsCompleted="AppGridView_DragItemsCompleted"
-                    RightTapped="AppGridView_RightTapped">
+                    RightTapped="AppGridView_RightTapped"
+                    ContainerContentChanging="AppGridView_ContainerContentChanging">
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="local:AppItemViewModel">
                             <Grid Width="96" Height="88"

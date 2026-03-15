@@ -187,7 +187,6 @@ public sealed partial class MainWindow : Window
     {
         AppGridView.ItemsSource = _selectedFolder?.Apps ?? _ungroupedApps;
         ReleaseHiddenIcons();
-        LoadVisibleIcons();
     }
 
     private void ReleaseHiddenIcons()
@@ -202,10 +201,12 @@ public sealed partial class MainWindow : Window
                 foreach (var vm in folder.Apps) vm.ReleaseIcon();
     }
 
-    private void LoadVisibleIcons()
+    private void AppGridView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        var visible = _selectedFolder?.Apps ?? (IEnumerable<AppItemViewModel>)_ungroupedApps;
-        foreach (var vm in visible)
+        if (args.Item is not AppItemViewModel vm) return;
+        if (args.InRecycleQueue)
+            vm.ReleaseIcon();
+        else
             _ = vm.LoadIconAsync();
     }
 
@@ -396,7 +397,6 @@ public sealed partial class MainWindow : Window
             SearchResultsView.Visibility = Visibility.Collapsed;
             AppGridView.Visibility = Visibility.Visible;
             _searchResults.Clear();
-            LoadVisibleIcons();
         }
         else
         {
