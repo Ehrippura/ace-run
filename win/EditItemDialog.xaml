@@ -7,6 +7,7 @@
     CloseButtonText="Cancel"
     DefaultButton="Primary">
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
     <StackPanel Spacing="16" MinWidth="400">
         <TextBox x:Name="DisplayNameBox"
                  x:Uid="DisplayNameBox"
@@ -63,4 +64,5 @@
                       OffContent="Off"
                       OnContent="On" />
     </StackPanel>
+    </ScrollViewer>
 </ContentDialog>
