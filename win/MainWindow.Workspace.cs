@@ -78,12 +78,8 @@ public sealed partial class MainWindow
             DataService.SaveWorkspace(ws.Id, _appData);
     }
 
-    private async Task SwitchWorkspaceAsync(WorkspaceInfo target)
+    private void ResetContentState()
     {
-        if (target.Id == _currentWorkspace.Id) return;
-
-        CommitSave();
-
         _ungroupedApps.Clear();
         _folders.Clear();
         _searchResults.Clear();
@@ -93,6 +89,14 @@ public sealed partial class MainWindow
         _searchText = string.Empty;
         SearchResultsView.Visibility = Visibility.Collapsed;
         AppGridView.Visibility = Visibility.Visible;
+    }
+
+    private async Task SwitchWorkspaceAsync(WorkspaceInfo target)
+    {
+        if (target.Id == _currentWorkspace.Id) return;
+
+        CommitSave();
+        ResetContentState();
 
         _currentWorkspace = target;
         _workspaceConfig.ActiveWorkspaceId = target.Id;
@@ -119,14 +123,7 @@ public sealed partial class MainWindow
         WorkspaceComboBox.SelectedItem = _workspaces.FirstOrDefault(v => v.Id == current.Id);
         _suppressWorkspaceSwitch = false;
 
-        _ungroupedApps.Clear();
-        _folders.Clear();
-        _searchResults.Clear();
-        _selectedFolder = null;
-        SearchBox.Text = string.Empty;
-        _searchText = string.Empty;
-        SearchResultsView.Visibility = Visibility.Collapsed;
-        AppGridView.Visibility = Visibility.Visible;
+        ResetContentState();
 
         await LoadWorkspaceDataAsync(current);
         UpdateWindowTitle();

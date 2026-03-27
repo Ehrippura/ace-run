@@ -29,16 +29,16 @@ public sealed partial class MainWindow
         await AddItemFromPathAsync(file.Path);
     }
 
+    private static AppItem CreateAppItemFromPath(string filePath) => new()
+    {
+        DisplayName = Path.GetFileNameWithoutExtension(filePath),
+        FilePath = filePath,
+        WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
+    };
+
     private async Task AddItemFromPathAsync(string filePath)
     {
-        var item = new AppItem
-        {
-            DisplayName = Path.GetFileNameWithoutExtension(filePath),
-            FilePath = filePath,
-            WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
-        };
-
-        var vm = new AppItemViewModel(item);
+        var vm = new AppItemViewModel(CreateAppItemFromPath(filePath));
         var hwnd = WindowNative.GetWindowHandle(this);
         var dialog = new EditItemDialog(vm, hwnd);
         dialog.XamlRoot = Content.XamlRoot;
@@ -56,14 +56,7 @@ public sealed partial class MainWindow
 
     private void AddItemDirectly(string filePath)
     {
-        var item = new AppItem
-        {
-            DisplayName = Path.GetFileNameWithoutExtension(filePath),
-            FilePath = filePath,
-            WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
-        };
-
-        var vm = new AppItemViewModel(item);
+        var vm = new AppItemViewModel(CreateAppItemFromPath(filePath));
         var target = _selectedFolder?.Apps ?? _ungroupedApps;
         target.Add(vm);
         _ = vm.LoadIconAsync();

@@ -214,7 +214,7 @@ public sealed partial class MainWindow
 
         if (tappedApp is null) return;
 
-        if (tappedApp is not null && !selectedApps.Contains(tappedApp))
+        if (!selectedApps.Contains(tappedApp))
         {
             AppGridView.SelectedItem = tappedApp;
             selectedApps = new List<AppItemViewModel> { tappedApp };
