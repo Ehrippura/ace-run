@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Shapes;
 using Windows.Storage.Pickers;
 using ace_run.Services;
 using WinRT.Interop;
@@ -13,6 +15,11 @@ public sealed partial class EditItemDialog : ContentDialog
     private readonly IntPtr _hwnd;
 
     public EditItemDialog(AppItemViewModel viewModel, IntPtr hwnd)
+        : this(viewModel, hwnd, Array.Empty<TagViewModel>())
+    {
+    }
+
+    public EditItemDialog(AppItemViewModel viewModel, IntPtr hwnd, IReadOnlyList<TagViewModel> tags)
     {
         InitializeComponent();
         _viewModel = viewModel;
@@ -27,6 +34,46 @@ public sealed partial class EditItemDialog : ContentDialog
         WorkingDirectoryBox.Text = viewModel.WorkingDirectory;
         RunAsAdminSwitch.IsOn = viewModel.RunAsAdmin;
         CustomIconPathBox.Text = viewModel.CustomIconPath;
+
+        BuildTagItems(viewModel, tags);
+    }
+
+    private void BuildTagItems(AppItemViewModel viewModel, IReadOnlyList<TagViewModel> tags)
+    {
+        // First item: "No Tag" (Tag == null).
+        TagCombo.Items.Add(new ComboBoxItem
+        {
+            Content = Loc.GetString("Tag_None"),
+            Tag = null
+        });
+
+        var currentTagId = viewModel.TagIds.Count > 0 ? viewModel.TagIds[0] : (Guid?)null;
+        int selectedIndex = 0;
+
+        for (int i = 0; i < tags.Count; i++)
+        {
+            var tag = tags[i];
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            panel.Children.Add(new Ellipse
+            {
+                Width = 10,
+                Height = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Fill = ColorTags.GetBrush(tag.ColorKey)
+            });
+            panel.Children.Add(new TextBlock
+            {
+                Text = tag.Name,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            TagCombo.Items.Add(new ComboBoxItem { Content = panel, Tag = tag.Id });
+
+            if (currentTagId is Guid id && id == tag.Id)
+                selectedIndex = i + 1; // +1 for the "No Tag" item
+        }
+
+        TagCombo.SelectedIndex = selectedIndex;
     }
 
     public void ApplyTo(AppItemViewModel viewModel)
@@ -37,6 +84,9 @@ public sealed partial class EditItemDialog : ContentDialog
         viewModel.WorkingDirectory = WorkingDirectoryBox.Text;
         viewModel.RunAsAdmin = RunAsAdminSwitch.IsOn;
         viewModel.CustomIconPath = CustomIconPathBox.Text;
+
+        var selectedTagId = (TagCombo.SelectedItem as ComboBoxItem)?.Tag as Guid?;
+        viewModel.SetSingleTag(selectedTagId);
     }
 
     private async void BrowseFile_Click(object sender, RoutedEventArgs e)

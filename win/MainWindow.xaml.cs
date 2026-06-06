@@ -14,6 +14,7 @@ public sealed partial class MainWindow : Window
     private readonly ObservableCollection<AppItemViewModel> _ungroupedApps = new();
     private readonly ObservableCollection<AppItemViewModel> _searchResults = new();
     private readonly ObservableCollection<WorkspaceViewModel> _workspaces = new();
+    private readonly ObservableCollection<TagViewModel> _tags = new();
 
     private FolderViewModel? _selectedFolder; // null = ungrouped
     private AppData _appData = new();
@@ -33,6 +34,7 @@ public sealed partial class MainWindow : Window
         SidebarListView.ItemsSource = _folders;
         SearchResultsView.ItemsSource = _searchResults;
         WorkspaceComboBox.ItemsSource = _workspaces;
+        ToolTipService.SetToolTip(ManageTagsButton, Loc.GetString("Tag_Manage"));
 
         _ = InitializeWorkspacesAsync();
         Closed += MainWindow_Closed;

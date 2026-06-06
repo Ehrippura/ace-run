@@ -15,7 +15,7 @@ Windows App Launcher - 需求規格書 (Feature Spec)
 
 2. 功能列表 (Feature List)
 
-第一階段：核心功能 (MVP) ✓ 已完成
+## 第一階段：核心功能 (MVP) ✓ 已完成
 
 目標：完成最小可行性產品，能存、能看、能跑。
     1. 新增啟動項目 (Add Item)
@@ -34,7 +34,7 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [x] 應用程式關閉時，將列表序列化為 JSON 儲存至 LocalAppData\AceRun\apps.json。
         [x] 應用程式開啟時，讀取 JSON 並還原列表。
 
-第二階段：進階設定 (Advanced Config) ✓ 已完成
+## 第二階段：進階設定 (Advanced Config) ✓ 已完成
 
 目標：解決特殊程式（如遊戲、開發工具）的啟動需求。
 
@@ -55,7 +55,7 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [x] 刪除：彈出確認對話框後從列表中移除，變更即時儲存。
         [x] 新增項目時同樣使用編輯對話框，讓使用者在加入前預覽與調整設定。
 
-第三階段：使用者體驗優化 (UX Polish) ✓ 已完成
+## 第三階段：使用者體驗優化 (UX Polish) ✓ 已完成
 
 目標：提升視覺質感與操作便利性。
 
@@ -75,7 +75,7 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [x] 英文
         [x] 繁體中文
 
-第四階段：額外功能實作 ✓ 已完成
+## 第四階段：額外功能實作 ✓ 已完成
 
     1. 使用 H.NotifyIcon 提供 System Tray 支援
         [x] 支援將應用程式最小化至 System Tray。
@@ -89,7 +89,7 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [x] 「未分類」固定置頂，無法移動；其他資料夾支援拖曳重新排序，順序持久化。
         [x] 可透過右鍵選單「移動至」子選單，在「未分類」與各資料夾之間移動項目。
 
-第五階段：Workspace 多工作區管理 ✓ 已完成
+## 第五階段：Workspace 多工作區管理 ✓ 已完成
 
 目標：支援多個獨立的工作區（Workspace），讓使用者可以依照不同情境（如工作、遊戲、開發）組織應用程式，並快速切換。
 
@@ -162,4 +162,34 @@ Windows App Launcher - 需求規格書 (Feature Spec)
         [ ] 「合併到當前 Workspace」選項（未實作）
         [ ] 同名資料夾衝突處理（未實作）
         [ ] 匯入後重新提取圖示快取（未實作，圖示於首次啟動時自動重建）
+
+## 第六階段：改進
+
+1. Tag 標籤管理
+
+目標：讓使用者可以建立帶有顏色與名稱的 tag 標籤，並將 tag 指派到 app 項目上，提升辨識與分類效率。
+
+    1. 資料模型與持久化
+        [x] 新增 Tag 資料模型，包含 Id、名稱與顏色。
+        [x] 在 Workspace 資料中儲存 tag 清單，讓每個 Workspace 可擁有獨立的 tag 設定。
+        [x] 在 AppItem 中儲存已指派的 TagId（資料面採 TagIds 清單以保留多標籤擴充性，V1 UI 為單一標籤）。
+        [x] 儲存與載入 Workspace 時保留 tag 清單、顏色與 app 的 tag 指派關係。
+
+    2. Tag 管理功能
+        [x] 提供新增 tag 功能，可輸入 tag 名稱並選擇顏色。
+        [x] 提供編輯 tag 功能，可修改 tag 名稱與顏色。
+        [x] 提供刪除 tag 功能，刪除前顯示確認提示。
+        [x] 刪除 tag 後，已套用該 tag 的 app 需自動移除對應 TagId。
+
+    3. App Tag 指派
+        [x] 在新增/編輯 app 對話框中加入 tag 選擇欄位。
+        [x] 支援從既有 tag 清單中選擇 tag 並套用到 app。
+        [x] 支援在 app 右鍵選單中快速設定或移除 tag。
+        [x] 修改 app 的 tag 後即時更新 UI 並持久化。
+
+    4. App Grid 顯示
+        [x] 被設定 tag 的 app，在 app 名稱左側顯示對應 tag 顏色的圓點。
+        [x] 未設定 tag 的 app 不顯示圓點，維持原本版面簡潔。
+        [x] 圓點顏色需與 tag 管理中設定的顏色一致。
+        [x] 搜尋結果列表中同樣顯示 app 的 tag 顏色圓點。
 

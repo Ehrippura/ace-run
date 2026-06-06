@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -22,6 +23,9 @@ public class AppItemViewModel : INotifyPropertyChanged
     private bool _runAsAdmin;
     private string _customIconPath = string.Empty;
     private BitmapImage? _iconSource;
+    private readonly List<Guid> _tagIds = new();
+    private string? _tagColorKey;
+    private string? _tagName;
 
     public Guid Id { get; }
 
@@ -84,6 +88,50 @@ public class AppItemViewModel : INotifyPropertyChanged
         private set { _iconSource = value; OnPropertyChanged(); }
     }
 
+    /// <summary>
+    /// Assigned tag ids. The data model keeps a list for future multi-tag support;
+    /// V1 UI assigns at most one tag (a single-element list) or none (empty).
+    /// </summary>
+    public IReadOnlyList<Guid> TagIds => _tagIds;
+
+    /// <summary>Replaces the assigned tag with a single tag, or clears it when null.</summary>
+    public void SetSingleTag(Guid? tagId)
+    {
+        _tagIds.Clear();
+        if (tagId is Guid id)
+            _tagIds.Add(id);
+    }
+
+    /// <summary>
+    /// Display color key resolved from the assigned tag (set by MainWindow).
+    /// Drives the tag dot; null hides it.
+    /// </summary>
+    public string? TagColorKey
+    {
+        get => _tagColorKey;
+        set
+        {
+            if (_tagColorKey != value)
+            {
+                _tagColorKey = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TagBrush));
+                OnPropertyChanged(nameof(TagVisibility));
+            }
+        }
+    }
+
+    public string? TagName
+    {
+        get => _tagName;
+        set { if (_tagName != value) { _tagName = value; OnPropertyChanged(); } }
+    }
+
+    public Brush TagBrush => ColorTags.GetBrush(_tagColorKey);
+
+    public Visibility TagVisibility =>
+        _tagColorKey is not null ? Visibility.Visible : Visibility.Collapsed;
+
     public AppItemViewModel(AppItem model)
     {
         Id = model.Id;
@@ -93,6 +141,8 @@ public class AppItemViewModel : INotifyPropertyChanged
         _workingDirectory = model.WorkingDirectory;
         _runAsAdmin = model.RunAsAdmin;
         _customIconPath = model.CustomIconPath;
+        if (model.TagIds is not null)
+            _tagIds.AddRange(model.TagIds);
     }
 
     public async Task LoadIconAsync()
@@ -110,7 +160,8 @@ public class AppItemViewModel : INotifyPropertyChanged
         Arguments = Arguments,
         WorkingDirectory = WorkingDirectory,
         RunAsAdmin = RunAsAdmin,
-        CustomIconPath = CustomIconPath
+        CustomIconPath = CustomIconPath,
+        TagIds = new List<Guid>(_tagIds)
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -216,15 +267,7 @@ public class WorkspaceViewModel : INotifyPropertyChanged
         }
     }
 
-    public Brush ColorBrush => _info.ColorTag switch
-    {
-        "Blue"   => new SolidColorBrush(Color.FromArgb(255, 0, 120, 212)),
-        "Green"  => new SolidColorBrush(Color.FromArgb(255, 16, 124, 16)),
-        "Red"    => new SolidColorBrush(Color.FromArgb(255, 196, 43, 28)),
-        "Yellow" => new SolidColorBrush(Color.FromArgb(255, 247, 99, 12)),
-        "Purple" => new SolidColorBrush(Color.FromArgb(255, 136, 23, 152)),
-        _        => new SolidColorBrush(Colors.Transparent)
-    };
+    public Brush ColorBrush => ColorTags.GetBrush(_info.ColorTag);
 
     public Visibility HasColorVisibility =>
         _info.ColorTag is not null ? Visibility.Visible : Visibility.Collapsed;
@@ -241,6 +284,66 @@ public class WorkspaceViewModel : INotifyPropertyChanged
     {
         _info = info;
     }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+public class TagViewModel : INotifyPropertyChanged
+{
+    private string _name = string.Empty;
+    private string _colorKey = "Blue";
+
+    public Guid Id { get; }
+
+    public string Name
+    {
+        get => _name;
+        set { if (_name != value) { _name = value; OnPropertyChanged(); } }
+    }
+
+    public string ColorKey
+    {
+        get => _colorKey;
+        set
+        {
+            if (_colorKey != value)
+            {
+                _colorKey = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ColorBrush));
+            }
+        }
+    }
+
+    public Brush ColorBrush => ColorTags.GetBrush(_colorKey);
+
+    public string DeleteTooltip => Loc.GetString("Tag_Delete");
+
+    public TagViewModel(TagItem model)
+    {
+        Id = model.Id;
+        _name = model.Name;
+        _colorKey = string.IsNullOrEmpty(model.ColorKey) ? "Blue" : model.ColorKey;
+    }
+
+    public TagViewModel(string name, string colorKey)
+    {
+        Id = Guid.NewGuid();
+        _name = name;
+        _colorKey = colorKey;
+    }
+
+    public TagItem ToModel() => new TagItem
+    {
+        Id = Id,
+        Name = Name,
+        ColorKey = ColorKey
+    };
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -306,6 +306,39 @@ public sealed partial class MainWindow
 
             flyout.Items.Add(moveToMenu);
 
+            var setTagMenu = new MenuFlyoutSubItem
+            {
+                Text = Loc.GetString("Tag_Set"),
+                Icon = new FontIcon { Glyph = "\uE8EC" }
+            };
+
+            var currentTagId = app.TagIds.Count > 0 ? app.TagIds[0] : (Guid?)null;
+
+            var noTagItem = new RadioMenuFlyoutItem
+            {
+                Text = Loc.GetString("Tag_None"),
+                GroupName = "AppTag",
+                IsChecked = currentTagId is null
+            };
+            noTagItem.Click += (_, _) => ApplyTagToApp(app, null);
+            setTagMenu.Items.Add(noTagItem);
+
+            foreach (var tag in _tags)
+            {
+                var tagCapture = tag;
+                var tagItem = new RadioMenuFlyoutItem
+                {
+                    Text = tag.Name,
+                    GroupName = "AppTag",
+                    IsChecked = currentTagId is Guid cid && cid == tag.Id,
+                    Icon = new FontIcon { Glyph = "\uEA3B", Foreground = tag.ColorBrush }
+                };
+                tagItem.Click += (_, _) => ApplyTagToApp(app, tagCapture.Id);
+                setTagMenu.Items.Add(tagItem);
+            }
+
+            flyout.Items.Add(setTagMenu);
+
             flyout.Items.Add(new MenuFlyoutSeparator());
 
             var deleteItem = new MenuFlyoutItem

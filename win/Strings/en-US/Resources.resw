@@ -64,6 +64,19 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>Custom Icon</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>Leave empty to use default (.ico or .exe)</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>Browse</value></data>
+  <data name="TagCombo.Header" xml:space="preserve"><value>Tag</value></data>
+
+  <!-- Tag management -->
+  <data name="Tag_Manage" xml:space="preserve"><value>Manage Tags</value></data>
+  <data name="Tag_ManageTitle" xml:space="preserve"><value>Manage Tags</value></data>
+  <data name="Tag_New" xml:space="preserve"><value>New Tag</value></data>
+  <data name="Tag_NewTitle" xml:space="preserve"><value>New Tag</value></data>
+  <data name="Tag_Name" xml:space="preserve"><value>Tag name</value></data>
+  <data name="Tag_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Tag_DeleteConfirm" xml:space="preserve"><value>Delete tag "{0}"? It will be removed from all apps.</value></data>
+  <data name="Tag_None" xml:space="preserve"><value>No Tag</value></data>
+  <data name="Tag_Set" xml:space="preserve"><value>Set Tag</value></data>
+  <data name="Tag_Empty" xml:space="preserve"><value>No tags yet. Create one to start organizing your apps.</value></data>
 
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>Manage Workspaces</value></data>

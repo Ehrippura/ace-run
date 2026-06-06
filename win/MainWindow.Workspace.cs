@@ -38,6 +38,11 @@ public sealed partial class MainWindow
         _appData = DataService.LoadWorkspace(ws.Id);
         _folders.Clear();
         _ungroupedApps.Clear();
+        _tags.Clear();
+
+        _appData.Tags ??= new System.Collections.Generic.List<TagItem>();
+        foreach (var tag in _appData.Tags)
+            _tags.Add(new TagViewModel(tag));
 
         foreach (var app in _appData.UngroupedItems)
         {
@@ -55,6 +60,9 @@ public sealed partial class MainWindow
             }
             _folders.Add(fvm);
         }
+
+        NormalizeAppTags();
+        RefreshAllAppTagColors();
 
         var savedFolder = ws.SelectedFolderId is Guid fid
             ? _folders.FirstOrDefault(f => f.Id == fid)
@@ -83,6 +91,7 @@ public sealed partial class MainWindow
         _ungroupedApps.Clear();
         _folders.Clear();
         _searchResults.Clear();
+        _tags.Clear();
         _selectedFolder = null;
 
         SearchBox.Text = string.Empty;
@@ -154,6 +163,18 @@ public sealed partial class MainWindow
         dialog.XamlRoot = Content.XamlRoot;
         await dialog.ShowAsync();
         await ReloadAfterWorkspaceManagement();
+    }
+
+    private async void ManageTagsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ManageTagsDialog(_tags);
+        dialog.XamlRoot = Content.XamlRoot;
+        await dialog.ShowAsync();
+
+        // Reconcile apps with the (possibly) changed tag list, then persist.
+        NormalizeAppTags();
+        RefreshAllAppTagColors();
+        CommitSave();
     }
 
     #endregion

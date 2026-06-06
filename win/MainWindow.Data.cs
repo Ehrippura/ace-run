@@ -42,6 +42,7 @@ public sealed partial class MainWindow
 
     private void CommitSave()
     {
+        _appData.Tags = _tags.Select(t => t.ToModel()).ToList();
         _appData.UngroupedItems = _ungroupedApps.Select(v => v.ToModel()).ToList();
         _appData.Folders = _folders.Select(f => f.ToModel()).ToList();
 
@@ -86,6 +87,59 @@ public sealed partial class MainWindow
             foreach (var app in folder.Apps)
                 if (app.Id == id) return app;
         return null;
+    }
+
+    #endregion
+
+    #region Tags
+
+    private IEnumerable<AppItemViewModel> AllApps()
+    {
+        foreach (var app in _ungroupedApps)
+            yield return app;
+        foreach (var folder in _folders)
+            foreach (var app in folder.Apps)
+                yield return app;
+    }
+
+    /// <summary>Removes references to tags that no longer exist from every app.</summary>
+    private void NormalizeAppTags()
+    {
+        var validIds = new HashSet<Guid>(_tags.Select(t => t.Id));
+        foreach (var app in AllApps())
+        {
+            var current = app.TagIds.FirstOrDefault(id => validIds.Contains(id));
+            // V1 keeps at most one tag; drop everything else (and stale ids).
+            app.SetSingleTag(current == Guid.Empty ? null : current);
+        }
+    }
+
+    /// <summary>Re-resolves the display color/name for every app from the tag list.</summary>
+    private void RefreshAllAppTagColors()
+    {
+        foreach (var app in AllApps())
+            ResolveAppTagDisplay(app);
+    }
+
+    private void ResolveAppTagDisplay(AppItemViewModel app)
+    {
+        var tagId = app.TagIds.Count > 0 ? app.TagIds[0] : (Guid?)null;
+        var tag = tagId is Guid id ? _tags.FirstOrDefault(t => t.Id == id) : null;
+        app.TagColorKey = tag?.ColorKey;
+        app.TagName = tag?.Name;
+    }
+
+    /// <summary>Assigns (or clears) a single tag on an app, updates the UI and persists.</summary>
+    private void ApplyTagToApp(AppItemViewModel app, Guid? tagId)
+    {
+        app.SetSingleTag(tagId);
+        ResolveAppTagDisplay(app);
+
+        // Search mode blocks SaveItems(); commit directly so the change persists.
+        if (!string.IsNullOrEmpty(_searchText))
+            CommitSave();
+        else
+            SaveItems();
     }
 
     #endregion

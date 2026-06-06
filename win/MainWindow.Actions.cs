@@ -40,13 +40,14 @@ public sealed partial class MainWindow
     {
         var vm = new AppItemViewModel(CreateAppItemFromPath(filePath));
         var hwnd = WindowNative.GetWindowHandle(this);
-        var dialog = new EditItemDialog(vm, hwnd);
+        var dialog = new EditItemDialog(vm, hwnd, _tags);
         dialog.XamlRoot = Content.XamlRoot;
         dialog.Title = Loc.GetString("AddItemTitle");
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
             dialog.ApplyTo(vm);
+            ResolveAppTagDisplay(vm);
             var target = _selectedFolder?.Apps ?? _ungroupedApps;
             target.Add(vm);
             _ = vm.LoadIconAsync();
@@ -108,13 +109,14 @@ public sealed partial class MainWindow
         if (sender is MenuFlyoutItem { Tag: AppItemViewModel vm })
         {
             var hwnd = WindowNative.GetWindowHandle(this);
-            var dialog = new EditItemDialog(vm, hwnd);
+            var dialog = new EditItemDialog(vm, hwnd, _tags);
             dialog.XamlRoot = Content.XamlRoot;
             dialog.Title = Loc.GetString("EditItemTitle");
 
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 dialog.ApplyTo(vm);
+                ResolveAppTagDisplay(vm);
                 _ = vm.LoadIconAsync();
                 SaveItems();
             }

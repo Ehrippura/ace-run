@@ -58,6 +58,11 @@
                     Grid.Column="1" />
         </Grid>
 
+        <ComboBox x:Name="TagCombo"
+                  x:Uid="TagCombo"
+                  Header="Tag"
+                  HorizontalAlignment="Stretch" />
+
         <ToggleSwitch x:Name="RunAsAdminSwitch"
                       x:Uid="RunAsAdminSwitch"
                       Header="Run as Administrator"

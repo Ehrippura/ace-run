@@ -105,6 +105,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
@@ -140,8 +141,18 @@
                         <FontIcon Glyph="&#xE713;" FontSize="14" />
                     </Button>
 
+                    <!-- Manage tags button -->
+                    <Button Grid.Column="2"
+                        x:Name="ManageTagsButton"
+                        Margin="4,0,0,0"
+                        Height="32"
+                        VerticalAlignment="Center"
+                        Click="ManageTagsButton_Click">
+                        <FontIcon Glyph="&#xE8EC;" FontSize="14" />
+                    </Button>
+
                     <!-- New Folder -->
-                    <Button Grid.Column="3"
+                    <Button Grid.Column="4"
                         x:Name="NewFolderButton"
                         Click="NewFolderButton_Click"
                         VerticalAlignment="Center"
@@ -153,7 +164,7 @@
                     </Button>
 
                     <!-- Add -->
-                    <Button Grid.Column="4"
+                    <Button Grid.Column="5"
                         x:Name="AddButton"
                         Click="AddButton_Click"
                         Style="{StaticResource AccentButtonStyle}"
@@ -202,16 +213,25 @@
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
                                     Stretch="Uniform" />
-                                <TextBlock Grid.Row="1"
-                                    Text="{x:Bind DisplayName, Mode=OneWay}"
-                                    FontSize="11"
-                                    TextWrapping="WrapWholeWords"
-                                    MaxLines="2"
-                                    TextAlignment="Center"
-                                    TextTrimming="CharacterEllipsis"
-                                    VerticalAlignment="Top"
+                                <StackPanel Grid.Row="1"
+                                    Orientation="Horizontal"
                                     HorizontalAlignment="Center"
-                                    Margin="2,0,2,0" />
+                                    Margin="2,0,2,0">
+                                    <Ellipse Width="8" Height="8"
+                                        Margin="0,3,4,0"
+                                        VerticalAlignment="Top"
+                                        Fill="{x:Bind TagBrush, Mode=OneWay}"
+                                        Visibility="{x:Bind TagVisibility, Mode=OneWay}" />
+                                    <TextBlock
+                                        Text="{x:Bind DisplayName, Mode=OneWay}"
+                                        FontSize="11"
+                                        TextWrapping="WrapWholeWords"
+                                        MaxLines="2"
+                                        MaxWidth="76"
+                                        TextAlignment="Center"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Top" />
+                                </StackPanel>
                             </Grid>
                         </DataTemplate>
                     </GridView.ItemTemplate>
@@ -232,6 +252,7 @@
                                 ToolTipService.ToolTip="{x:Bind FilePath}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
@@ -241,7 +262,13 @@
                                     Margin="4,0,8,0"
                                     VerticalAlignment="Center"
                                     Stretch="Uniform" />
-                                <TextBlock Grid.Column="1"
+                                <Ellipse Grid.Column="1"
+                                    Width="8" Height="8"
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    Fill="{x:Bind TagBrush, Mode=OneWay}"
+                                    Visibility="{x:Bind TagVisibility, Mode=OneWay}" />
+                                <TextBlock Grid.Column="2"
                                     Text="{x:Bind DisplayName, Mode=OneWay}"
                                     FontSize="14"
                                     VerticalAlignment="Center"

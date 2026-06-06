@@ -64,6 +64,19 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>自訂圖示</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>留空則使用預設圖示（.ico 或 .exe）</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>瀏覽</value></data>
+  <data name="TagCombo.Header" xml:space="preserve"><value>標籤</value></data>
+
+  <!-- Tag management -->
+  <data name="Tag_Manage" xml:space="preserve"><value>管理標籤</value></data>
+  <data name="Tag_ManageTitle" xml:space="preserve"><value>管理標籤</value></data>
+  <data name="Tag_New" xml:space="preserve"><value>新增標籤</value></data>
+  <data name="Tag_NewTitle" xml:space="preserve"><value>新增標籤</value></data>
+  <data name="Tag_Name" xml:space="preserve"><value>標籤名稱</value></data>
+  <data name="Tag_Delete" xml:space="preserve"><value>刪除</value></data>
+  <data name="Tag_DeleteConfirm" xml:space="preserve"><value>刪除標籤「{0}」？將從所有應用程式移除此標籤。</value></data>
+  <data name="Tag_None" xml:space="preserve"><value>無標籤</value></data>
+  <data name="Tag_Set" xml:space="preserve"><value>設定標籤</value></data>
+  <data name="Tag_Empty" xml:space="preserve"><value>尚未建立任何標籤。建立一個以開始分類應用程式。</value></data>
 
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>管理工作區</value></data>
