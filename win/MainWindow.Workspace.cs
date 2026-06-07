@@ -158,6 +158,11 @@ public sealed partial class MainWindow
 
     private async void ManageWorkspacesButton_Click(object sender, RoutedEventArgs e)
     {
+        // Persist the current folder selection before the dialog opens. Sidebar clicks
+        // don't save SelectedFolderId on their own, so without this the dialog would load
+        // (and later restore) a stale folder, snapping the sidebar back after confirming.
+        CommitSave();
+
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var dialog = new ManageWorkspacesDialog(hwnd, _currentWorkspace.Id);
         dialog.XamlRoot = Content.XamlRoot;
