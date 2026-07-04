@@ -26,6 +26,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     private readonly List<Guid> _tagIds = new();
     private string? _tagColorKey;
     private string? _tagName;
+    private string _folderLabel = string.Empty;
 
     public Guid Id { get; }
 
@@ -125,6 +126,16 @@ public class AppItemViewModel : INotifyPropertyChanged
     {
         get => _tagName;
         set { if (_tagName != value) { _tagName = value; OnPropertyChanged(); } }
+    }
+
+    /// <summary>
+    /// Name of the containing folder (or the "Ungrouped" label), shown in search
+    /// results. Set by MainWindow when building the result list; unused elsewhere.
+    /// </summary>
+    public string FolderLabel
+    {
+        get => _folderLabel;
+        set { if (_folderLabel != value) { _folderLabel = value; OnPropertyChanged(); } }
     }
 
     public Brush TagBrush => ColorTags.GetBrush(_tagColorKey);

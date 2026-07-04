@@ -115,6 +115,13 @@ public sealed partial class MainWindow
         return _appData.RecentLaunches.Count < before;
     }
 
+    private FolderViewModel? FindFolderOfApp(AppItemViewModel app)
+    {
+        foreach (var folder in _folders)
+            if (folder.Apps.Contains(app)) return folder;
+        return null; // null = ungrouped
+    }
+
     private AppItemViewModel? FindAppById(Guid id)
     {
         foreach (var app in _ungroupedApps)

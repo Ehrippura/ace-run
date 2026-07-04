@@ -60,13 +60,20 @@ public sealed partial class MainWindow
             SearchResultsView.Visibility = Visibility.Visible;
 
             _searchResults.Clear();
+            var ungroupedLabel = Loc.GetString("UngroupedFolderName");
             foreach (var app in _ungroupedApps)
                 if (app.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                {
+                    app.FolderLabel = ungroupedLabel;
                     _searchResults.Add(app);
+                }
             foreach (var folder in _folders)
                 foreach (var app in folder.Apps)
                     if (app.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        app.FolderLabel = folder.DisplayName;
                         _searchResults.Add(app);
+                    }
 
             foreach (var app in _searchResults)
                 _ = app.LoadIconAsync();
@@ -84,6 +91,53 @@ public sealed partial class MainWindow
                 e.Handled = true;
             }
         }
+    }
+
+    private void SearchResultsView_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is not FrameworkElement fe) return;
+
+        var lvi = FindParent<ListViewItem>(fe);
+        if (lvi is null || SearchResultsView.ItemFromContainer(lvi) is not AppItemViewModel app)
+            return;
+
+        var flyout = new MenuFlyout();
+        var goToFolderItem = new MenuFlyoutItem
+        {
+            Text = Loc.GetString("Search_GoToFolder"),
+            Icon = new FontIcon { Glyph = "\uE8B7" }
+        };
+        goToFolderItem.Click += (_, _) => NavigateToAppFolder(app);
+        flyout.Items.Add(goToFolderItem);
+
+        flyout.ShowAt(fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
+        e.Handled = true;
+    }
+
+    /// <summary>Clears the search and switches the content area to the folder that
+    /// contains <paramref name="app"/> (or the ungrouped page), then selects it.</summary>
+    private void NavigateToAppFolder(AppItemViewModel app)
+    {
+        var folder = FindFolderOfApp(app);
+
+        // Resets to normal view (collapses search results, clears _searchResults).
+        SearchBox.Text = string.Empty;
+
+        if (folder is not null)
+        {
+            UngroupedItem.IsSelected = false;
+            SidebarListView.SelectedItem = folder; // triggers SelectionChanged -> RefreshContentArea
+        }
+        else
+        {
+            SidebarListView.SelectedItem = null;
+            _selectedFolder = null;
+            UngroupedItem.IsSelected = true;
+            RefreshContentArea();
+        }
+
+        AppGridView.SelectedItem = app;
+        AppGridView.ScrollIntoView(app);
     }
 
     private async void SearchResultsView_KeyDown(object sender, KeyRoutedEventArgs e)

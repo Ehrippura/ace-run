@@ -245,6 +245,7 @@
                     Padding="8,0,8,8"
                     SelectionMode="Single"
                     DoubleTapped="SearchResultsView_DoubleTapped"
+                    RightTapped="SearchResultsView_RightTapped"
                     PreviewKeyDown="SearchResultsView_KeyDown">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:AppItemViewModel">
@@ -255,6 +256,7 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
                                 <Image Grid.Column="0"
@@ -275,6 +277,24 @@
                                     FontSize="14"
                                     VerticalAlignment="Center"
                                     TextTrimming="CharacterEllipsis" />
+
+                                <!-- Containing folder (or "Ungrouped") -->
+                                <StackPanel Grid.Column="3"
+                                    Orientation="Horizontal"
+                                    Spacing="4"
+                                    Margin="12,0,4,0"
+                                    VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE8B7;"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Bind FolderLabel, Mode=OneWay}"
+                                        FontSize="12"
+                                        MaxWidth="120"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

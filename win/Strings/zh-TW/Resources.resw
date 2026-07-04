@@ -42,6 +42,7 @@
   <data name="UngroupedFolderName" xml:space="preserve"><value>未分類</value></data>
   <data name="Empty_NoApps" xml:space="preserve"><value>尚無應用程式。按「新增」或將 .exe 拖曳至此即可開始。</value></data>
   <data name="Empty_NoResults" xml:space="preserve"><value>找不到符合的應用程式。</value></data>
+  <data name="Search_GoToFolder" xml:space="preserve"><value>切換到所在資料夾</value></data>
   <data name="LaunchMenuItem" xml:space="preserve"><value>啟動</value></data>
   <data name="LaunchAllMenuItem" xml:space="preserve"><value>全部啟動</value></data>
   <data name="MoveToMenuItem" xml:space="preserve"><value>移至</value></data>
