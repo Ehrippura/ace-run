@@ -1,9 +1,11 @@
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 namespace ace_run;
@@ -29,12 +31,22 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
 
         UngroupedItemLabel.Text = Loc.GetString("UngroupedFolderName");
         SidebarListView.ItemsSource = _folders;
         SearchResultsView.ItemsSource = _searchResults;
         WorkspaceComboBox.ItemsSource = _workspaces;
-        ToolTipService.SetToolTip(ManageTagsButton, Loc.GetString("Tag_Manage"));
+
+        // Accessible names for icon-only buttons (screen readers, UIA).
+        var manageWorkspaces = Loc.GetString("Workspace_Manage");
+        ToolTipService.SetToolTip(ManageWorkspacesButton, manageWorkspaces);
+        AutomationProperties.SetName(ManageWorkspacesButton, manageWorkspaces);
+        var manageTags = Loc.GetString("Tag_Manage");
+        ToolTipService.SetToolTip(ManageTagsButton, manageTags);
+        AutomationProperties.SetName(ManageTagsButton, manageTags);
+
+        _searchResults.CollectionChanged += OnShownAppsChanged;
 
         _ = InitializeWorkspacesAsync();
         Closed += MainWindow_Closed;

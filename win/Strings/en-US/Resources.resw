@@ -40,6 +40,8 @@
 
   <!-- Sidebar / GridView -->
   <data name="UngroupedFolderName" xml:space="preserve"><value>Ungrouped</value></data>
+  <data name="Empty_NoApps" xml:space="preserve"><value>No apps yet. Click Add or drag an .exe here to get started.</value></data>
+  <data name="Empty_NoResults" xml:space="preserve"><value>No apps match your search.</value></data>
   <data name="LaunchMenuItem" xml:space="preserve"><value>Launch</value></data>
   <data name="LaunchAllMenuItem" xml:space="preserve"><value>Launch All</value></data>
   <data name="MoveToMenuItem" xml:space="preserve"><value>Move To</value></data>

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -11,12 +12,47 @@ namespace ace_run;
 
 public sealed partial class MainWindow
 {
+    // Currently displayed app collection in normal mode; tracked so the empty
+    // state can react to add/delete without an explicit refresh call.
+    private INotifyCollectionChanged? _boundAppCollection;
+
     #region Data Load/Save
 
     private void RefreshContentArea()
     {
-        AppGridView.ItemsSource = _selectedFolder?.Apps ?? _ungroupedApps;
+        var source = _selectedFolder?.Apps ?? _ungroupedApps;
+
+        if (!ReferenceEquals(source, _boundAppCollection))
+        {
+            if (_boundAppCollection is not null)
+                _boundAppCollection.CollectionChanged -= OnShownAppsChanged;
+            _boundAppCollection = source;
+            _boundAppCollection.CollectionChanged += OnShownAppsChanged;
+        }
+
+        AppGridView.ItemsSource = source;
         ReleaseHiddenIcons();
+        UpdateEmptyState();
+    }
+
+    private void OnShownAppsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        UpdateEmptyState();
+
+    /// <summary>
+    /// Shows a centered hint over the content area when the current view is empty:
+    /// "no results" while searching, "no apps yet" otherwise.
+    /// </summary>
+    private void UpdateEmptyState()
+    {
+        bool searching = !string.IsNullOrEmpty(_searchText);
+        bool empty = searching
+            ? _searchResults.Count == 0
+            : (_selectedFolder?.Apps ?? _ungroupedApps).Count == 0;
+
+        if (empty)
+            EmptyStateText.Text = Loc.GetString(searching ? "Empty_NoResults" : "Empty_NoApps");
+
+        EmptyStateView.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ReleaseHiddenIcons()

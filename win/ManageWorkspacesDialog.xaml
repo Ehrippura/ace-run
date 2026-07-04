@@ -63,7 +63,8 @@
                                  Width="10" Height="10"
                                  Fill="{x:Bind ColorBrush, Mode=OneWay}"
                                  Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
-                                 VerticalAlignment="Center" />
+                                 VerticalAlignment="Center"
+                                 AutomationProperties.AccessibilityView="Raw" />
 
                         <!-- Workspace name (inline editable) -->
                         <TextBox Grid.Column="1"
@@ -87,7 +88,8 @@
                                 Tag="{x:Bind}"
                                 Click="ExportWorkspace_Click"
                                 Padding="6,4"
-                                ToolTipService.ToolTip="{x:Bind ExportTooltip}">
+                                ToolTipService.ToolTip="{x:Bind ExportTooltip}"
+                                AutomationProperties.Name="{x:Bind ExportTooltip}">
                             <FontIcon Glyph="&#xEDE1;" FontSize="14" />
                         </Button>
 
@@ -96,7 +98,8 @@
                                 Tag="{x:Bind}"
                                 Click="DeleteWorkspace_Click"
                                 Padding="6,4"
-                                ToolTipService.ToolTip="{x:Bind DeleteTooltip}">
+                                ToolTipService.ToolTip="{x:Bind DeleteTooltip}"
+                                AutomationProperties.Name="{x:Bind DeleteTooltip}">
                             <FontIcon Glyph="&#xE74D;" FontSize="14" />
                         </Button>
                     </Grid>

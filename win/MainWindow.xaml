@@ -16,7 +16,7 @@
     <Grid x:Name="RootGrid">
 
         <!-- Main content area: sidebar + content -->
-        <Grid Grid.Row="0">
+        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200" />
                 <ColumnDefinition Width="*" />
@@ -221,7 +221,8 @@
                                         Margin="0,3,4,0"
                                         VerticalAlignment="Top"
                                         Fill="{x:Bind TagBrush, Mode=OneWay}"
-                                        Visibility="{x:Bind TagVisibility, Mode=OneWay}" />
+                                        Visibility="{x:Bind TagVisibility, Mode=OneWay}"
+                                        AutomationProperties.Name="{x:Bind TagName, Mode=OneWay}" />
                                     <TextBlock
                                         Text="{x:Bind DisplayName, Mode=OneWay}"
                                         FontSize="11"
@@ -267,7 +268,8 @@
                                     Margin="0,0,8,0"
                                     VerticalAlignment="Center"
                                     Fill="{x:Bind TagBrush, Mode=OneWay}"
-                                    Visibility="{x:Bind TagVisibility, Mode=OneWay}" />
+                                    Visibility="{x:Bind TagVisibility, Mode=OneWay}"
+                                    AutomationProperties.Name="{x:Bind TagName, Mode=OneWay}" />
                                 <TextBlock Grid.Column="2"
                                     Text="{x:Bind DisplayName, Mode=OneWay}"
                                     FontSize="14"
@@ -278,7 +280,33 @@
                     </ListView.ItemTemplate>
                 </ListView>
 
+                <!-- Empty state (shown over Row 2 when there are no apps / no results) -->
+                <StackPanel Grid.Row="2"
+                    x:Name="EmptyStateView"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="10"
+                    IsHitTestVisible="False">
+                    <FontIcon Glyph="&#xE7C3;"
+                        FontSize="32"
+                        HorizontalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock x:Name="EmptyStateText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="280" />
+                </StackPanel>
+
             </Grid>
         </Grid>
+
+        <!-- Draggable title bar strip (top, full width). Sits above the content so the
+             empty top area and sidebar heading act as the window drag region. -->
+        <Grid x:Name="AppTitleBar"
+              Height="32"
+              VerticalAlignment="Top"
+              Background="Transparent" />
     </Grid>
 </Window>

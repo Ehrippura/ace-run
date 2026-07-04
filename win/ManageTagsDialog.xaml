@@ -51,7 +51,8 @@
                         <Ellipse Grid.Column="0"
                                  Width="12" Height="12"
                                  Fill="{x:Bind ColorBrush, Mode=OneWay}"
-                                 VerticalAlignment="Center" />
+                                 VerticalAlignment="Center"
+                                 AutomationProperties.AccessibilityView="Raw" />
 
                         <!-- Tag name (inline editable) -->
                         <TextBox Grid.Column="1"
@@ -74,7 +75,8 @@
                                 Tag="{x:Bind}"
                                 Click="DeleteTag_Click"
                                 Padding="6,4"
-                                ToolTipService.ToolTip="{x:Bind DeleteTooltip}">
+                                ToolTipService.ToolTip="{x:Bind DeleteTooltip}"
+                                AutomationProperties.Name="{x:Bind DeleteTooltip}">
                             <FontIcon Glyph="&#xE74D;" FontSize="14" />
                         </Button>
                     </Grid>
