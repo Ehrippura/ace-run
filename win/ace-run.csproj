@@ -48,6 +48,9 @@
     <EmbeddedResource Include="Strings\zh-TW\Resources.resw">
       <LogicalName>ace_run.Strings.zh-TW.Resources.resw</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Strings\ja-JP\Resources.resw">
+      <LogicalName>ace_run.Strings.ja-JP.Resources.resw</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

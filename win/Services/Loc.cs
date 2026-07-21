@@ -23,10 +23,14 @@ internal static class Loc
             // ignore
         }
 
-        var isZh = CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
-        var resourceName = isZh
-            ? "ace_run.Strings.zh-TW.Resources.resw"
-            : "ace_run.Strings.en-US.Resources.resw";
+        var culture = CultureInfo.CurrentUICulture.Name;
+        string resourceName;
+        if (culture.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+            resourceName = "ace_run.Strings.zh-TW.Resources.resw";
+        else if (culture.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
+            resourceName = "ace_run.Strings.ja-JP.Resources.resw";
+        else
+            resourceName = "ace_run.Strings.en-US.Resources.resw";
         _fallbacks = LoadFromEmbeddedResw(resourceName);
     }
 
@@ -53,7 +57,9 @@ internal static class Loc
             if (stream is null)
             {
                 // Name mismatch fallback: search all embedded resources for a matching locale
-                var locale = resourceName.Contains("zh-TW") ? "zh-TW" : "en-US";
+                var locale = resourceName.Contains("zh-TW") ? "zh-TW"
+                           : resourceName.Contains("ja-JP") ? "ja-JP"
+                           : "en-US";
                 var match = assembly.GetManifestResourceNames()
                     .FirstOrDefault(n => n.Contains(locale, StringComparison.Ordinal)
                                      && n.EndsWith(".resw", StringComparison.OrdinalIgnoreCase));
