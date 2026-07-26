@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ace_run.Models;
 
@@ -15,7 +16,8 @@ public static class DataService
 
     private static readonly JsonSerializerOptions s_options = new()
     {
-        WriteIndented = true
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     static DataService()

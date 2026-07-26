@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ace_run.Models;
 using ace_run.Services;
@@ -21,7 +22,11 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     private WorkspaceConfig _config;
     private readonly ObservableCollection<WorkspaceViewModel> _workspaceVMs = new();
 
-    private static readonly JsonSerializerOptions s_options = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions s_options = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     public ManageWorkspacesDialog(nint hwnd, Guid activeWorkspaceId)
     {
