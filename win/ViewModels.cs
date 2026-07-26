@@ -30,6 +30,14 @@ public class AppItemViewModel : INotifyPropertyChanged
 
     public Guid Id { get; }
 
+    /// <summary>
+    /// Fixed at construction, like <see cref="Id"/>. An item never switches between an
+    /// exe and a URL, so nothing downstream has to handle a kind change mid-edit.
+    /// </summary>
+    public ItemKind Kind { get; }
+
+    public bool IsUrl => Kind == ItemKind.Url;
+
     public string DisplayName
     {
         get => _displayName;
@@ -86,8 +94,26 @@ public class AppItemViewModel : INotifyPropertyChanged
     public BitmapImage? IconSource
     {
         get => _iconSource;
-        private set { _iconSource = value; OnPropertyChanged(); }
+        private set
+        {
+            _iconSource = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IconVisibility));
+            OnPropertyChanged(nameof(FallbackIconVisibility));
+        }
     }
+
+    /// <summary>
+    /// Segoe MDL2 glyph shown when no icon could be loaded: a globe for URLs, the default
+    /// app glyph for an exe whose icon is missing (a dead path used to render as a blank cell).
+    /// </summary>
+    public string FallbackGlyph => IsUrl ? "" : "";
+
+    public Visibility IconVisibility =>
+        _iconSource is not null ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility FallbackIconVisibility =>
+        _iconSource is null ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
     /// Assigned tag ids. The data model keeps a list for future multi-tag support;
@@ -146,6 +172,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     public AppItemViewModel(AppItem model)
     {
         Id = model.Id;
+        Kind = model.Kind;
         _displayName = model.DisplayName;
         _filePath = model.FilePath;
         _arguments = model.Arguments;
@@ -166,6 +193,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     public AppItem ToModel() => new AppItem
     {
         Id = Id,
+        Kind = Kind,
         DisplayName = DisplayName,
         FilePath = FilePath,
         Arguments = Arguments,

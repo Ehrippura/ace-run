@@ -60,16 +60,23 @@ public sealed partial class MainWindow
             SearchResultsView.Visibility = Visibility.Visible;
 
             _searchResults.Clear();
+            var query = _searchText;
+
+            // Path is matched too, so a URL item is findable by its domain.
+            bool Matches(AppItemViewModel app) =>
+                app.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || app.FilePath.Contains(query, StringComparison.OrdinalIgnoreCase);
+
             var ungroupedLabel = Loc.GetString("UngroupedFolderName");
             foreach (var app in _ungroupedApps)
-                if (app.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                if (Matches(app))
                 {
                     app.FolderLabel = ungroupedLabel;
                     _searchResults.Add(app);
                 }
             foreach (var folder in _folders)
                 foreach (var app in folder.Apps)
-                    if (app.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                    if (Matches(app))
                     {
                         app.FolderLabel = folder.DisplayName;
                         _searchResults.Add(app);
@@ -180,7 +187,9 @@ public sealed partial class MainWindow
 
     private void AppGridView_DragOver(object sender, DragEventArgs e)
     {
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (e.DataView.Contains(StandardDataFormats.StorageItems)
+            || e.DataView.Contains(StandardDataFormats.WebLink)
+            || e.DataView.Contains(StandardDataFormats.Text))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
             e.DragUIOverride.Caption = Loc.GetString("DragDropCaption");
@@ -194,28 +203,61 @@ public sealed partial class MainWindow
 
     private async void AppGridView_Drop(object sender, DragEventArgs e)
     {
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
-            return;
-
         var deferral = e.GetDeferral();
         try
         {
-            var storageItems = await e.DataView.GetStorageItemsAsync();
-            foreach (var storageItem in storageItems.OfType<StorageFile>())
-            {
-                var filePath = storageItem.Path;
-
-                if (storageItem.FileType.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
-                    filePath = ResolveLnkTarget(storageItem.Path) ?? storageItem.Path;
-
-                if (filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(filePath))
-                    AddItemDirectly(filePath);
-            }
+            // Browsers offer several formats for the same link, so take the first that works
+            // rather than adding the item once per format.
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+                await DropStorageItemsAsync(e.DataView);
+            else if (e.DataView.Contains(StandardDataFormats.WebLink))
+                await DropWebLinkAsync(e.DataView);
+            else if (e.DataView.Contains(StandardDataFormats.Text))
+                await DropTextAsync(e.DataView);
         }
         finally
         {
             deferral.Complete();
         }
+    }
+
+    private async Task DropStorageItemsAsync(DataPackageView dataView)
+    {
+        var storageItems = await dataView.GetStorageItemsAsync();
+        foreach (var storageItem in storageItems.OfType<StorageFile>())
+        {
+            // .url Internet Shortcut from the desktop
+            if (storageItem.FileType.Equals(".url", StringComparison.OrdinalIgnoreCase))
+            {
+                var shortcutUrl = UrlUtil.ReadInternetShortcut(storageItem.Path);
+                if (shortcutUrl is not null && UrlUtil.TryNormalize(shortcutUrl, out var normalized))
+                    AddUrlDirectly(normalized);
+                continue;
+            }
+
+            var filePath = storageItem.Path;
+
+            if (storageItem.FileType.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+                filePath = ResolveLnkTarget(storageItem.Path) ?? storageItem.Path;
+
+            if (filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(filePath))
+                AddItemDirectly(filePath);
+        }
+    }
+
+    private async Task DropWebLinkAsync(DataPackageView dataView)
+    {
+        var uri = await dataView.GetWebLinkAsync();
+        if (UrlUtil.TryNormalize(uri?.AbsoluteUri, out var url))
+            AddUrlDirectly(url);
+    }
+
+    /// <summary>Covers dragging out of the address bar, which offers text but no WebLink.</summary>
+    private async Task DropTextAsync(DataPackageView dataView)
+    {
+        var text = await dataView.GetTextAsync();
+        if (UrlUtil.TryNormalize(text, out var url))
+            AddUrlDirectly(url);
     }
 
     private static string? ResolveLnkTarget(string lnkPath)
@@ -326,14 +368,29 @@ public sealed partial class MainWindow
             editItem.Click += EditApp_Click;
             flyout.Items.Add(editItem);
 
-            var openFolderItem = new MenuFlyoutItem
+            // "Open File Location" is meaningless for a URL \u2014 offer the link instead.
+            if (app.IsUrl)
             {
-                Text = Loc.GetString("OpenFolderMenuItem.Text"),
-                Icon = new FontIcon { Glyph = "\uE838" },
-                Tag = app
-            };
-            openFolderItem.Click += OpenFolder_Click;
-            flyout.Items.Add(openFolderItem);
+                var copyUrlItem = new MenuFlyoutItem
+                {
+                    Text = Loc.GetString("CopyUrlMenuItem"),
+                    Icon = new FontIcon { Glyph = "\uE71B" },
+                    Tag = app
+                };
+                copyUrlItem.Click += CopyUrl_Click;
+                flyout.Items.Add(copyUrlItem);
+            }
+            else
+            {
+                var openFolderItem = new MenuFlyoutItem
+                {
+                    Text = Loc.GetString("OpenFolderMenuItem.Text"),
+                    Icon = new FontIcon { Glyph = "\uE838" },
+                    Tag = app
+                };
+                openFolderItem.Click += OpenFolder_Click;
+                flyout.Items.Add(openFolderItem);
+            }
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 

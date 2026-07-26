@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using ace_run.Models;
 using ace_run.Services;
@@ -21,12 +20,6 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     private readonly Guid _activeWorkspaceId;
     private WorkspaceConfig _config;
     private readonly ObservableCollection<WorkspaceViewModel> _workspaceVMs = new();
-
-    private static readonly JsonSerializerOptions s_options = new()
-    {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    };
 
     public ManageWorkspacesDialog(nint hwnd, Guid activeWorkspaceId)
     {
@@ -125,7 +118,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         try
         {
             var json = await FileIO.ReadTextAsync(file);
-            var export = JsonSerializer.Deserialize<WorkspaceExport>(json, s_options);
+            var export = JsonSerializer.Deserialize<WorkspaceExport>(json, DataService.JsonOptions);
 
             if (export?.AppData is null)
             {
@@ -179,7 +172,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
                 ColorTag = vm.ColorTag,
                 AppData = appData
             };
-            var json = JsonSerializer.Serialize(export, s_options);
+            var json = JsonSerializer.Serialize(export, DataService.JsonOptions);
             await FileIO.WriteTextAsync(file, json);
         }
         catch (Exception ex)

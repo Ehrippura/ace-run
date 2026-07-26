@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ace_run.Models;
 
 namespace ace_run.Services;
@@ -14,10 +15,15 @@ public static class DataService
     private static readonly string _configPath;
     private static readonly string _workspacesDir;
 
-    private static readonly JsonSerializerOptions s_options = new()
+    /// <summary>
+    /// Shared for every AceRun JSON file, including the .acerun import/export in
+    /// ManageWorkspacesDialog — keeping one instance stops the two from drifting.
+    /// </summary>
+    public static JsonSerializerOptions JsonOptions { get; } = new()
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     static DataService()
@@ -44,7 +50,7 @@ public static class DataService
 
         try
         {
-            var data = JsonSerializer.Deserialize<AppData>(json, s_options);
+            var data = JsonSerializer.Deserialize<AppData>(json, JsonOptions);
             if (data is not null)
                 return data;
         }
@@ -93,7 +99,7 @@ public static class DataService
         try
         {
             var json = File.ReadAllText(_configPath);
-            var config = JsonSerializer.Deserialize<WorkspaceConfig>(json, s_options);
+            var config = JsonSerializer.Deserialize<WorkspaceConfig>(json, JsonOptions);
             if (config is not null)
                 return config;
         }
@@ -104,7 +110,7 @@ public static class DataService
 
     public static void SaveConfig(WorkspaceConfig config)
     {
-        var json = JsonSerializer.Serialize(config, s_options);
+        var json = JsonSerializer.Serialize(config, JsonOptions);
         File.WriteAllText(_configPath, json);
     }
 
@@ -117,7 +123,7 @@ public static class DataService
         try
         {
             var json = File.ReadAllText(path);
-            var data = JsonSerializer.Deserialize<AppData>(json, s_options);
+            var data = JsonSerializer.Deserialize<AppData>(json, JsonOptions);
             if (data is not null)
                 return data;
         }
@@ -130,7 +136,7 @@ public static class DataService
     {
         Directory.CreateDirectory(_workspacesDir);
         var path = Path.Combine(_workspacesDir, $"{id}.json");
-        var json = JsonSerializer.Serialize(data, s_options);
+        var json = JsonSerializer.Serialize(data, JsonOptions);
         File.WriteAllText(path, json);
     }
 

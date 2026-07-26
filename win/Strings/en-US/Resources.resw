@@ -7,6 +7,8 @@
 
   <!-- MainWindow -->
   <data name="AddButtonLabel.Text" xml:space="preserve"><value>Add</value></data>
+  <data name="AddMenuAppItem.Text" xml:space="preserve"><value>Add App</value></data>
+  <data name="AddMenuUrlItem.Text" xml:space="preserve"><value>Add URL</value></data>
   <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>New Folder</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>Edit</value></data>
@@ -17,6 +19,8 @@
   <!-- Dynamic strings used in code-behind -->
   <data name="AddItemTitle" xml:space="preserve"><value>Add Item</value></data>
   <data name="EditItemTitle" xml:space="preserve"><value>Edit Item</value></data>
+  <data name="AddUrlTitle" xml:space="preserve"><value>Add URL</value></data>
+  <data name="EditUrlTitle" xml:space="preserve"><value>Edit URL</value></data>
   <data name="DeleteItemTitle" xml:space="preserve"><value>Delete Item</value></data>
   <data name="DeleteItemContent" xml:space="preserve"><value>Are you sure you want to delete "{0}"?</value></data>
   <data name="DeleteButton" xml:space="preserve"><value>Delete</value></data>
@@ -40,12 +44,13 @@
 
   <!-- Sidebar / GridView -->
   <data name="UngroupedFolderName" xml:space="preserve"><value>Ungrouped</value></data>
-  <data name="Empty_NoApps" xml:space="preserve"><value>No apps yet. Click Add or drag an .exe here to get started.</value></data>
+  <data name="Empty_NoApps" xml:space="preserve"><value>No apps yet. Click Add, or drag an .exe or a link here to get started.</value></data>
   <data name="Empty_NoResults" xml:space="preserve"><value>No apps match your search.</value></data>
   <data name="Search_GoToFolder" xml:space="preserve"><value>Go to Folder</value></data>
   <data name="LaunchMenuItem" xml:space="preserve"><value>Launch</value></data>
   <data name="LaunchAllMenuItem" xml:space="preserve"><value>Launch All</value></data>
   <data name="MoveToMenuItem" xml:space="preserve"><value>Move To</value></data>
+  <data name="CopyUrlMenuItem" xml:space="preserve"><value>Copy Link</value></data>
 
   <!-- System Tray -->
   <data name="TrayShow" xml:space="preserve"><value>Show</value></data>
@@ -68,6 +73,9 @@
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>Leave empty to use default (.ico or .exe)</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>Browse</value></data>
   <data name="TagCombo.Header" xml:space="preserve"><value>Tag</value></data>
+  <data name="UrlFieldHeader" xml:space="preserve"><value>URL</value></data>
+  <data name="UrlFieldPlaceholder" xml:space="preserve"><value>https://example.com</value></data>
+  <data name="Validation_InvalidUrl" xml:space="preserve"><value>Enter a valid URL, for example https://example.com</value></data>
 
   <!-- Tag management -->
   <data name="Tag_Manage" xml:space="preserve"><value>Manage Tags</value></data>

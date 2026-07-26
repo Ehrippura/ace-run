@@ -36,6 +36,39 @@ public sealed partial class EditItemDialog : ContentDialog
         CustomIconPathBox.Text = viewModel.CustomIconPath;
 
         BuildTagItems(viewModel, tags);
+
+        if (viewModel.IsUrl)
+            ApplyUrlMode();
+    }
+
+    /// <summary>
+    /// Relabels the path field as an address and hides the exe-only rows. x:Uid values are
+    /// static, so the URL captions are applied here instead.
+    /// </summary>
+    private void ApplyUrlMode()
+    {
+        FilePathBox.Header = Loc.GetString("UrlFieldHeader");
+        FilePathBox.PlaceholderText = Loc.GetString("UrlFieldPlaceholder");
+
+        BrowseFileButton.Visibility = Visibility.Collapsed;
+        ArgumentsBox.Visibility = Visibility.Collapsed;
+        WorkingDirectoryRow.Visibility = Visibility.Collapsed;
+        RunAsAdminSwitch.Visibility = Visibility.Collapsed;
+
+        PrimaryButtonClick += UrlDialog_PrimaryButtonClick;
+    }
+
+    private void UrlDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+    {
+        if (UrlUtil.TryNormalize(FilePathBox.Text, out _))
+        {
+            ValidationText.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ValidationText.Text = Loc.GetString("Validation_InvalidUrl");
+        ValidationText.Visibility = Visibility.Visible;
+        args.Cancel = true;
     }
 
     private void BuildTagItems(AppItemViewModel viewModel, IReadOnlyList<TagViewModel> tags)
@@ -78,11 +111,25 @@ public sealed partial class EditItemDialog : ContentDialog
 
     public void ApplyTo(AppItemViewModel viewModel)
     {
-        viewModel.DisplayName = DisplayNameBox.Text;
-        viewModel.FilePath = FilePathBox.Text;
-        viewModel.Arguments = ArgumentsBox.Text;
-        viewModel.WorkingDirectory = WorkingDirectoryBox.Text;
-        viewModel.RunAsAdmin = RunAsAdminSwitch.IsOn;
+        if (viewModel.IsUrl)
+        {
+            // PrimaryButtonClick already rejected anything TryNormalize can't handle.
+            UrlUtil.TryNormalize(FilePathBox.Text, out var url);
+            viewModel.FilePath = url;
+            viewModel.DisplayName = string.IsNullOrWhiteSpace(DisplayNameBox.Text)
+                ? UrlUtil.SuggestDisplayName(url)
+                : DisplayNameBox.Text;
+            // Arguments / WorkingDirectory / RunAsAdmin stay at their defaults for URLs.
+        }
+        else
+        {
+            viewModel.DisplayName = DisplayNameBox.Text;
+            viewModel.FilePath = FilePathBox.Text;
+            viewModel.Arguments = ArgumentsBox.Text;
+            viewModel.WorkingDirectory = WorkingDirectoryBox.Text;
+            viewModel.RunAsAdmin = RunAsAdminSwitch.IsOn;
+        }
+
         viewModel.CustomIconPath = CustomIconPathBox.Text;
 
         var selectedTagId = (TagCombo.SelectedItem as ComboBoxItem)?.Tag as Guid?;

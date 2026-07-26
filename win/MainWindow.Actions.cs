@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -16,7 +17,18 @@ public sealed partial class MainWindow
 {
     #region Add / Edit / Move
 
+    /// <summary>Primary half of the Add split button — same as the "Add App" flyout entry.</summary>
+    private async void AddSplitButton_Click(SplitButton sender, SplitButtonClickEventArgs args)
+    {
+        await PickAndAddAppAsync();
+    }
+
     private async void AddButton_Click(object sender, RoutedEventArgs e)
+    {
+        await PickAndAddAppAsync();
+    }
+
+    private async Task PickAndAddAppAsync()
     {
         var hwnd = WindowNative.GetWindowHandle(this);
         var picker = new FileOpenPicker();
@@ -29,6 +41,13 @@ public sealed partial class MainWindow
         await AddItemFromPathAsync(file.Path);
     }
 
+    private async void AddUrlMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // No separate "enter a URL" prompt — EditItemDialog switches to URL mode and the
+        // user fills in address, name, tag and icon in one pass.
+        await AddUrlAsync(string.Empty);
+    }
+
     private static AppItem CreateAppItemFromPath(string filePath) => new()
     {
         DisplayName = Path.GetFileNameWithoutExtension(filePath),
@@ -36,13 +55,27 @@ public sealed partial class MainWindow
         WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
     };
 
-    private async Task AddItemFromPathAsync(string filePath)
+    // No WorkingDirectory: Path.GetDirectoryName on a URL yields junk like "https:\example.com".
+    private static AppItem CreateUrlItem(string url) => new()
     {
-        var vm = new AppItemViewModel(CreateAppItemFromPath(filePath));
+        Kind = ItemKind.Url,
+        DisplayName = url.Length > 0 ? UrlUtil.SuggestDisplayName(url) : string.Empty,
+        FilePath = url
+    };
+
+    private Task AddItemFromPathAsync(string filePath) =>
+        AddItemWithDialogAsync(CreateAppItemFromPath(filePath), "AddItemTitle");
+
+    private Task AddUrlAsync(string url) =>
+        AddItemWithDialogAsync(CreateUrlItem(url), "AddUrlTitle");
+
+    private async Task AddItemWithDialogAsync(AppItem item, string titleKey)
+    {
+        var vm = new AppItemViewModel(item);
         var hwnd = WindowNative.GetWindowHandle(this);
         var dialog = new EditItemDialog(vm, hwnd, _tags);
         dialog.XamlRoot = Content.XamlRoot;
-        dialog.Title = Loc.GetString("AddItemTitle");
+        dialog.Title = Loc.GetString(titleKey);
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
@@ -55,9 +88,13 @@ public sealed partial class MainWindow
         }
     }
 
-    private void AddItemDirectly(string filePath)
+    private void AddItemDirectly(string filePath) => AddDirectly(CreateAppItemFromPath(filePath));
+
+    private void AddUrlDirectly(string url) => AddDirectly(CreateUrlItem(url));
+
+    private void AddDirectly(AppItem item)
     {
-        var vm = new AppItemViewModel(CreateAppItemFromPath(filePath));
+        var vm = new AppItemViewModel(item);
         var target = _selectedFolder?.Apps ?? _ungroupedApps;
         target.Add(vm);
         _ = vm.LoadIconAsync();
@@ -111,7 +148,7 @@ public sealed partial class MainWindow
             var hwnd = WindowNative.GetWindowHandle(this);
             var dialog = new EditItemDialog(vm, hwnd, _tags);
             dialog.XamlRoot = Content.XamlRoot;
-            dialog.Title = Loc.GetString("EditItemTitle");
+            dialog.Title = Loc.GetString(vm.IsUrl ? "EditUrlTitle" : "EditItemTitle");
 
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
@@ -137,6 +174,16 @@ public sealed partial class MainWindow
                     UseShellExecute = true
                 });
             }
+        }
+    }
+
+    private void CopyUrl_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: AppItemViewModel vm })
+        {
+            var package = new DataPackage { RequestedOperation = DataPackageOperation.Copy };
+            package.SetText(vm.FilePath);
+            Clipboard.SetContent(package);
         }
     }
 
@@ -172,15 +219,21 @@ public sealed partial class MainWindow
     {
         try
         {
+            // ShellExecute handles http(s) and custom protocols as-is. Arguments would go to
+            // the protocol handler rather than the URL, and WorkingDirectory / runas are
+            // meaningless for a URL, so they are only set for App items.
             var psi = new ProcessStartInfo
             {
                 FileName = app.FilePath,
-                Arguments = app.Arguments,
-                WorkingDirectory = app.WorkingDirectory,
                 UseShellExecute = true
             };
-            if (app.RunAsAdmin)
-                psi.Verb = "runas";
+            if (!app.IsUrl)
+            {
+                psi.Arguments = app.Arguments;
+                psi.WorkingDirectory = app.WorkingDirectory;
+                if (app.RunAsAdmin)
+                    psi.Verb = "runas";
+            }
 
             Process.Start(psi);
             TrackRecentLaunch(app);
