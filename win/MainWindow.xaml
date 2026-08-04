@@ -41,16 +41,16 @@
             action all live in the title bar, which is what replaced a separate toolbar
             row plus a transparent 32px drag strip the toolbar had to dodge with
             Padding="12,35,12,0".
+
+            No Title or IconSource: the workspace picker sits immediately after the pane
+            toggle and is the only identity the window needs. The app name and icon
+            repeated what the taskbar and the window's own Title already say, and pushed
+            the search field - the actual hero - off centre.
         -->
         <TitleBar Grid.Row="0" Grid.Column="1"
             x:Name="AppTitleBar"
-            Title="Ace Run"
             IsPaneToggleButtonVisible="True"
             PaneToggleRequested="AppTitleBar_PaneToggleRequested">
-            <TitleBar.IconSource>
-                <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.png" />
-            </TitleBar.IconSource>
-
             <TitleBar.LeftHeader>
                 <!-- The pane toggle button now precedes this column and supplies the
                      leading gap, so no left margin of our own. -->
