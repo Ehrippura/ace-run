@@ -42,6 +42,10 @@ public sealed partial class MainWindow : Window
         // system caption buttons stay 32px tall against a 48px band.
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
 
+        // Must run before ItemsSource: the rail's selection indicator resolves its brush
+        // when the item template is applied.
+        InitializeWorkspaceBrush();
+
         UngroupedItemLabel.Text = Loc.GetString("UngroupedFolderName");
         SidebarListView.ItemsSource = _folders;
         SearchResultsView.ItemsSource = _searchResults;
@@ -57,6 +61,13 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetName(SettingsButton, manage);
 
         _searchResults.CollectionChanged += OnShownAppsChanged;
+
+        // The ungrouped row is a ListView.Header, not a FolderViewModel, so its count has
+        // no binding to ride on.
+        _ungroupedApps.CollectionChanged += (_, _) => UpdateUngroupedCount();
+        UpdateUngroupedCount();
+
+        RootGrid.SizeChanged += (_, e) => UpdateRailForWidth(e.NewSize.Width);
 
         _ = InitializeWorkspacesAsync();
         Closed += MainWindow_Closed;
@@ -136,6 +147,9 @@ public sealed partial class MainWindow : Window
     }
 
     #endregion
+
+    private void UpdateUngroupedCount() =>
+        UngroupedItemCount.Text = _ungroupedApps.Count.ToString();
 
     private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
     {

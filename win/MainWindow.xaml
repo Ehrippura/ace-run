@@ -44,7 +44,9 @@
         -->
         <TitleBar Grid.Row="0" Grid.Column="1"
             x:Name="AppTitleBar"
-            Title="Ace Run">
+            Title="Ace Run"
+            IsPaneToggleButtonVisible="True"
+            PaneToggleRequested="AppTitleBar_PaneToggleRequested">
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.png" />
             </TitleBar.IconSource>
@@ -146,16 +148,20 @@
             </TitleBar.RightHeader>
         </TitleBar>
 
-        <!-- Main content area: sidebar + content -->
-        <Grid Grid.Row="1" Grid.Column="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <!-- Main content area: rail + content. SplitView rather than a fixed column so
+             the rail can collapse at narrow widths; DisplayMode and IsPaneOpen are driven
+             from Window.SizeChanged in code-behind. AdaptiveTrigger would mean a
+             VisualStateManager on a bare Window rather than a Page, which is fragile. -->
+        <SplitView Grid.Row="1" Grid.Column="1"
+            x:Name="RailSplitView"
+            DisplayMode="Inline"
+            IsPaneOpen="True"
+            OpenPaneLength="200"
+            PaneBackground="Transparent">
 
-            <!-- Sidebar. Stays on bare Mica so the material reads through; the
-                 content surface's own left stroke provides the separation. -->
-            <Border Grid.Column="0">
+            <!-- Rail. Stays on bare Mica so the material reads through; the content
+                 surface's own left stroke provides the separation. -->
+            <SplitView.Pane>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -172,15 +178,31 @@
                             <ListViewItem x:Name="UngroupedItem"
                                 Tapped="UngroupedItem_Tapped"
                                 Padding="12,4"
-                                MinHeight="30"
+                                MinHeight="36"
                                 HorizontalContentAlignment="Stretch">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE8FD;" FontSize="13"
+                                <!-- Mirrors the folder row layout. This is still a
+                                     ListView.Header rather than a real collection item,
+                                     so the count is maintained in code. -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0"
+                                        Glyph="&#xE8FD;" FontSize="14"
+                                        Margin="0,0,8,0"
                                         VerticalAlignment="Center" />
-                                    <TextBlock x:Name="UngroupedItemLabel"
-                                        FontSize="13"
+                                    <TextBlock Grid.Column="1"
+                                        x:Name="UngroupedItemLabel"
+                                        Style="{StaticResource AceBodyStyle}"
                                         VerticalAlignment="Center" />
-                                </StackPanel>
+                                    <TextBlock Grid.Column="2"
+                                        x:Name="UngroupedItemCount"
+                                        Style="{StaticResource AceCaptionStyle}"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center" />
+                                </Grid>
                             </ListViewItem>
                         </ListView.Header>
                         <ListView.ItemTemplate>
@@ -189,18 +211,25 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
                                     <FontIcon Grid.Column="0"
                                         Glyph="&#xE8B7;"
-                                        FontSize="13"
+                                        FontSize="14"
                                         Margin="0,0,8,0"
                                         VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
+                                        Style="{StaticResource AceBodyStyle}"
                                         Text="{x:Bind DisplayName, Mode=OneWay}"
-                                        FontSize="13"
-                                        VerticalAlignment="Center"
-                                        TextTrimming="CharacterEllipsis" />
+                                        VerticalAlignment="Center" />
+                                    <!-- Item count. FolderViewModel had no bindable
+                                         visual information at all before this. -->
+                                    <TextBlock Grid.Column="2"
+                                        Style="{StaticResource AceCaptionStyle}"
+                                        Text="{x:Bind AppCountText, Mode=OneWay}"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
@@ -208,7 +237,7 @@
                             <Style TargetType="ListViewItem"
                                 BasedOn="{StaticResource DefaultListViewItemStyle}">
                                 <Setter Property="Padding" Value="12,4" />
-                                <Setter Property="MinHeight" Value="30" />
+                                <Setter Property="MinHeight" Value="36" />
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             </Style>
                         </ListView.ItemContainerStyle>
@@ -231,13 +260,13 @@
                         </StackPanel>
                     </Button>
                 </Grid>
-            </Border>
+            </SplitView.Pane>
 
             <!-- Content area. All chrome now lives in the title bar, so this is a
                  single row holding the three mutually exclusive views.
                  The layer fill lifts it off the Mica: previously the whole window was
                  bare backdrop, so nothing read as a surface. -->
-            <Border Grid.Column="1"
+            <Border
                 x:Name="ContentSurface"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -445,6 +474,6 @@
 
             </Grid>
             </Border>
-        </Grid>
+        </SplitView>
     </Grid>
 </Window>

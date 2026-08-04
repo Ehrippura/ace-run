@@ -225,17 +225,29 @@ public class FolderViewModel : INotifyPropertyChanged
 
     public ObservableCollection<AppItemViewModel> Apps { get; } = new();
 
+    /// <summary>
+    /// Item count shown at the right of the rail row. String-typed to match
+    /// <see cref="WorkspaceViewModel.AppCountText"/>; x:Bind will not convert an int
+    /// to TextBlock.Text on its own.
+    /// </summary>
+    public string AppCountText => Apps.Count.ToString();
+
     public FolderViewModel(FolderItem model)
     {
         Id = model.Id;
         _displayName = model.DisplayName;
+        TrackAppCount();
     }
 
     public FolderViewModel(string name)
     {
         Id = Guid.NewGuid();
         _displayName = name;
+        TrackAppCount();
     }
+
+    private void TrackAppCount() =>
+        Apps.CollectionChanged += (_, _) => OnPropertyChanged(nameof(AppCountText));
 
     public FolderItem ToModel()
     {

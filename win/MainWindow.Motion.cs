@@ -53,6 +53,31 @@ public sealed partial class MainWindow
 
     #region Workspace spine
 
+    /// <summary>
+    /// Creates the spine brush and hands the same instance to the rail's selection
+    /// indicator. Called from the constructor, before items are realised, because
+    /// ListViewItemPresenter resolves those keys when the template is applied.
+    /// One brush for both surfaces means the rail indicator crossfades with the spine
+    /// for free — and the rail stops using the system accent, which clashed with it.
+    /// </summary>
+    private void InitializeWorkspaceBrush()
+    {
+        _spineBrush = new SolidColorBrush(ResolveSpineColor(null));
+        WorkspaceSpine.Background = _spineBrush;
+
+        // Overriding the brushes the built-in ListViewItemPresenter already uses keeps
+        // the platform's own indicator — its geometry, states and animation are untouched.
+        foreach (var key in new[]
+                 {
+                     "ListViewItemSelectionIndicatorBrush",
+                     "ListViewItemSelectionIndicatorPointerOverBrush",
+                     "ListViewItemSelectionIndicatorPressedBrush"
+                 })
+        {
+            SidebarListView.Resources[key] = _spineBrush;
+        }
+    }
+
     private Color ResolveSpineColor(string? colorKey)
     {
         if (ColorTags.GetBrush(colorKey) is SolidColorBrush { Color.A: > 0 } brush)
@@ -68,12 +93,9 @@ public sealed partial class MainWindow
     {
         var target = ResolveSpineColor(_currentWorkspace.ColorTag);
 
-        if (_spineBrush is null)
-        {
-            _spineBrush = new SolidColorBrush(target);
-            WorkspaceSpine.Background = _spineBrush;
-            return;
-        }
+        // The brush instance is created once in the constructor and never replaced —
+        // the rail's selection indicator holds the same reference.
+        if (_spineBrush is null) return;
 
         if (!_animationsEnabled)
         {
@@ -115,6 +137,39 @@ public sealed partial class MainWindow
         storyboard.Children.Add(animation);
         storyboard.Begin();
     }
+
+    #endregion
+
+    #region Rail collapse
+
+    // Below this the rail costs more than it gives: it would eat a large fraction of the
+    // window and leave too little room for a usable tile grid.
+    private const double RailCollapseWidthDip = 900;
+
+    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args) =>
+        RailSplitView.IsPaneOpen = !RailSplitView.IsPaneOpen;
+
+    /// <summary>
+    /// Switches the rail between inline and overlay. Driven from SizeChanged rather than
+    /// an AdaptiveTrigger because this is a Window, not a Page, and a VisualStateManager
+    /// on the root of a bare Window is unreliable.
+    /// </summary>
+    private void UpdateRailForWidth(double widthDip)
+    {
+        var narrow = widthDip < RailCollapseWidthDip;
+        if (narrow == _railIsNarrow) return;
+        _railIsNarrow = narrow;
+
+        RailSplitView.DisplayMode = narrow ? SplitViewDisplayMode.Overlay : SplitViewDisplayMode.Inline;
+        RailSplitView.IsPaneOpen = !narrow;
+        // Overlay floats the pane above the content, so it needs an opaque background;
+        // inline sits beside it and should let the Mica through.
+        RailSplitView.PaneBackground = narrow
+            ? (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"]
+            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+    }
+
+    private bool _railIsNarrow;
 
     #endregion
 
