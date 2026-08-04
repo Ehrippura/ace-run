@@ -29,8 +29,7 @@ public sealed partial class MainWindow
         _suppressWorkspaceSwitch = false;
 
         await LoadWorkspaceDataAsync(active);
-        RestoreWindowSize();
-        UpdateWindowTitle();
+        ApplyWorkspaceIdentity();
     }
 
     private async Task LoadWorkspaceDataAsync(WorkspaceInfo ws)
@@ -112,7 +111,8 @@ public sealed partial class MainWindow
         DataService.SaveConfig(_workspaceConfig);
 
         await LoadWorkspaceDataAsync(target);
-        UpdateWindowTitle();
+        ApplyWorkspaceIdentity();
+        FadeInContent();
         ((App)Application.Current).UpdateTrayContextMenu();
     }
 
@@ -135,12 +135,20 @@ public sealed partial class MainWindow
         ResetContentState();
 
         await LoadWorkspaceDataAsync(current);
-        UpdateWindowTitle();
+        ApplyWorkspaceIdentity();
+        FadeInContent();
         ((App)Application.Current).UpdateTrayContextMenu();
     }
 
-    private void UpdateWindowTitle() =>
+    /// <summary>
+    /// Applies everything that identifies the active workspace: the taskbar/Alt-Tab title
+    /// (never visible inside the app) and the spine, which is.
+    /// </summary>
+    private void ApplyWorkspaceIdentity()
+    {
         AppWindow.Title = $"Ace Run \u2014 {_currentWorkspace.Name}";
+        UpdateWorkspaceSpine();
+    }
 
     public WorkspaceConfig WorkspaceConfig => _workspaceConfig;
     public WorkspaceInfo CurrentWorkspace => _currentWorkspace;

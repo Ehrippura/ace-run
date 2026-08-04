@@ -94,11 +94,15 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         NewWorkspaceForm.Visibility = Visibility.Collapsed;
     }
 
+    /// <summary>
+    /// Reads the selected color key from <c>Tag</c>, never from <c>Content</c>. The
+    /// returned string is persisted to config.json, so it must stay independent of the
+    /// display language. The "None" item has no Tag and yields null.
+    /// </summary>
     private string? ColorTagFromCombo()
     {
         var item = ColorCombo.SelectedItem as ComboBoxItem;
-        var text = item?.Content as string;
-        return (text == "None" || text is null) ? null : text;
+        return item?.Tag as string;
     }
 
     // ---- Import ----

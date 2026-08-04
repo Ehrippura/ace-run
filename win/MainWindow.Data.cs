@@ -53,6 +53,9 @@ public sealed partial class MainWindow
             EmptyStateText.Text = Loc.GetString(searching ? "Empty_NoResults" : "Empty_NoApps");
 
         EmptyStateView.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        // "Add your first app" only makes sense for a genuinely empty folder — a search
+        // that found nothing is a different situation and offering it there is noise.
+        EmptyStateAddButton.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void ReleaseHiddenIcons()

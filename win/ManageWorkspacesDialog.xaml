@@ -122,12 +122,15 @@
                           SelectedIndex="0"
                           HorizontalAlignment="Left"
                           MinWidth="160">
+                    <!-- Tag carries the persisted key; Content is display text only.
+                         Reading Content back would tie config.json to the UI language. -->
                     <ComboBoxItem Content="None" />
-                    <ComboBoxItem Content="Blue" />
-                    <ComboBoxItem Content="Green" />
-                    <ComboBoxItem Content="Red" />
-                    <ComboBoxItem Content="Yellow" />
-                    <ComboBoxItem Content="Purple" />
+                    <ComboBoxItem Content="Blue" Tag="Blue" />
+                    <ComboBoxItem Content="Green" Tag="Green" />
+                    <ComboBoxItem Content="Red" Tag="Red" />
+                    <ComboBoxItem Content="Yellow" Tag="Yellow" />
+                    <ComboBoxItem Content="Purple" Tag="Purple" />
+                    <ComboBoxItem Content="Gray" Tag="Gray" />
                 </ComboBox>
                 <RadioButton x:Name="BlankRadio"
                              GroupName="NewWsInit"

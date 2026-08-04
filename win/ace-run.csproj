@@ -24,6 +24,9 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <!-- Title bar icon. Unqualified filename so ms-appx resolves it directly;
+         scale-qualified names are indexed by PRI under their stripped name. -->
+    <Content Include="Assets\AppIcon.png" />
     <EmbeddedResource Include="Assets\app-icon.ico">
       <LogicalName>ace_run.Assets.app-icon.ico</LogicalName>
     </EmbeddedResource>

@@ -1,13 +1,14 @@
 using System.Collections.Generic;
 using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Windows.UI;
 
 namespace ace_run.Services;
 
 /// <summary>
 /// Shared color palette for workspace color tags and app tags.
-/// Keys are stable strings persisted to JSON; brushes map to fixed Fluent colors.
+/// Keys are stable strings persisted to JSON; brushes resolve to theme-aware
+/// resources declared in <c>Styles/Brushes.xaml</c>.
 /// </summary>
 internal static class ColorTags
 {
@@ -17,14 +18,32 @@ internal static class ColorTags
         "Blue", "Green", "Red", "Yellow", "Purple", "Gray"
     };
 
-    public static Brush GetBrush(string? colorKey) => colorKey switch
+    private static readonly SolidColorBrush NoColorBrush = new(Colors.Transparent);
+
+    /// <summary>
+    /// Resolves a color key to its brush. The returned brush is the shared instance
+    /// from the app resource dictionary, so this is allocation-free per call — it used
+    /// to allocate a new brush on every property get, once per row while scrolling.
+    /// </summary>
+    /// <remarks>
+    /// Resource lookup resolves against the theme in effect *at call time*; it does not
+    /// track later theme switches. Callers that cache the result (the view models expose
+    /// it as a property) must raise a change notification on <c>ActualThemeChanged</c>
+    /// so the bindings re-read.
+    /// </remarks>
+    public static Brush GetBrush(string? colorKey)
     {
-        "Blue"   => new SolidColorBrush(Color.FromArgb(255, 0, 120, 212)),
-        "Green"  => new SolidColorBrush(Color.FromArgb(255, 16, 124, 16)),
-        "Red"    => new SolidColorBrush(Color.FromArgb(255, 196, 43, 28)),
-        "Yellow" => new SolidColorBrush(Color.FromArgb(255, 247, 99, 12)),
-        "Purple" => new SolidColorBrush(Color.FromArgb(255, 136, 23, 152)),
-        "Gray"   => new SolidColorBrush(Color.FromArgb(255, 118, 118, 118)),
-        _        => new SolidColorBrush(Colors.Transparent)
-    };
+        if (string.IsNullOrEmpty(colorKey))
+            return NoColorBrush;
+
+        var resources = Application.Current?.Resources;
+        if (resources is not null
+            && resources.TryGetValue($"AceTagBrush{colorKey}", out var value)
+            && value is Brush brush)
+        {
+            return brush;
+        }
+
+        return NoColorBrush;
+    }
 }

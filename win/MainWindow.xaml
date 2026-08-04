@@ -14,158 +14,86 @@
     </Window.SystemBackdrop>
 
     <Grid x:Name="RootGrid">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="4" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-        <!-- Main content area: sidebar + content -->
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <!--
+            The workspace spine. Colour = the active workspace, crossfaded on switch.
+            The workspace colour already existed in the data model but only ever rendered
+            as a 10px dot you had to go and read; as a full-height edge it makes "which
+            workspace am I in" a peripheral-vision fact instead. That is this app's one
+            real error mode - launching something in the wrong workspace.
+            Background is assigned in code so the animated brush is not shared.
+        -->
+        <Border x:Name="WorkspaceSpine"
+            Grid.Column="0"
+            Grid.Row="0"
+            Grid.RowSpan="2" />
 
-            <!-- Sidebar -->
-            <Border Grid.Column="0"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="0,0,1,0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0"
-                        Text="Ace Run"
-                        Style="{StaticResource TitleTextBlockStyle}"
-                        HorizontalAlignment="Center"
-                        Padding="0,15,0,15"
-                    />
-                    <ListView Grid.Row="1" x:Name="SidebarListView"
-                        SelectionChanged="SidebarListView_SelectionChanged"
-                        CanReorderItems="True"
-                        CanDragItems="True"
-                        AllowDrop="True"
-                        DragItemsCompleted="SidebarListView_DragItemsCompleted"
-                        Padding="4,4,4,4">
-                        <ListView.Header>
-                            <ListViewItem x:Name="UngroupedItem"
-                                Tapped="UngroupedItem_Tapped"
-                                Padding="12,4"
-                                MinHeight="30"
-                                HorizontalContentAlignment="Stretch">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE8FD;" FontSize="13"
-                                        VerticalAlignment="Center" />
-                                    <TextBlock x:Name="UngroupedItemLabel"
-                                        FontSize="13"
-                                        VerticalAlignment="Center" />
-                                </StackPanel>
-                            </ListViewItem>
-                        </ListView.Header>
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="local:FolderViewModel">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
+        <!--
+            The chrome is one row. The workspace picker, search, and the primary Add
+            action all live in the title bar, which is what replaced a separate toolbar
+            row plus a transparent 32px drag strip the toolbar had to dodge with
+            Padding="12,35,12,0".
+        -->
+        <TitleBar Grid.Row="0" Grid.Column="1"
+            x:Name="AppTitleBar"
+            Title="Ace Run"
+            IsPaneToggleButtonVisible="True"
+            PaneToggleRequested="AppTitleBar_PaneToggleRequested">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.png" />
+            </TitleBar.IconSource>
 
-                                    <FontIcon Grid.Column="0"
-                                        Glyph="&#xE8B7;"
-                                        FontSize="13"
-                                        Margin="0,0,8,0"
-                                        VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1"
-                                        Text="{x:Bind DisplayName, Mode=OneWay}"
-                                        FontSize="13"
-                                        VerticalAlignment="Center"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem"
-                                BasedOn="{StaticResource DefaultListViewItemStyle}">
-                                <Setter Property="Padding" Value="12,4" />
-                                <Setter Property="MinHeight" Value="30" />
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            </Style>
-                        </ListView.ItemContainerStyle>
-                    </ListView>
-                </Grid>
-            </Border>
+            <TitleBar.LeftHeader>
+                <!-- The pane toggle button now precedes this column and supplies the
+                     leading gap, so no left margin of our own. -->
+                <ComboBox x:Name="WorkspaceComboBox"
+                    MinWidth="140"
+                    Margin="0,0,4,0"
+                    VerticalAlignment="Center"
+                    SelectionChanged="WorkspaceComboBox_SelectionChanged">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:WorkspaceViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Width="10" Height="10"
+                                         Fill="{x:Bind ColorBrush, Mode=OneWay}"
+                                         Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
+                                         VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </TitleBar.LeftHeader>
 
-            <!-- Content area -->
-            <Grid Grid.Column="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <!-- Search is the launcher's actual hero, so it sits centre stage.
+                 The template's ContentPresenter centres and sizes to content, which
+                 overrides HorizontalAlignment="Stretch" — MinWidth is what actually
+                 holds the box open. Without it the clear button eats most of the field. -->
+            <TitleBar.Content>
+                <AutoSuggestBox x:Name="SearchBox"
+                    x:Uid="SearchBox"
+                    PlaceholderText="Search apps..."
+                    MinWidth="320"
+                    MaxWidth="520"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    QueryIcon="Find"
+                    TextChanged="SearchBox_TextChanged" />
+            </TitleBar.Content>
 
-                <!-- Toolbar row: workspace selector + action buttons -->
-                <Grid Grid.Row="0" Padding="12,35,12,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Workspace ComboBox -->
-                    <ComboBox Grid.Column="0"
-                        x:Name="WorkspaceComboBox"
-                        MinWidth="140"
-                        VerticalAlignment="Center"
-                        SelectionChanged="WorkspaceComboBox_SelectionChanged">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="local:WorkspaceViewModel">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse Width="10" Height="10"
-                                             Fill="{x:Bind ColorBrush, Mode=OneWay}"
-                                             Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
-                                             VerticalAlignment="Center" />
-                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <!-- Manage workspaces button -->
-                    <Button Grid.Column="1"
-                        x:Name="ManageWorkspacesButton"
-                        Margin="4,0,0,0"
-                        Height="32"
-                        VerticalAlignment="Center"
-                        Click="ManageWorkspacesButton_Click">
-                        <FontIcon Glyph="&#xE713;" FontSize="14" />
-                    </Button>
-
-                    <!-- Manage tags button -->
-                    <Button Grid.Column="2"
-                        x:Name="ManageTagsButton"
-                        Margin="4,0,0,0"
-                        Height="32"
-                        VerticalAlignment="Center"
-                        Click="ManageTagsButton_Click">
-                        <FontIcon Glyph="&#xE8EC;" FontSize="14" />
-                    </Button>
-
-                    <!-- New Folder -->
-                    <Button Grid.Column="4"
-                        x:Name="NewFolderButton"
-                        Click="NewFolderButton_Click"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE8B7;" FontSize="14" />
-                            <TextBlock x:Uid="NewFolderButtonLabel" Text="New Folder" />
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Add: primary click keeps the .exe picker, dropdown adds a URL -->
-                    <SplitButton Grid.Column="5"
-                        x:Name="AddButton"
+            <TitleBar.RightHeader>
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- Primary click keeps the .exe picker, dropdown adds a URL -->
+                    <SplitButton x:Name="AddButton"
                         Click="AddSplitButton_Click"
                         VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -191,21 +119,165 @@
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
-                </Grid>
 
-                <!-- Search bar -->
-                <AutoSuggestBox Grid.Row="1"
-                    x:Name="SearchBox"
-                    x:Uid="SearchBox"
-                    PlaceholderText="Search apps..."
-                    Margin="12,8,12,8"
-                    QueryIcon="Find"
-                    TextChanged="SearchBox_TextChanged" />
+                    <!-- The two icon-only manage buttons collapse into one menu.
+                         Button rather than DropDownButton: the latter always draws a
+                         chevron, which reads as noise next to a lone gear glyph. -->
+                    <Button x:Name="SettingsButton"
+                        Height="32"
+                        VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE713;" FontSize="14" />
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem x:Name="ManageWorkspacesMenuItem"
+                                    Click="ManageWorkspacesButton_Click">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE821;" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutItem x:Name="ManageTagsMenuItem"
+                                    Click="ManageTagsButton_Click">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE8EC;" />
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </TitleBar.RightHeader>
+        </TitleBar>
+
+        <!-- Main content area: rail + content. SplitView rather than a fixed column so
+             the rail can collapse at narrow widths; DisplayMode and IsPaneOpen are driven
+             from Window.SizeChanged in code-behind. AdaptiveTrigger would mean a
+             VisualStateManager on a bare Window rather than a Page, which is fragile. -->
+        <SplitView Grid.Row="1" Grid.Column="1"
+            x:Name="RailSplitView"
+            DisplayMode="Inline"
+            IsPaneOpen="True"
+            OpenPaneLength="200"
+            PaneBackground="Transparent">
+
+            <!-- Rail. Stays on bare Mica so the material reads through; the content
+                 surface's own left stroke provides the separation. -->
+            <SplitView.Pane>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ListView Grid.Row="0" x:Name="SidebarListView"
+                        SelectionChanged="SidebarListView_SelectionChanged"
+                        CanReorderItems="True"
+                        CanDragItems="True"
+                        AllowDrop="True"
+                        DragItemsCompleted="SidebarListView_DragItemsCompleted"
+                        Padding="4,4,4,4">
+                        <ListView.Header>
+                            <ListViewItem x:Name="UngroupedItem"
+                                Tapped="UngroupedItem_Tapped"
+                                Padding="12,4"
+                                MinHeight="36"
+                                HorizontalContentAlignment="Stretch">
+                                <!-- Mirrors the folder row layout. This is still a
+                                     ListView.Header rather than a real collection item,
+                                     so the count is maintained in code. -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0"
+                                        Glyph="&#xE8FD;" FontSize="14"
+                                        Margin="0,0,8,0"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1"
+                                        x:Name="UngroupedItemLabel"
+                                        Style="{StaticResource AceBodyStyle}"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2"
+                                        x:Name="UngroupedItemCount"
+                                        Style="{StaticResource AceCaptionStyle}"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center" />
+                                </Grid>
+                            </ListViewItem>
+                        </ListView.Header>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:FolderViewModel">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0"
+                                        Glyph="&#xE8B7;"
+                                        FontSize="14"
+                                        Margin="0,0,8,0"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1"
+                                        Style="{StaticResource AceBodyStyle}"
+                                        Text="{x:Bind DisplayName, Mode=OneWay}"
+                                        VerticalAlignment="Center" />
+                                    <!-- Item count. FolderViewModel had no bindable
+                                         visual information at all before this. -->
+                                    <TextBlock Grid.Column="2"
+                                        Style="{StaticResource AceCaptionStyle}"
+                                        Text="{x:Bind AppCountText, Mode=OneWay}"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem"
+                                BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="Padding" Value="12,4" />
+                                <Setter Property="MinHeight" Value="36" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                    </ListView>
+
+                    <!-- New Folder lives here because folders are rail objects.
+                         Commands belong where their objects live. -->
+                    <Button Grid.Row="1"
+                        x:Name="NewFolderButton"
+                        Click="NewFolderButton_Click"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Margin="4,4,4,4"
+                        Padding="12,6">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE710;" FontSize="14" />
+                            <TextBlock x:Uid="NewFolderButtonLabel" Text="New Folder" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </SplitView.Pane>
+
+            <!-- Content area. All chrome now lives in the title bar, so this is a
+                 single row holding the three mutually exclusive views.
+                 The layer fill lifts it off the Mica: previously the whole window was
+                 bare backdrop, so nothing read as a surface. -->
+            <Border
+                x:Name="ContentSurface"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1,1,0,0"
+                CornerRadius="8,0,0,0">
+            <Grid>
 
                 <!-- App grid (normal mode) -->
-                <GridView Grid.Row="2"
+                <GridView
                     x:Name="AppGridView"
-                    Padding="12,4,12,12"
+                    Padding="12,12,4,4"
                     SelectionMode="Single"
                     CanReorderItems="True"
                     CanDragItems="True"
@@ -216,56 +288,94 @@
                     DragItemsCompleted="AppGridView_DragItemsCompleted"
                     RightTapped="AppGridView_RightTapped"
                     ContainerContentChanging="AppGridView_ContainerContentChanging">
+                    <!-- The item container supplies the card fill (rest / hover /
+                         selected) via ListViewItemPresenter, so the template Border stays
+                         transparent and only draws the stroke. Radius must match the
+                         Border's or the hover fill corners won't line up. -->
+                    <GridView.Resources>
+                        <CornerRadius x:Key="GridViewItemCornerRadius">8</CornerRadius>
+                    </GridView.Resources>
+                    <GridView.ItemContainerStyle>
+                        <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,0,8,8" />
+                            <Setter Property="MinWidth" Value="0" />
+                            <Setter Property="MinHeight" Value="0" />
+                        </Style>
+                    </GridView.ItemContainerStyle>
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="local:AppItemViewModel">
-                            <Grid Width="108" Height="88"
+                            <!-- The transform exists for the launch pulse. Hover and press
+                                 states come from the container's ListViewItemPresenter,
+                                 which already themes correctly including High Contrast. -->
+                            <Border Width="124" Height="118"
+                                CornerRadius="{StaticResource AceCardCornerRadius}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                Background="Transparent"
+                                RenderTransformOrigin="0.5,0.5"
                                 ToolTipService.ToolTip="{x:Bind FilePath, Mode=OneWay}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="56" />
-                                    <RowDefinition Height="32" />
-                                </Grid.RowDefinitions>
-                                <Image Grid.Row="0"
-                                    Source="{x:Bind IconSource, Mode=OneWay}"
-                                    Visibility="{x:Bind IconVisibility, Mode=OneWay}"
-                                    Width="48" Height="48"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    Stretch="Uniform" />
-                                <!-- Shown for URLs and for exe items whose icon can't be read -->
-                                <FontIcon Grid.Row="0"
-                                    Glyph="{x:Bind FallbackGlyph}"
-                                    Visibility="{x:Bind FallbackIconVisibility, Mode=OneWay}"
-                                    FontSize="32"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <StackPanel Grid.Row="1"
-                                    Orientation="Horizontal"
-                                    HorizontalAlignment="Center"
-                                    Margin="2,0,2,0">
-                                    <Ellipse Width="8" Height="8"
-                                        Margin="0,3,4,0"
-                                        VerticalAlignment="Top"
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Margin="8,10,8,2" Spacing="6">
+                                        <Grid Height="48">
+                                            <Image
+                                                Source="{x:Bind IconSource, Mode=OneWay}"
+                                                Visibility="{x:Bind IconVisibility, Mode=OneWay}"
+                                                Width="48" Height="48"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Center"
+                                                Stretch="Uniform" />
+                                            <!-- Shown for URLs and for exe items whose icon can't be read -->
+                                            <FontIcon
+                                                Glyph="{x:Bind FallbackGlyph}"
+                                                Visibility="{x:Bind FallbackIconVisibility, Mode=OneWay}"
+                                                FontSize="32"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Center"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </Grid>
+                                        <TextBlock
+                                            Style="{StaticResource AceCaptionStyle}"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                            Text="{x:Bind DisplayName, Mode=OneWay}"
+                                            TextWrapping="WrapWholeWords"
+                                            MaxLines="2"
+                                            TextAlignment="Center"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+
+                                    <!-- Tag colour as a dot on its own row, centred under
+                                         the label. The dot was never the problem with the
+                                         original design — its position was: inline beside
+                                         the label it stole width and knocked the name off
+                                         centre. In its own row it does neither, and it
+                                         stays clear of the selection border (a full-width
+                                         bottom-edge bar collided with it). Matches the dot
+                                         used in search result rows, so tags read the same
+                                         in both views. Always present (transparent when
+                                         untagged) so the card height never shifts. -->
+                                    <Ellipse Grid.Row="1"
+                                        Width="7" Height="7"
+                                        Margin="0,0,0,8"
+                                        HorizontalAlignment="Center"
                                         Fill="{x:Bind TagBrush, Mode=OneWay}"
-                                        Visibility="{x:Bind TagVisibility, Mode=OneWay}"
                                         AutomationProperties.Name="{x:Bind TagName, Mode=OneWay}" />
-                                    <TextBlock
-                                        Text="{x:Bind DisplayName, Mode=OneWay}"
-                                        FontSize="11"
-                                        TextWrapping="WrapWholeWords"
-                                        MaxLines="2"
-                                        MaxWidth="92"
-                                        TextAlignment="Center"
-                                        TextTrimming="CharacterEllipsis"
-                                        VerticalAlignment="Top" />
-                                </StackPanel>
-                            </Grid>
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </GridView.ItemTemplate>
                 </GridView>
 
                 <!-- Search results (filtered mode) -->
-                <ListView Grid.Row="2"
+                <ListView
                     x:Name="SearchResultsView"
                     Visibility="Collapsed"
                     Padding="8,0,8,8"
@@ -308,10 +418,9 @@
                                     Visibility="{x:Bind TagVisibility, Mode=OneWay}"
                                     AutomationProperties.Name="{x:Bind TagName, Mode=OneWay}" />
                                 <TextBlock Grid.Column="2"
+                                    Style="{StaticResource AceBodyStyle}"
                                     Text="{x:Bind DisplayName, Mode=OneWay}"
-                                    FontSize="14"
-                                    VerticalAlignment="Center"
-                                    TextTrimming="CharacterEllipsis" />
+                                    VerticalAlignment="Center" />
 
                                 <!-- Containing folder (or "Ungrouped") -->
                                 <StackPanel Grid.Column="3"
@@ -323,10 +432,10 @@
                                         FontSize="12"
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                         VerticalAlignment="Center" />
-                                    <TextBlock Text="{x:Bind FolderLabel, Mode=OneWay}"
-                                        FontSize="12"
+                                    <TextBlock
+                                        Style="{StaticResource AceCaptionStyle}"
+                                        Text="{x:Bind FolderLabel, Mode=OneWay}"
                                         MaxWidth="120"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                         VerticalAlignment="Center"
                                         TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
@@ -336,32 +445,35 @@
                 </ListView>
 
                 <!-- Empty state (shown over Row 2 when there are no apps / no results) -->
-                <StackPanel Grid.Row="2"
+                <!-- An empty screen is an invitation to act, so it carries a real
+                     action. IsHitTestVisible stays on or the button can't be clicked. -->
+                <StackPanel
                     x:Name="EmptyStateView"
                     Visibility="Collapsed"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Spacing="10"
-                    IsHitTestVisible="False">
+                    Spacing="12">
                     <FontIcon Glyph="&#xE7C3;"
                         FontSize="32"
                         HorizontalAlignment="Center"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     <TextBlock x:Name="EmptyStateText"
+                        Style="{StaticResource AceBodyStyle}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         TextAlignment="Center"
                         TextWrapping="Wrap"
+                        TextTrimming="None"
                         MaxWidth="280" />
+                    <Button x:Name="EmptyStateAddButton"
+                        x:Uid="EmptyStateAddButton"
+                        Content="Add your first app"
+                        Style="{StaticResource AccentButtonStyle}"
+                        HorizontalAlignment="Center"
+                        Click="AddButton_Click" />
                 </StackPanel>
 
             </Grid>
-        </Grid>
-
-        <!-- Draggable title bar strip (top, full width). Sits above the content so the
-             empty top area and sidebar heading act as the window drag region. -->
-        <Grid x:Name="AppTitleBar"
-              Height="32"
-              VerticalAlignment="Top"
-              Background="Transparent" />
+            </Border>
+        </SplitView>
     </Grid>
 </Window>
