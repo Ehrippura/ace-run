@@ -54,11 +54,12 @@ public sealed partial class MainWindow
     #region Workspace spine
 
     /// <summary>
-    /// Creates the spine brush and hands the same instance to the rail's selection
-    /// indicator. Called from the constructor, before items are realised, because
-    /// ListViewItemPresenter resolves those keys when the template is applied.
-    /// One brush for both surfaces means the rail indicator crossfades with the spine
-    /// for free — and the rail stops using the system accent, which clashed with it.
+    /// Creates the spine brush and hands the same instance to every surface that shows
+    /// "which workspace am I in": the spine, the rail's selection indicator, and the
+    /// grid's selected-card border. Called from the constructor, before items are
+    /// realised, because ListViewItemPresenter resolves these keys when the template is
+    /// applied. One shared instance means they all crossfade together for free, and
+    /// none of them uses the system accent, which clashed with the spine.
     /// </summary>
     private void InitializeWorkspaceBrush()
     {
@@ -66,7 +67,7 @@ public sealed partial class MainWindow
         WorkspaceSpine.Background = _spineBrush;
 
         // Overriding the brushes the built-in ListViewItemPresenter already uses keeps
-        // the platform's own indicator — its geometry, states and animation are untouched.
+        // the platform's own visuals — geometry, states and animation are untouched.
         foreach (var key in new[]
                  {
                      "ListViewItemSelectionIndicatorBrush",
@@ -75,6 +76,18 @@ public sealed partial class MainWindow
                  })
         {
             SidebarListView.Resources[key] = _spineBrush;
+        }
+
+        // Same idea for the tile grid: the selected card's border was the system accent
+        // while the rail beside it was the workspace colour.
+        foreach (var key in new[]
+                 {
+                     "GridViewItemSelectedBorderBrush",
+                     "GridViewItemSelectedPointerOverBorderBrush",
+                     "GridViewItemSelectedPressedBorderBrush"
+                 })
+        {
+            AppGridView.Resources[key] = _spineBrush;
         }
     }
 
