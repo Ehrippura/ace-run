@@ -10,6 +10,8 @@
   <data name="AddMenuAppItem.Text" xml:space="preserve"><value>Add App</value></data>
   <data name="AddMenuUrlItem.Text" xml:space="preserve"><value>Add URL</value></data>
   <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>New Folder</value></data>
+  <data name="EmptyStateAddButton.Content" xml:space="preserve"><value>Add your first app</value></data>
+  <data name="SettingsButton_Label" xml:space="preserve"><value>Manage</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>Edit</value></data>
   <data name="DeleteMenuItem.Text" xml:space="preserve"><value>Delete</value></data>
@@ -44,7 +46,7 @@
 
   <!-- Sidebar / GridView -->
   <data name="UngroupedFolderName" xml:space="preserve"><value>Ungrouped</value></data>
-  <data name="Empty_NoApps" xml:space="preserve"><value>No apps yet. Click Add, or drag an .exe or a link here to get started.</value></data>
+  <data name="Empty_NoApps" xml:space="preserve"><value>No apps yet. Drag an .exe or a link here to get started.</value></data>
   <data name="Empty_NoResults" xml:space="preserve"><value>No apps match your search.</value></data>
   <data name="Search_GoToFolder" xml:space="preserve"><value>Go to Folder</value></data>
   <data name="LaunchMenuItem" xml:space="preserve"><value>Launch</value></data>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Chroma means context. Only two things in this app are allowed a hue:
+        the workspace colour (shell identity - spine, workspace chip, rail selection)
+        and the tag colour (item identity - the bar along a tile's bottom edge).
+        Everything else is achromatic, and interactive controls keep the system accent
+        so we never fight the OS contract.
+
+        Both channels draw from this one palette. Keys match ColorTags.Keys and are
+        persisted to JSON, so the key strings are frozen; only the values move.
+
+        Note there are deliberately no alias-only tokens here. Where Fluent already
+        has a purpose-named brush (LayerFillColorDefaultBrush, CardStrokeColorDefaultBrush,
+        SubtleFillColorSecondaryBrush) the usage sites reference it directly rather than
+        going through an Ace-prefixed indirection that adds a name and nothing else.
+    -->
+    <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="AceTagBrushBlue"   Color="#0F6CBD" />
+            <SolidColorBrush x:Key="AceTagBrushGreen"  Color="#0E7C42" />
+            <SolidColorBrush x:Key="AceTagBrushRed"    Color="#C4314B" />
+            <SolidColorBrush x:Key="AceTagBrushYellow" Color="#B85C00" />
+            <SolidColorBrush x:Key="AceTagBrushPurple" Color="#7C3AED" />
+            <SolidColorBrush x:Key="AceTagBrushGray"   Color="#616161" />
+            <!-- Spine colour for a workspace with no colour assigned: present but quiet,
+                 so the layout stays stable and the slot reads as fillable. A Color rather
+                 than a Brush because the spine crossfades via ColorAnimation. -->
+            <Color x:Key="AceSpineInactiveColor">#C8C8C8</Color>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="AceTagBrushBlue"   Color="#62ABF5" />
+            <SolidColorBrush x:Key="AceTagBrushGreen"  Color="#4CC38A" />
+            <SolidColorBrush x:Key="AceTagBrushRed"    Color="#F87C7C" />
+            <SolidColorBrush x:Key="AceTagBrushYellow" Color="#F5A524" />
+            <SolidColorBrush x:Key="AceTagBrushPurple" Color="#B48CF2" />
+            <SolidColorBrush x:Key="AceTagBrushGray"   Color="#A0A0A0" />
+            <Color x:Key="AceSpineInactiveColor">#4A4A4A</Color>
+        </ResourceDictionary>
+
+        <!--
+            High Contrast deliberately collapses the palette to a single system colour.
+            The user picked their contrast theme for legibility; six arbitrary hues would
+            override that choice. Tag identity is still conveyed - every tag indicator
+            already carries AutomationProperties.Name and a tooltip with the tag name.
+        -->
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="AceTagBrushBlue"   Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="AceTagBrushGreen"  Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="AceTagBrushRed"    Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="AceTagBrushYellow" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="AceTagBrushPurple" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="AceTagBrushGray"   Color="{ThemeResource SystemColorWindowTextColor}" />
+            <StaticResource x:Key="AceSpineInactiveColor" ResourceKey="SystemColorWindowTextColor" />
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+
+</ResourceDictionary>

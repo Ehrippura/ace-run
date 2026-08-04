@@ -217,6 +217,9 @@ public sealed partial class MainWindow
 
     public void LaunchApp(AppItemViewModel app)
     {
+        // Before the try: the confirmation is for the click, not for the outcome.
+        PulseLaunch(app);
+
         try
         {
             // ShellExecute handles http(s) and custom protocols as-is. Arguments would go to
