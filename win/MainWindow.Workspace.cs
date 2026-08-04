@@ -164,31 +164,36 @@ public sealed partial class MainWindow
             await SwitchWorkspaceAsync(wsVm.ToInfo());
     }
 
-    private async void ManageWorkspacesButton_Click(object sender, RoutedEventArgs e)
-    {
-        // Persist the current folder selection before the dialog opens. Sidebar clicks
-        // don't save SelectedFolderId on their own, so without this the dialog would load
-        // (and later restore) a stale folder, snapping the sidebar back after confirming.
-        CommitSave();
+    // The modal guard covers the reload as well as the dialog: _suppressWorkspaceSwitch is
+    // true for part of ReloadAfterWorkspaceManagement, and a Ctrl+N landing in that window
+    // would move the picker without switching the data behind it.
+    private async void ManageWorkspacesButton_Click(object sender, RoutedEventArgs e) =>
+        await RunModalAsync(async () =>
+        {
+            // Persist the current folder selection before the dialog opens. Sidebar clicks
+            // don't save SelectedFolderId on their own, so without this the dialog would load
+            // (and later restore) a stale folder, snapping the sidebar back after confirming.
+            CommitSave();
 
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var dialog = new ManageWorkspacesDialog(hwnd, _currentWorkspace.Id);
-        dialog.XamlRoot = Content.XamlRoot;
-        await dialog.ShowAsync();
-        await ReloadAfterWorkspaceManagement();
-    }
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var dialog = new ManageWorkspacesDialog(hwnd, _currentWorkspace.Id);
+            dialog.XamlRoot = Content.XamlRoot;
+            await dialog.ShowAsync();
+            await ReloadAfterWorkspaceManagement();
+        });
 
-    private async void ManageTagsButton_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new ManageTagsDialog(_tags);
-        dialog.XamlRoot = Content.XamlRoot;
-        await dialog.ShowAsync();
+    private async void ManageTagsButton_Click(object sender, RoutedEventArgs e) =>
+        await RunModalAsync(async () =>
+        {
+            var dialog = new ManageTagsDialog(_tags);
+            dialog.XamlRoot = Content.XamlRoot;
+            await dialog.ShowAsync();
 
-        // Reconcile apps with the (possibly) changed tag list, then persist.
-        NormalizeAppTags();
-        RefreshAllAppTagColors();
-        CommitSave();
-    }
+            // Reconcile apps with the (possibly) changed tag list, then persist.
+            NormalizeAppTags();
+            RefreshAllAppTagColors();
+            CommitSave();
+        });
 
     #endregion
 }

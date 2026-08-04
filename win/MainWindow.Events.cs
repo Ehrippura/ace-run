@@ -117,7 +117,7 @@ public sealed partial class MainWindow
         goToFolderItem.Click += (_, _) => NavigateToAppFolder(app);
         flyout.Items.Add(goToFolderItem);
 
-        flyout.ShowAt(fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
+        ShowTrackedFlyout(flyout, fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
         e.Handled = true;
     }
 
@@ -153,7 +153,7 @@ public sealed partial class MainWindow
         {
             e.Handled = true;
             if (SearchResultsView.SelectedItem is AppItemViewModel app)
-                LaunchApp(app);
+                await LaunchOrEditAsync(app, e);
         }
         else if (e.Key == Windows.System.VirtualKey.Delete)
         {
@@ -282,7 +282,7 @@ public sealed partial class MainWindow
         {
             e.Handled = true;
             if (AppGridView.SelectedItem is AppItemViewModel app)
-                LaunchApp(app);
+                await LaunchOrEditAsync(app, e);
         }
         else if (e.Key == Windows.System.VirtualKey.Delete)
         {
@@ -359,10 +359,14 @@ public sealed partial class MainWindow
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
+            // Display-only hint. The accelerator itself lives on RootGrid: a flyout that
+            // has never been opened has no realized visual tree, so an accelerator
+            // attached here would never fire.
             var editItem = new MenuFlyoutItem
             {
                 Text = Loc.GetString("EditMenuItem.Text"),
                 Icon = new FontIcon { Glyph = "\uE70F" },
+                KeyboardAcceleratorTextOverride = "Alt+Enter",
                 Tag = app
             };
             editItem.Click += EditApp_Click;
@@ -455,13 +459,14 @@ public sealed partial class MainWindow
             var deleteItem = new MenuFlyoutItem
             {
                 Text = Loc.GetString("DeleteMenuItem.Text"),
-                Icon = new FontIcon { Glyph = "\uE74D" }
+                Icon = new FontIcon { Glyph = "\uE74D" },
+                KeyboardAcceleratorTextOverride = "Del"
             };
             deleteItem.Click += async (_, _) => await DeleteAppsAsync(new[] { app });
             flyout.Items.Add(deleteItem);
         }
 
-        flyout.ShowAt(fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
+        ShowTrackedFlyout(flyout, fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
         e.Handled = true;
     }
 
@@ -480,7 +485,8 @@ public sealed partial class MainWindow
         var renameItem = new MenuFlyoutItem
         {
             Text = Loc.GetString("RenameFolder"),
-            Icon = new FontIcon { Glyph = "\uE8AC" }
+            Icon = new FontIcon { Glyph = "\uE8AC" },
+            KeyboardAcceleratorTextOverride = "F2"
         };
         renameItem.Click += async (_, _) => await RenameFolderAsync(folder);
         flyout.Items.Add(renameItem);
@@ -490,12 +496,13 @@ public sealed partial class MainWindow
         var deleteItem = new MenuFlyoutItem
         {
             Text = Loc.GetString("DeleteFolder"),
-            Icon = new FontIcon { Glyph = "\uE74D" }
+            Icon = new FontIcon { Glyph = "\uE74D" },
+            KeyboardAcceleratorTextOverride = "Del"
         };
         deleteItem.Click += async (_, _) => await DeleteFolderAsync(folder);
         flyout.Items.Add(deleteItem);
 
-        flyout.ShowAt(fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
+        ShowTrackedFlyout(flyout, fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
         e.Handled = true;
     }
 

@@ -13,7 +13,33 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="RootGrid">
+    <!--
+        RootGrid hosts every modified-key accelerator. It is an ancestor of all focusable
+        elements, so invocation resolves along the focus chain rather than relying on the
+        framework's whole-tree fallback, and unlike the rail's contents or a flyout's items
+        it is never collapsed. Placement is Hidden because a Grid has no tooltip to hang
+        the hint on — discoverability comes from KeyboardAcceleratorTextOverride on the
+        menu items and AutomationProperties.AcceleratorKey on the buttons instead.
+
+        Unmodified keys (Esc, F2, Delete, Down) are deliberately NOT accelerators: those
+        would fire while SearchBox has focus. See MainWindow.Accelerators.cs.
+    -->
+    <Grid x:Name="RootGrid"
+          KeyboardAcceleratorPlacementMode="Hidden"
+          KeyDown="RootGrid_KeyDown">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="FocusSearch_Invoked" />
+            <KeyboardAccelerator Modifiers="Control" Key="E" Invoked="FocusSearch_Invoked" />
+            <KeyboardAccelerator Modifiers="Control" Key="N" Invoked="AddApp_Invoked" />
+            <KeyboardAccelerator Modifiers="Control,Shift" Key="N" Invoked="AddUrl_Invoked" />
+            <!-- Menu = Alt. Note AltGr sends Ctrl+Alt on some European layouts. -->
+            <KeyboardAccelerator Modifiers="Control,Menu" Key="N" Invoked="NewFolder_Invoked" />
+            <KeyboardAccelerator Modifiers="Control" Key="B" Invoked="ToggleRail_Invoked" />
+            <!-- Ctrl+, and Ctrl+1..9 are added in code: comma has no named VirtualKey, and
+                 nine near-identical blocks is where declarative loses.
+                 Alt+Enter is NOT here — see AppGridView_KeyDown. -->
+        </Grid.KeyboardAccelerators>
+
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="*" />
@@ -87,7 +113,10 @@
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Center"
                     QueryIcon="Find"
-                    TextChanged="SearchBox_TextChanged" />
+                    AutomationProperties.AcceleratorKey="Ctrl+F"
+                    TextChanged="SearchBox_TextChanged"
+                    QuerySubmitted="SearchBox_QuerySubmitted"
+                    PreviewKeyDown="SearchBox_PreviewKeyDown" />
             </TitleBar.Content>
 
             <TitleBar.RightHeader>
@@ -95,6 +124,7 @@
                     <!-- Primary click keeps the .exe picker, dropdown adds a URL -->
                     <SplitButton x:Name="AddButton"
                         Click="AddSplitButton_Click"
+                        AutomationProperties.AcceleratorKey="Ctrl+N"
                         VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE710;" FontSize="14" />
@@ -104,6 +134,7 @@
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
                                 <MenuFlyoutItem x:Uid="AddMenuAppItem"
                                     Text="Add App"
+                                    KeyboardAcceleratorTextOverride="Ctrl+N"
                                     Click="AddButton_Click">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xECAA;" />
@@ -111,6 +142,7 @@
                                 </MenuFlyoutItem>
                                 <MenuFlyoutItem x:Uid="AddMenuUrlItem"
                                     Text="Add URL"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+N"
                                     Click="AddUrlMenuItem_Click">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE774;" />
@@ -173,6 +205,7 @@
                         CanDragItems="True"
                         AllowDrop="True"
                         DragItemsCompleted="SidebarListView_DragItemsCompleted"
+                        KeyDown="SidebarListView_KeyDown"
                         Padding="4,4,4,4">
                         <ListView.Header>
                             <ListViewItem x:Name="UngroupedItem"
@@ -248,6 +281,7 @@
                     <Button Grid.Row="1"
                         x:Name="NewFolderButton"
                         Click="NewFolderButton_Click"
+                        AutomationProperties.AcceleratorKey="Ctrl+Alt+N"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
                         Background="Transparent"
@@ -287,6 +321,7 @@
                     Drop="AppGridView_Drop"
                     DragItemsCompleted="AppGridView_DragItemsCompleted"
                     RightTapped="AppGridView_RightTapped"
+                    PreviewKeyDown="AppGridView_KeyDown"
                     ContainerContentChanging="AppGridView_ContainerContentChanging">
                     <!-- The item container supplies the card fill (rest / hover /
                          selected) via ListViewItemPresenter, so the template Border stays

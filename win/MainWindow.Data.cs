@@ -222,7 +222,7 @@ public sealed partial class MainWindow
             };
         }
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await ShowModalAsync(dialog) != ContentDialogResult.Primary)
             return;
 
         foreach (var app in targets)
@@ -250,7 +250,7 @@ public sealed partial class MainWindow
             XamlRoot = Content.XamlRoot
         };
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await ShowModalAsync(dialog) != ContentDialogResult.Primary)
             return;
 
         foreach (var app in folder.Apps)

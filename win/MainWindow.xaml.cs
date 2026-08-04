@@ -56,9 +56,15 @@ public sealed partial class MainWindow : Window
 
         // Accessible name for the icon-only button (screen readers, UIA). Its own label,
         // not "Manage Workspaces" — the menu behind it covers workspaces and tags both.
+        // The shortcut is appended by hand: every accelerator is declared with
+        // KeyboardAcceleratorPlacementMode="Hidden" on RootGrid, so the framework's own
+        // hint would have nowhere to appear.
         var manage = Loc.GetString("SettingsButton_Label");
-        ToolTipService.SetToolTip(SettingsButton, manage);
+        ToolTipService.SetToolTip(SettingsButton, string.Format(Loc.GetString("Shortcut_Format"), manage, "Ctrl+,"));
         AutomationProperties.SetName(SettingsButton, manage);
+        AutomationProperties.SetAcceleratorKey(SettingsButton, "Ctrl+,");
+
+        InstallCodeAccelerators();
 
         _searchResults.CollectionChanged += OnShownAppsChanged;
 
@@ -77,7 +83,6 @@ public sealed partial class MainWindow : Window
 
     public void AttachContextMenus()
     {
-        AppGridView.PreviewKeyDown += AppGridView_KeyDown;
         SidebarListView.RightTapped += SidebarListView_RightTapped;
     }
 

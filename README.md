@@ -18,7 +18,27 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 - **System Tray** — Minimize to tray, quick-launch recent apps from the context menu
 - **Single Instance** — Re-launching brings the existing window to the foreground instead of opening a second copy
 - **Icon Extraction** — Automatically displays and caches each app's icon
+- **Keyboard Shortcuts** — Drive the whole app from the keyboard; see below
 - **i18n** — English, Traditional Chinese, and Japanese
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+F` / `Ctrl+E` | Focus the search box |
+| `Enter` (in search) | Launch the top result |
+| `Down` (in search) | Move focus to the results list |
+| `Esc` | Clear the search, then close the overlay rail |
+| `Ctrl+N` | Add an app |
+| `Ctrl+Shift+N` | Add a URL |
+| `Ctrl+Alt+N` | New folder |
+| `Ctrl+B` | Toggle the sidebar |
+| `Ctrl+,` | Open the Manage menu (workspaces / tags) |
+| `Ctrl+1`…`Ctrl+9` | Switch to workspace 1–9 |
+| `Enter` | Launch the selected item |
+| `Alt+Enter` | Edit the selected item |
+| `Delete` | Delete the selected item(s) |
+| `F2` | Rename the selected folder (sidebar) |
 
 ## Requirements
 

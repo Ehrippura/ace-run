@@ -28,7 +28,9 @@ public sealed partial class MainWindow
         await PickAndAddAppAsync();
     }
 
-    private async Task PickAndAddAppAsync()
+    // The modal guard spans the picker *and* the edit dialog that follows it, so a
+    // keyboard accelerator can't slip a second dialog into the gap between the two.
+    private Task PickAndAddAppAsync() => RunModalAsync(async () =>
     {
         var hwnd = WindowNative.GetWindowHandle(this);
         var picker = new FileOpenPicker();
@@ -39,7 +41,7 @@ public sealed partial class MainWindow
         if (file is null) return;
 
         await AddItemFromPathAsync(file.Path);
-    }
+    });
 
     private async void AddUrlMenuItem_Click(object sender, RoutedEventArgs e)
     {
@@ -77,7 +79,7 @@ public sealed partial class MainWindow
         dialog.XamlRoot = Content.XamlRoot;
         dialog.Title = Loc.GetString(titleKey);
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
             dialog.ApplyTo(vm);
             ResolveAppTagDisplay(vm);
@@ -103,6 +105,11 @@ public sealed partial class MainWindow
 
     private async void NewFolderButton_Click(object sender, RoutedEventArgs e)
     {
+        await NewFolderAsync();
+    }
+
+    private async Task NewFolderAsync()
+    {
         var nameBox = new TextBox
         {
             PlaceholderText = Loc.GetString("FolderNamePlaceholder")
@@ -118,7 +125,7 @@ public sealed partial class MainWindow
             XamlRoot = Content.XamlRoot
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
             var name = string.IsNullOrWhiteSpace(nameBox.Text)
                 ? Loc.GetString("DefaultFolderName")
@@ -126,6 +133,10 @@ public sealed partial class MainWindow
             var vm = new FolderViewModel(name);
             _folders.Add(vm);
             SaveItems();
+
+            // Invoked from the keyboard the rail may be collapsed, which would put the
+            // new folder somewhere the user can't see it.
+            RailSplitView.IsPaneOpen = true;
         }
     }
 
@@ -144,19 +155,22 @@ public sealed partial class MainWindow
     private async void EditApp_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem { Tag: AppItemViewModel vm })
-        {
-            var hwnd = WindowNative.GetWindowHandle(this);
-            var dialog = new EditItemDialog(vm, hwnd, _tags);
-            dialog.XamlRoot = Content.XamlRoot;
-            dialog.Title = Loc.GetString(vm.IsUrl ? "EditUrlTitle" : "EditItemTitle");
+            await EditAppAsync(vm);
+    }
 
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-            {
-                dialog.ApplyTo(vm);
-                ResolveAppTagDisplay(vm);
-                _ = vm.LoadIconAsync();
-                SaveItems();
-            }
+    private async Task EditAppAsync(AppItemViewModel vm)
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        var dialog = new EditItemDialog(vm, hwnd, _tags);
+        dialog.XamlRoot = Content.XamlRoot;
+        dialog.Title = Loc.GetString(vm.IsUrl ? "EditUrlTitle" : "EditItemTitle");
+
+        if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
+        {
+            dialog.ApplyTo(vm);
+            ResolveAppTagDisplay(vm);
+            _ = vm.LoadIconAsync();
+            SaveItems();
         }
     }
 
@@ -201,7 +215,7 @@ public sealed partial class MainWindow
             XamlRoot = Content.XamlRoot
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
             if (!string.IsNullOrWhiteSpace(nameBox.Text))
             {
