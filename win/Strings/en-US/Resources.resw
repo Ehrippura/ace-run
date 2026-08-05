@@ -75,7 +75,7 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>Custom Icon</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>Leave empty to use default (.ico or .exe)</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>Browse</value></data>
-  <data name="TagCombo.Header" xml:space="preserve"><value>Tag</value></data>
+  <data name="Tag_Field" xml:space="preserve"><value>Tags</value></data>
   <data name="UrlFieldHeader" xml:space="preserve"><value>URL</value></data>
   <data name="UrlFieldPlaceholder" xml:space="preserve"><value>https://example.com</value></data>
   <data name="Validation_InvalidUrl" xml:space="preserve"><value>Enter a valid URL, for example https://example.com</value></data>
@@ -89,7 +89,10 @@
   <data name="Tag_Delete" xml:space="preserve"><value>Delete</value></data>
   <data name="Tag_DeleteConfirm" xml:space="preserve"><value>Delete tag "{0}"? It will be removed from all apps.</value></data>
   <data name="Tag_None" xml:space="preserve"><value>No Tag</value></data>
-  <data name="Tag_Set" xml:space="preserve"><value>Set Tag</value></data>
+  <data name="Tag_Set" xml:space="preserve"><value>Set Tags</value></data>
+  <data name="Tag_Clear" xml:space="preserve"><value>Clear Tags</value></data>
+  <data name="Tag_Overflow" xml:space="preserve"><value>+{0}</value></data>
+  <data name="Tag_Separator" xml:space="preserve"><value>, </value></data>
   <data name="Tag_Empty" xml:space="preserve"><value>No tags yet. Create one to start organizing your apps.</value></data>
 
   <!-- Workspace management -->

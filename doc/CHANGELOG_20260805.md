@@ -6,6 +6,18 @@
 
 ## 新功能
 
+### 多標籤支援（第九階段）
+
+解除「一個項目只能有一個 tag」的 UI 限制。資料格式未變（`AppItem.TagIds` 本即 `List<Guid>`，`AppData` 維持 v5），舊 workspace 直接可讀。詳見 [doc/spec/9-multi-tag.md](spec/9-multi-tag.md)。
+
+- `AppItemViewModel.Tags` 改為持有 `MainWindow._tags` 的同一批 `TagViewModel` 實例，改名／改色透過 tag 自身的 `INotifyPropertyChanged` 傳播到所有卡片；移除原本的 `TagColorKey` / `TagName` 反正規化欄位與 `RefreshAllAppTagColors()`。
+- `NormalizeAppTags()` 改為去除失效 tag、去重並依 workspace tag 順序排序——指派順序刻意不作為使用者狀態，讓相同標籤組合在各卡片上排列一致。
+- 右鍵選單改用 `ToggleMenuFlyoutItem` 並以置頂的「清除標籤」取代「無標籤」；編輯對話框改用 `DropDownButton` 包多選 `ListView`（一般 `Flyout` 而非 `MenuFlyout`，才能連續勾選不關閉），選取於 `Loaded` 回填。
+- 卡片與搜尋結果列改以 `ItemsControl` 呈現多個圓點，超過三個以 `+N` 表示；無障礙名稱設在整條圓點列而非每顆圓點。
+- 三語 `.resw` 新增 `Tag_Clear` / `Tag_Overflow` / `Tag_Separator` / `Tag_Field`（取代已移除的 `TagCombo.Header`）。
+
+---
+
 ### 鍵盤快捷鍵（第八階段）
 
 讓 launcher 能完全以鍵盤驅動。快捷鍵為**固定**不可自訂，不新增設定 UI 或持久化欄位，也不含全域熱鍵。詳見 [doc/spec/8-keyboard-shortcuts.md](spec/8-keyboard-shortcuts.md)。

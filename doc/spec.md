@@ -27,3 +27,4 @@
 | 第六階段：改進（Tag 標籤管理） | [6-tags.md](spec/6-tags.md) | 已實作 |
 | 第七階段：URL 項目支援 | [7-url-items.md](spec/7-url-items.md) | 已實作（favicon 未實作） |
 | 第八階段：鍵盤快捷鍵 | [8-keyboard-shortcuts.md](spec/8-keyboard-shortcuts.md) | 已實作 |
+| 第九階段：多標籤支援 | [9-multi-tag.md](spec/9-multi-tag.md) | 已實作（tag 篩選未實作） |

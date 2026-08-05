@@ -73,7 +73,7 @@ public sealed partial class MainWindow
 
     private async Task AddItemWithDialogAsync(AppItem item, string titleKey)
     {
-        var vm = new AppItemViewModel(item);
+        var vm = new AppItemViewModel(item, _tags);
         var hwnd = WindowNative.GetWindowHandle(this);
         var dialog = new EditItemDialog(vm, hwnd, _tags);
         dialog.XamlRoot = Content.XamlRoot;
@@ -82,7 +82,6 @@ public sealed partial class MainWindow
         if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
             dialog.ApplyTo(vm);
-            ResolveAppTagDisplay(vm);
             var target = _selectedFolder?.Apps ?? _ungroupedApps;
             target.Add(vm);
             _ = vm.LoadIconAsync();
@@ -96,7 +95,7 @@ public sealed partial class MainWindow
 
     private void AddDirectly(AppItem item)
     {
-        var vm = new AppItemViewModel(item);
+        var vm = new AppItemViewModel(item, _tags);
         var target = _selectedFolder?.Apps ?? _ungroupedApps;
         target.Add(vm);
         _ = vm.LoadIconAsync();
@@ -168,7 +167,6 @@ public sealed partial class MainWindow
         if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
             dialog.ApplyTo(vm);
-            ResolveAppTagDisplay(vm);
             _ = vm.LoadIconAsync();
             SaveItems();
         }

@@ -3,6 +3,7 @@
     x:Class="ace_run.EditItemDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ace_run"
     PrimaryButtonText="Save"
     CloseButtonText="Cancel"
     DefaultButton="Primary">
@@ -67,10 +68,57 @@
                     Grid.Column="1" />
         </Grid>
 
-        <ComboBox x:Name="TagCombo"
-                  x:Uid="TagCombo"
-                  Header="Tag"
-                  HorizontalAlignment="Stretch" />
+        <!-- Multi-select needs a real ListView; a MenuFlyout of toggle items would close
+             on every tick, so this uses a plain Flyout that stays open while picking. -->
+        <StackPanel Spacing="4">
+            <TextBlock x:Name="TagFieldLabel" />
+            <DropDownButton x:Name="TagDropDown"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel x:Name="TagSummaryDots"
+                                Grid.Column="0"
+                                Orientation="Horizontal"
+                                Spacing="4"
+                                VerticalAlignment="Center" />
+                    <TextBlock x:Name="TagSummaryText"
+                               Grid.Column="1"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
+                <DropDownButton.Flyout>
+                    <Flyout Placement="Bottom">
+                        <Flyout.FlyoutPresenterStyle>
+                            <Style TargetType="FlyoutPresenter">
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </Flyout.FlyoutPresenterStyle>
+                        <ListView x:Name="TagListView"
+                                  SelectionMode="Multiple"
+                                  MinWidth="260"
+                                  MaxHeight="240"
+                                  Loaded="TagListView_Loaded"
+                                  SelectionChanged="TagListView_SelectionChanged">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="local:TagViewModel">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Ellipse Width="10" Height="10"
+                                                 VerticalAlignment="Center"
+                                                 Fill="{x:Bind ColorBrush, Mode=OneWay}" />
+                                        <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Flyout>
+                </DropDownButton.Flyout>
+            </DropDownButton>
+        </StackPanel>
 
         <ToggleSwitch x:Name="RunAsAdminSwitch"
                       x:Uid="RunAsAdminSwitch"

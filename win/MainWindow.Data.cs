@@ -148,38 +148,46 @@ public sealed partial class MainWindow
                 yield return app;
     }
 
-    /// <summary>Removes references to tags that no longer exist from every app.</summary>
+    /// <summary>
+    /// Reconciles every app with the current tag list: drops tags that no longer exist,
+    /// removes duplicates, and re-sorts into workspace tag order. The fixed order is what
+    /// lets the dots on two tiles carrying the same tags line up — it also means there is
+    /// no per-item tag ordering for the user to manage.
+    /// </summary>
     private void NormalizeAppTags()
     {
-        var validIds = new HashSet<Guid>(_tags.Select(t => t.Id));
         foreach (var app in AllApps())
         {
-            var current = app.TagIds.FirstOrDefault(id => validIds.Contains(id));
-            // V1 keeps at most one tag; drop everything else (and stale ids).
-            app.SetSingleTag(current == Guid.Empty ? null : current);
+            if (app.Tags.Count == 0) continue;
+
+            var assigned = new HashSet<Guid>(app.Tags.Select(t => t.Id));
+            var ordered = _tags.Where(t => assigned.Contains(t.Id)).ToList();
+
+            if (!ordered.SequenceEqual(app.Tags))
+                app.SetTags(ordered);
         }
     }
 
-    /// <summary>Re-resolves the display color/name for every app from the tag list.</summary>
-    private void RefreshAllAppTagColors()
+    /// <summary>Adds or removes one tag on an app, then persists.</summary>
+    private void ToggleTagOnApp(AppItemViewModel app, TagViewModel tag, bool assign)
     {
-        foreach (var app in AllApps())
-            ResolveAppTagDisplay(app);
+        var assigned = new HashSet<Guid>(app.Tags.Select(t => t.Id));
+        if (assign ? !assigned.Add(tag.Id) : !assigned.Remove(tag.Id))
+            return;
+
+        SetAppTags(app, _tags.Where(t => assigned.Contains(t.Id)));
     }
 
-    private void ResolveAppTagDisplay(AppItemViewModel app)
+    private void ClearTagsOnApp(AppItemViewModel app)
     {
-        var tagId = app.TagIds.Count > 0 ? app.TagIds[0] : (Guid?)null;
-        var tag = tagId is Guid id ? _tags.FirstOrDefault(t => t.Id == id) : null;
-        app.TagColorKey = tag?.ColorKey;
-        app.TagName = tag?.Name;
+        if (app.Tags.Count == 0) return;
+        SetAppTags(app, Array.Empty<TagViewModel>());
     }
 
-    /// <summary>Assigns (or clears) a single tag on an app, updates the UI and persists.</summary>
-    private void ApplyTagToApp(AppItemViewModel app, Guid? tagId)
+    /// <summary>Assigns the given tags (kept in workspace order) and saves.</summary>
+    private void SetAppTags(AppItemViewModel app, IEnumerable<TagViewModel> tags)
     {
-        app.SetSingleTag(tagId);
-        ResolveAppTagDisplay(app);
+        app.SetTags(tags);
 
         // Search mode blocks SaveItems(); commit directly so the change persists.
         if (!string.IsNullOrEmpty(_searchText))

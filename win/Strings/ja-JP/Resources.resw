@@ -75,7 +75,7 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>カスタムアイコン</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>空欄の場合は既定（.ico または .exe）を使用</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>参照</value></data>
-  <data name="TagCombo.Header" xml:space="preserve"><value>タグ</value></data>
+  <data name="Tag_Field" xml:space="preserve"><value>タグ</value></data>
   <data name="UrlFieldHeader" xml:space="preserve"><value>URL</value></data>
   <data name="UrlFieldPlaceholder" xml:space="preserve"><value>https://example.com</value></data>
   <data name="Validation_InvalidUrl" xml:space="preserve"><value>有効な URL を入力してください。例: https://example.com</value></data>
@@ -90,6 +90,9 @@
   <data name="Tag_DeleteConfirm" xml:space="preserve"><value>タグ「{0}」を削除しますか？すべてのアプリから削除されます。</value></data>
   <data name="Tag_None" xml:space="preserve"><value>タグなし</value></data>
   <data name="Tag_Set" xml:space="preserve"><value>タグを設定</value></data>
+  <data name="Tag_Clear" xml:space="preserve"><value>タグをクリア</value></data>
+  <data name="Tag_Overflow" xml:space="preserve"><value>+{0}</value></data>
+  <data name="Tag_Separator" xml:space="preserve"><value>、</value></data>
   <data name="Tag_Empty" xml:space="preserve"><value>タグがまだありません。作成してアプリを整理しましょう。</value></data>
 
   <!-- Workspace management -->

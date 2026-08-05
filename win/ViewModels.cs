@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI;
@@ -23,9 +24,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     private bool _runAsAdmin;
     private string _customIconPath = string.Empty;
     private BitmapImage? _iconSource;
-    private readonly List<Guid> _tagIds = new();
-    private string? _tagColorKey;
-    private string? _tagName;
+    private readonly ObservableCollection<TagViewModel> _tags = new();
     private string _folderLabel = string.Empty;
 
     public Guid Id { get; }
@@ -115,44 +114,70 @@ public class AppItemViewModel : INotifyPropertyChanged
     public Visibility FallbackIconVisibility =>
         _iconSource is null ? Visibility.Visible : Visibility.Collapsed;
 
-    /// <summary>
-    /// Assigned tag ids. The data model keeps a list for future multi-tag support;
-    /// V1 UI assigns at most one tag (a single-element list) or none (empty).
-    /// </summary>
-    public IReadOnlyList<Guid> TagIds => _tagIds;
-
-    /// <summary>Replaces the assigned tag with a single tag, or clears it when null.</summary>
-    public void SetSingleTag(Guid? tagId)
-    {
-        _tagIds.Clear();
-        if (tagId is Guid id)
-            _tagIds.Add(id);
-    }
+    /// <summary>Dots that fit on a tile before the overflow counter takes over.</summary>
+    private const int MaxVisibleTags = 3;
 
     /// <summary>
-    /// Display color key resolved from the assigned tag (set by MainWindow).
-    /// Drives the tag dot; null hides it.
+    /// Assigned tags, holding the same <see cref="TagViewModel"/> instances as the
+    /// workspace tag list. Sharing instances (rather than caching name/color here) is
+    /// what makes a rename or recolor in the manage dialog reach every tile on its own.
+    /// Order mirrors the workspace tag list; <c>NormalizeAppTags</c> maintains that.
     /// </summary>
-    public string? TagColorKey
+    public ObservableCollection<TagViewModel> Tags => _tags;
+
+    /// <summary>Replaces the assigned tags, in the order given.</summary>
+    public void SetTags(IEnumerable<TagViewModel> tags)
     {
-        get => _tagColorKey;
-        set
+        foreach (var tag in _tags)
+            tag.PropertyChanged -= OnTagPropertyChanged;
+        _tags.Clear();
+        foreach (var tag in tags)
         {
-            if (_tagColorKey != value)
-            {
-                _tagColorKey = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(TagBrush));
-                OnPropertyChanged(nameof(TagVisibility));
-            }
+            tag.PropertyChanged += OnTagPropertyChanged;
+            _tags.Add(tag);
         }
+        OnTagsChanged();
     }
 
-    public string? TagName
+    // A rename has to reach TagsSummary, which is a flattened string rather than a
+    // binding onto the tag itself. Color needs no such hop: the dots bind ColorBrush
+    // on the TagViewModel directly.
+    private void OnTagPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        get => _tagName;
-        set { if (_tagName != value) { _tagName = value; OnPropertyChanged(); } }
+        if (e.PropertyName == nameof(TagViewModel.Name))
+            OnPropertyChanged(nameof(TagsSummary));
     }
+
+    private void OnTagsChanged()
+    {
+        OnPropertyChanged(nameof(VisibleTags));
+        OnPropertyChanged(nameof(OverflowLabel));
+        OnPropertyChanged(nameof(OverflowVisibility));
+        OnPropertyChanged(nameof(TagsVisibility));
+        OnPropertyChanged(nameof(TagsSummary));
+    }
+
+    /// <summary>The tags that get a dot; the rest are folded into <see cref="OverflowLabel"/>.</summary>
+    public IReadOnlyList<TagViewModel> VisibleTags =>
+        _tags.Count <= MaxVisibleTags ? _tags : _tags.Take(MaxVisibleTags).ToList();
+
+    public string OverflowLabel =>
+        _tags.Count > MaxVisibleTags
+            ? string.Format(Loc.GetString("Tag_Overflow"), _tags.Count - MaxVisibleTags)
+            : string.Empty;
+
+    public Visibility OverflowVisibility =>
+        _tags.Count > MaxVisibleTags ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility TagsVisibility =>
+        _tags.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// All assigned tag names, flattened. Used as the automation name of the whole dot
+    /// strip — naming each dot separately makes a screen reader read them one at a time.
+    /// </summary>
+    public string TagsSummary =>
+        string.Join(Loc.GetString("Tag_Separator"), _tags.Select(t => t.Name));
 
     /// <summary>
     /// Name of the containing folder (or the "Ungrouped" label), shown in search
@@ -164,12 +189,12 @@ public class AppItemViewModel : INotifyPropertyChanged
         set { if (_folderLabel != value) { _folderLabel = value; OnPropertyChanged(); } }
     }
 
-    public Brush TagBrush => ColorTags.GetBrush(_tagColorKey);
-
-    public Visibility TagVisibility =>
-        _tagColorKey is not null ? Visibility.Visible : Visibility.Collapsed;
-
-    public AppItemViewModel(AppItem model)
+    /// <param name="tags">
+    /// The workspace tag list, used to resolve <see cref="AppItem.TagIds"/> into shared
+    /// instances. Ids with no matching tag are dropped, and the assigned tags come out in
+    /// workspace order so the dots read the same on every tile.
+    /// </param>
+    public AppItemViewModel(AppItem model, IReadOnlyList<TagViewModel> tags)
     {
         Id = model.Id;
         Kind = model.Kind;
@@ -179,8 +204,12 @@ public class AppItemViewModel : INotifyPropertyChanged
         _workingDirectory = model.WorkingDirectory;
         _runAsAdmin = model.RunAsAdmin;
         _customIconPath = model.CustomIconPath;
-        if (model.TagIds is not null)
-            _tagIds.AddRange(model.TagIds);
+
+        if (model.TagIds is { Count: > 0 })
+        {
+            var assigned = new HashSet<Guid>(model.TagIds);
+            SetTags(tags.Where(t => assigned.Contains(t.Id)));
+        }
     }
 
     public async Task LoadIconAsync()
@@ -200,7 +229,7 @@ public class AppItemViewModel : INotifyPropertyChanged
         WorkingDirectory = WorkingDirectory,
         RunAsAdmin = RunAsAdmin,
         CustomIconPath = CustomIconPath,
-        TagIds = new List<Guid>(_tagIds)
+        TagIds = _tags.Select(t => t.Id).ToList()
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;
