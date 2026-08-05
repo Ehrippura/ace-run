@@ -84,16 +84,12 @@ public sealed partial class MainWindow
 
     private void ResetContentState()
     {
+        ExitSearchMode();
+
         _ungroupedApps.Clear();
         _folders.Clear();
-        _searchResults.Clear();
         _tags.Clear();
         _selectedFolder = null;
-
-        SearchBox.Text = string.Empty;
-        _searchText = string.Empty;
-        SearchResultsView.Visibility = Visibility.Collapsed;
-        AppGridView.Visibility = Visibility.Visible;
     }
 
     private async Task SwitchWorkspaceAsync(WorkspaceInfo target)

@@ -23,6 +23,11 @@ public sealed partial class MainWindow
         {
             UngroupedItem.IsSelected = false;
             _selectedFolder = folder;
+            // Picking a folder means leaving search: the grid is collapsed while results are
+            // up, so refreshing it alone would leave the old result list on screen — and
+            // ReleaseHiddenIcons() would strip the icons off the very items being shown.
+            // Must run before RefreshContentArea, which reads _searchText for the empty state.
+            ExitSearchMode();
             RefreshContentArea();
         }
     }
@@ -32,6 +37,28 @@ public sealed partial class MainWindow
         SidebarListView.SelectedItem = null;
         _selectedFolder = null;
         UngroupedItem.IsSelected = true;
+        ExitSearchMode();
+        RefreshContentArea();
+    }
+
+    /// <summary>
+    /// Clicking the folder that is *already* selected raises no SelectionChanged, so it needs
+    /// its own way out of search mode — otherwise clicking the current folder while results
+    /// are on screen looks like nothing happened. Only runs while a search is active; a plain
+    /// re-click must not re-assign AppGridView.ItemsSource (that would reset scroll position).
+    /// </summary>
+    private void SidebarListView_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        // Empty means either no search, or SelectionChanged already left search mode.
+        if (string.IsNullOrEmpty(_searchText)) return;
+        if (e.OriginalSource is not FrameworkElement fe) return;
+
+        var lvi = FindParent<ListViewItem>(fe);
+        if (lvi is null || SidebarListView.ItemFromContainer(lvi) is not FolderViewModel folder)
+            return;
+        if (!ReferenceEquals(folder, _selectedFolder)) return;
+
+        ExitSearchMode();
         RefreshContentArea();
     }
 
@@ -87,6 +114,28 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Leaves search mode: empties the query box, drops the result list and puts the grid
+    /// back in front.
+    ///
+    /// The state is reset here instead of being left to SearchBox_TextChanged because
+    /// AutoSuggestBox raises TextChanged asynchronously — a caller that goes on to touch
+    /// AppGridView (select an item, refresh its source) would otherwise be acting on a
+    /// still-collapsed grid. TextChanged does fire afterwards with an empty query and takes
+    /// the same branch, so running both is harmless.
+    /// </summary>
+    private void ExitSearchMode()
+    {
+        if (string.IsNullOrEmpty(_searchText) && string.IsNullOrEmpty(SearchBox.Text))
+            return;
+
+        _searchText = string.Empty;
+        SearchBox.Text = string.Empty;
+        _searchResults.Clear();
+        SearchResultsView.Visibility = Visibility.Collapsed;
+        AppGridView.Visibility = Visibility.Visible;
+    }
+
     private void SearchResultsView_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (e.OriginalSource is FrameworkElement fe)
@@ -127,13 +176,15 @@ public sealed partial class MainWindow
     {
         var folder = FindFolderOfApp(app);
 
-        // Resets to normal view (collapses search results, clears _searchResults).
-        SearchBox.Text = string.Empty;
+        ExitSearchMode();
 
         if (folder is not null)
         {
             UngroupedItem.IsSelected = false;
-            SidebarListView.SelectedItem = folder; // triggers SelectionChanged -> RefreshContentArea
+            if (ReferenceEquals(SidebarListView.SelectedItem, folder))
+                RefreshContentArea(); // already selected — SelectionChanged would not fire
+            else
+                SidebarListView.SelectedItem = folder; // triggers SelectionChanged -> RefreshContentArea
         }
         else
         {

@@ -285,7 +285,7 @@ public sealed partial class MainWindow
 
     private void ClearSearch()
     {
-        SearchBox.Text = string.Empty; // TextChanged collapses results and restores the grid
+        ExitSearchMode();
         AppGridView.Focus(FocusState.Programmatic);
     }
 
