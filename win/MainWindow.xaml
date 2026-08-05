@@ -201,6 +201,7 @@
                     </Grid.RowDefinitions>
                     <ListView Grid.Row="0" x:Name="SidebarListView"
                         SelectionChanged="SidebarListView_SelectionChanged"
+                        Tapped="SidebarListView_Tapped"
                         CanReorderItems="True"
                         CanDragItems="True"
                         AllowDrop="True"
