@@ -387,22 +387,47 @@
                                             TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
 
-                                    <!-- Tag colour as a dot on its own row, centred under
+                                    <!-- Tag colours as dots on their own row, centred under
                                          the label. The dot was never the problem with the
                                          original design — its position was: inline beside
                                          the label it stole width and knocked the name off
                                          centre. In its own row it does neither, and it
                                          stays clear of the selection border (a full-width
-                                         bottom-edge bar collided with it). Matches the dot
+                                         bottom-edge bar collided with it). Matches the dots
                                          used in search result rows, so tags read the same
-                                         in both views. Always present (transparent when
-                                         untagged) so the card height never shifts. -->
-                                    <Ellipse Grid.Row="1"
-                                        Width="7" Height="7"
-                                        Margin="0,0,0,8"
+                                         in both views. The strip has a fixed height so an
+                                         untagged card is exactly as tall as a tagged one.
+                                         The automation name is on the strip, not on each
+                                         dot: named individually a screen reader reads them
+                                         one at a time. -->
+                                    <StackPanel Grid.Row="1"
+                                        Orientation="Horizontal"
+                                        Spacing="4"
+                                        Height="16"
+                                        Margin="0,0,0,4"
                                         HorizontalAlignment="Center"
-                                        Fill="{x:Bind TagBrush, Mode=OneWay}"
-                                        AutomationProperties.Name="{x:Bind TagName, Mode=OneWay}" />
+                                        AutomationProperties.Name="{x:Bind TagsSummary, Mode=OneWay}">
+                                        <ItemsControl ItemsSource="{x:Bind VisibleTags, Mode=OneWay}"
+                                            VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="local:TagViewModel">
+                                                    <Ellipse Width="7" Height="7"
+                                                        VerticalAlignment="Center"
+                                                        Fill="{x:Bind ColorBrush, Mode=OneWay}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock
+                                            Style="{StaticResource AceCaptionStyle}"
+                                            Text="{x:Bind OverflowLabel, Mode=OneWay}"
+                                            Visibility="{x:Bind OverflowVisibility, Mode=OneWay}"
+                                            VerticalAlignment="Center" />
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -445,13 +470,34 @@
                                     Margin="4,0,8,0"
                                     VerticalAlignment="Center"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <Ellipse Grid.Column="1"
-                                    Width="8" Height="8"
+                                <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="4"
                                     Margin="0,0,8,0"
                                     VerticalAlignment="Center"
-                                    Fill="{x:Bind TagBrush, Mode=OneWay}"
-                                    Visibility="{x:Bind TagVisibility, Mode=OneWay}"
-                                    AutomationProperties.Name="{x:Bind TagName, Mode=OneWay}" />
+                                    Visibility="{x:Bind TagsVisibility, Mode=OneWay}"
+                                    AutomationProperties.Name="{x:Bind TagsSummary, Mode=OneWay}">
+                                    <ItemsControl ItemsSource="{x:Bind VisibleTags, Mode=OneWay}"
+                                        VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="4" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="local:TagViewModel">
+                                                <Ellipse Width="8" Height="8"
+                                                    VerticalAlignment="Center"
+                                                    Fill="{x:Bind ColorBrush, Mode=OneWay}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock
+                                        Style="{StaticResource AceCaptionStyle}"
+                                        Text="{x:Bind OverflowLabel, Mode=OneWay}"
+                                        Visibility="{x:Bind OverflowVisibility, Mode=OneWay}"
+                                        VerticalAlignment="Center" />
+                                </StackPanel>
                                 <TextBlock Grid.Column="2"
                                     Style="{StaticResource AceBodyStyle}"
                                     Text="{x:Bind DisplayName, Mode=OneWay}"

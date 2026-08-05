@@ -75,7 +75,7 @@
   <data name="CustomIconPathBox.Header" xml:space="preserve"><value>自訂圖示</value></data>
   <data name="CustomIconPathBox.PlaceholderText" xml:space="preserve"><value>留空則使用預設圖示（.ico 或 .exe）</value></data>
   <data name="BrowseIconButton.Content" xml:space="preserve"><value>瀏覽</value></data>
-  <data name="TagCombo.Header" xml:space="preserve"><value>標籤</value></data>
+  <data name="Tag_Field" xml:space="preserve"><value>標籤</value></data>
   <data name="UrlFieldHeader" xml:space="preserve"><value>網址</value></data>
   <data name="UrlFieldPlaceholder" xml:space="preserve"><value>https://example.com</value></data>
   <data name="Validation_InvalidUrl" xml:space="preserve"><value>請輸入有效的網址，例如 https://example.com</value></data>
@@ -90,6 +90,9 @@
   <data name="Tag_DeleteConfirm" xml:space="preserve"><value>刪除標籤「{0}」？將從所有應用程式移除此標籤。</value></data>
   <data name="Tag_None" xml:space="preserve"><value>無標籤</value></data>
   <data name="Tag_Set" xml:space="preserve"><value>設定標籤</value></data>
+  <data name="Tag_Clear" xml:space="preserve"><value>清除標籤</value></data>
+  <data name="Tag_Overflow" xml:space="preserve"><value>+{0}</value></data>
+  <data name="Tag_Separator" xml:space="preserve"><value>、</value></data>
   <data name="Tag_Empty" xml:space="preserve"><value>尚未建立任何標籤。建立一個以開始分類應用程式。</value></data>
 
   <!-- Workspace management -->

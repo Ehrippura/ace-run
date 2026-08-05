@@ -45,7 +45,7 @@ public sealed partial class MainWindow
 
         foreach (var app in _appData.UngroupedItems)
         {
-            var vm = new AppItemViewModel(app);
+            var vm = new AppItemViewModel(app, _tags);
             _ungroupedApps.Add(vm);
         }
 
@@ -54,14 +54,11 @@ public sealed partial class MainWindow
             var fvm = new FolderViewModel(folder);
             foreach (var app in folder.Children)
             {
-                var vm = new AppItemViewModel(app);
+                var vm = new AppItemViewModel(app, _tags);
                 fvm.Apps.Add(vm);
             }
             _folders.Add(fvm);
         }
-
-        NormalizeAppTags();
-        RefreshAllAppTagColors();
 
         var savedFolder = ws.SelectedFolderId is Guid fid
             ? _folders.FirstOrDefault(f => f.Id == fid)
@@ -189,9 +186,9 @@ public sealed partial class MainWindow
             dialog.XamlRoot = Content.XamlRoot;
             await dialog.ShowAsync();
 
-            // Reconcile apps with the (possibly) changed tag list, then persist.
+            // Reconcile apps with the (possibly) changed tag list, then persist. Renames
+            // and recolors need no pass here: the tiles bind the tag instances directly.
             NormalizeAppTags();
-            RefreshAllAppTagColors();
             CommitSave();
         });
 

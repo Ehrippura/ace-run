@@ -427,28 +427,30 @@ public sealed partial class MainWindow
                 Icon = new FontIcon { Glyph = "\uE8EC" }
             };
 
-            var currentTagId = app.TagIds.Count > 0 ? app.TagIds[0] : (Guid?)null;
+            var assignedTagIds = new HashSet<Guid>(app.Tags.Select(t => t.Id));
 
-            var noTagItem = new RadioMenuFlyoutItem
+            var clearTagsItem = new MenuFlyoutItem
             {
-                Text = Loc.GetString("Tag_None"),
-                GroupName = "AppTag",
-                IsChecked = currentTagId is null
+                Text = Loc.GetString("Tag_Clear"),
+                IsEnabled = assignedTagIds.Count > 0
             };
-            noTagItem.Click += (_, _) => ApplyTagToApp(app, null);
-            setTagMenu.Items.Add(noTagItem);
+            clearTagsItem.Click += (_, _) => ClearTagsOnApp(app);
+            setTagMenu.Items.Add(clearTagsItem);
+            setTagMenu.Items.Add(new MenuFlyoutSeparator());
 
             foreach (var tag in _tags)
             {
                 var tagCapture = tag;
-                var tagItem = new RadioMenuFlyoutItem
+                // A flyout closes on click, so assigning several tags this way means
+                // reopening the menu. The edit dialog is the path for doing it in one go.
+                var tagItem = new ToggleMenuFlyoutItem
                 {
                     Text = tag.Name,
-                    GroupName = "AppTag",
-                    IsChecked = currentTagId is Guid cid && cid == tag.Id,
+                    IsChecked = assignedTagIds.Contains(tag.Id),
                     Icon = new FontIcon { Glyph = "\uEA3B", Foreground = tag.ColorBrush }
                 };
-                tagItem.Click += (_, _) => ApplyTagToApp(app, tagCapture.Id);
+                tagItem.Click += (s, _) =>
+                    ToggleTagOnApp(app, tagCapture, ((ToggleMenuFlyoutItem)s).IsChecked);
                 setTagMenu.Items.Add(tagItem);
             }
 

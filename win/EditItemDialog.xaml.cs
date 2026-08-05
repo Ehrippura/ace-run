@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Shapes;
@@ -11,8 +12,14 @@ namespace ace_run;
 
 public sealed partial class EditItemDialog : ContentDialog
 {
+    /// <summary>Dots shown on the button face before the rest fold into a counter.</summary>
+    private const int MaxSummaryDots = 3;
+
     private readonly AppItemViewModel _viewModel;
     private readonly IntPtr _hwnd;
+    private readonly IReadOnlyList<TagViewModel> _tags;
+    private readonly HashSet<Guid> _selectedTagIds = new();
+    private bool _suppressTagSelection;
 
     public EditItemDialog(AppItemViewModel viewModel, IntPtr hwnd)
         : this(viewModel, hwnd, Array.Empty<TagViewModel>())
@@ -24,6 +31,7 @@ public sealed partial class EditItemDialog : ContentDialog
         InitializeComponent();
         _viewModel = viewModel;
         _hwnd = hwnd;
+        _tags = tags;
 
         PrimaryButtonText = Loc.GetString("SaveButton");
         CloseButtonText = Loc.GetString("CancelButton");
@@ -35,7 +43,7 @@ public sealed partial class EditItemDialog : ContentDialog
         RunAsAdminSwitch.IsOn = viewModel.RunAsAdmin;
         CustomIconPathBox.Text = viewModel.CustomIconPath;
 
-        BuildTagItems(viewModel, tags);
+        BuildTagPicker(viewModel, tags);
 
         if (viewModel.IsUrl)
             ApplyUrlMode();
@@ -71,43 +79,92 @@ public sealed partial class EditItemDialog : ContentDialog
         args.Cancel = true;
     }
 
-    private void BuildTagItems(AppItemViewModel viewModel, IReadOnlyList<TagViewModel> tags)
+    private void BuildTagPicker(AppItemViewModel viewModel, IReadOnlyList<TagViewModel> tags)
     {
-        // First item: "No Tag" (Tag == null).
-        TagCombo.Items.Add(new ComboBoxItem
-        {
-            Content = Loc.GetString("Tag_None"),
-            Tag = null
-        });
+        TagFieldLabel.Text = Loc.GetString("Tag_Field");
 
-        var currentTagId = viewModel.TagIds.Count > 0 ? viewModel.TagIds[0] : (Guid?)null;
-        int selectedIndex = 0;
+        foreach (var tag in viewModel.Tags)
+            _selectedTagIds.Add(tag.Id);
 
-        for (int i = 0; i < tags.Count; i++)
+        // Nothing to pick from: leave the button disabled rather than opening an empty list.
+        TagDropDown.IsEnabled = tags.Count > 0;
+        TagListView.ItemsSource = tags;
+
+        UpdateTagSummary();
+    }
+
+    /// <summary>
+    /// Restores the selection into the ListView. Writing <c>SelectedItems</c> before the
+    /// containers exist doesn't stick, and the flyout only realizes the list when it first
+    /// opens — so this runs on Loaded, which fires again on every reopen. Driving it from
+    /// <see cref="_selectedTagIds"/> keeps it idempotent.
+    /// </summary>
+    private void TagListView_Loaded(object sender, RoutedEventArgs e)
+    {
+        _suppressTagSelection = true;
+        TagListView.SelectedItems.Clear();
+        foreach (var tag in _tags)
+            if (_selectedTagIds.Contains(tag.Id))
+                TagListView.SelectedItems.Add(tag);
+        _suppressTagSelection = false;
+    }
+
+    private void TagListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTagSelection) return;
+
+        _selectedTagIds.Clear();
+        foreach (var item in TagListView.SelectedItems)
+            if (item is TagViewModel tag)
+                _selectedTagIds.Add(tag.Id);
+
+        UpdateTagSummary();
+    }
+
+    /// <summary>Redraws the button face: a dot per selected tag plus their names.</summary>
+    private void UpdateTagSummary()
+    {
+        TagSummaryDots.Children.Clear();
+
+        if (_tags.Count == 0)
         {
-            var tag = tags[i];
-            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            panel.Children.Add(new Ellipse
+            TagSummaryText.Text = Loc.GetString("Tag_Empty");
+            return;
+        }
+
+        var selected = SelectedTags();
+        if (selected.Count == 0)
+        {
+            TagSummaryText.Text = Loc.GetString("Tag_None");
+            return;
+        }
+
+        foreach (var tag in selected.Take(MaxSummaryDots))
+        {
+            TagSummaryDots.Children.Add(new Ellipse
             {
                 Width = 10,
                 Height = 10,
                 VerticalAlignment = VerticalAlignment.Center,
-                Fill = ColorTags.GetBrush(tag.ColorKey)
+                Fill = tag.ColorBrush
             });
-            panel.Children.Add(new TextBlock
-            {
-                Text = tag.Name,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            TagCombo.Items.Add(new ComboBoxItem { Content = panel, Tag = tag.Id });
-
-            if (currentTagId is Guid id && id == tag.Id)
-                selectedIndex = i + 1; // +1 for the "No Tag" item
         }
 
-        TagCombo.SelectedIndex = selectedIndex;
+        if (selected.Count > MaxSummaryDots)
+        {
+            TagSummaryDots.Children.Add(new TextBlock
+            {
+                Text = string.Format(Loc.GetString("Tag_Overflow"), selected.Count - MaxSummaryDots),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+        }
+
+        TagSummaryText.Text = string.Join(Loc.GetString("Tag_Separator"), selected.Select(t => t.Name));
     }
+
+    /// <summary>Selected tags in workspace order, so assignment order is never user state.</summary>
+    private List<TagViewModel> SelectedTags() =>
+        _tags.Where(t => _selectedTagIds.Contains(t.Id)).ToList();
 
     public void ApplyTo(AppItemViewModel viewModel)
     {
@@ -132,8 +189,7 @@ public sealed partial class EditItemDialog : ContentDialog
 
         viewModel.CustomIconPath = CustomIconPathBox.Text;
 
-        var selectedTagId = (TagCombo.SelectedItem as ComboBoxItem)?.Tag as Guid?;
-        viewModel.SetSingleTag(selectedTagId);
+        viewModel.SetTags(SelectedTags());
     }
 
     private async void BrowseFile_Click(object sender, RoutedEventArgs e)
