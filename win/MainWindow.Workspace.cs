@@ -64,19 +64,7 @@ public sealed partial class MainWindow
             ? _folders.FirstOrDefault(f => f.Id == fid)
             : null;
 
-        if (savedFolder is not null)
-        {
-            _selectedFolder = savedFolder;
-            SidebarListView.SelectedItem = savedFolder;
-            UngroupedItem.IsSelected = false;
-        }
-        else
-        {
-            _selectedFolder = null;
-            SidebarListView.SelectedItem = null;
-            UngroupedItem.IsSelected = true;
-        }
-        RefreshContentArea();
+        NavigateToFolder(savedFolder);
 
         if (PurgeStaleRecentLaunches())
             DataService.SaveWorkspace(ws.Id, _appData);

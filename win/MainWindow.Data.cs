@@ -277,12 +277,7 @@ public sealed partial class MainWindow
         _folders.Remove(folder);
 
         if (_selectedFolder == folder)
-        {
-            _selectedFolder = null;
-            SidebarListView.SelectedItem = null;
-            UngroupedItem.IsSelected = true;
-            RefreshContentArea();
-        }
+            NavigateToFolder(null);
 
         PurgeStaleRecentLaunches();
         CommitSave();

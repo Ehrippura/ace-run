@@ -17,12 +17,32 @@ public sealed partial class MainWindow
 {
     #region Sidebar
 
-    private void SidebarListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>
+    /// Doubles as "a programmatic selection is in progress" — the same role
+    /// <c>_suppressWorkspaceSwitch</c> plays for the workspace picker.
+    /// <see cref="NavigateToFolder"/> assigns SidebarListView.SelectedItem itself, and the
+    /// SelectionChanged that fires must not be re-entered as a fresh navigation.
+    /// </summary>
+    private bool _suppressFolderNavigation;
+
+    /// <summary>
+    /// The single way the content area changes folder. Every entry point routes through
+    /// here — rail click, the ungrouped row, "Go to folder" from a search result, deleting
+    /// the open folder, and restoring the saved folder on load — because the five of them
+    /// had drifted into five slightly different orderings of the same five steps.
+    /// </summary>
+    private void NavigateToFolder(FolderViewModel? target)
     {
-        if (SidebarListView.SelectedItem is FolderViewModel folder)
+        _suppressFolderNavigation = true;
+        try
         {
-            UngroupedItem.IsSelected = false;
-            _selectedFolder = folder;
+            _selectedFolder = target;
+            // Assign the selection before the header row's flag, the order the rail's own
+            // handlers have always used: SelectedItem = null raises SelectionChanged, and
+            // "ungrouped is selected" should not be true for the span of that callback.
+            SidebarListView.SelectedItem = target;
+            UngroupedItem.IsSelected = target is null;
+
             // Picking a folder means leaving search: the grid is collapsed while results are
             // up, so refreshing it alone would leave the old result list on screen — and
             // ReleaseHiddenIcons() would strip the icons off the very items being shown.
@@ -30,16 +50,24 @@ public sealed partial class MainWindow
             ExitSearchMode();
             RefreshContentArea();
         }
+        finally
+        {
+            _suppressFolderNavigation = false;
+        }
     }
 
-    private void UngroupedItem_Tapped(object sender, TappedRoutedEventArgs e)
+    private void SidebarListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        SidebarListView.SelectedItem = null;
-        _selectedFolder = null;
-        UngroupedItem.IsSelected = true;
-        ExitSearchMode();
-        RefreshContentArea();
+        // NavigateToFolder assigns SelectedItem itself, so this also fires for switches
+        // already in progress. Those are an echo, not a new navigation.
+        if (_suppressFolderNavigation) return;
+
+        if (SidebarListView.SelectedItem is FolderViewModel folder)
+            NavigateToFolder(folder);
     }
+
+    private void UngroupedItem_Tapped(object sender, TappedRoutedEventArgs e) =>
+        NavigateToFolder(null);
 
     /// <summary>
     /// Clicking the folder that is *already* selected raises no SelectionChanged, so it needs
@@ -241,25 +269,7 @@ public sealed partial class MainWindow
     /// contains <paramref name="app"/> (or the ungrouped page), then selects it.</summary>
     private void NavigateToAppFolder(AppItemViewModel app)
     {
-        var folder = FindFolderOfApp(app);
-
-        ExitSearchMode();
-
-        if (folder is not null)
-        {
-            UngroupedItem.IsSelected = false;
-            if (ReferenceEquals(SidebarListView.SelectedItem, folder))
-                RefreshContentArea(); // already selected — SelectionChanged would not fire
-            else
-                SidebarListView.SelectedItem = folder; // triggers SelectionChanged -> RefreshContentArea
-        }
-        else
-        {
-            SidebarListView.SelectedItem = null;
-            _selectedFolder = null;
-            UngroupedItem.IsSelected = true;
-            RefreshContentArea();
-        }
+        NavigateToFolder(FindFolderOfApp(app));
 
         AppGridView.SelectedItem = app;
         AppGridView.ScrollIntoView(app);
