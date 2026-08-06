@@ -95,6 +95,16 @@
   <data name="Tag_Separator" xml:space="preserve"><value>, </value></data>
   <data name="Tag_Empty" xml:space="preserve"><value>No tags yet. Create one to start organizing your apps.</value></data>
 
+  <!-- Organize -->
+  <data name="Organize_Menu" xml:space="preserve"><value>Organize</value></data>
+  <data name="Organize_ByName" xml:space="preserve"><value>By Name</value></data>
+  <data name="Organize_ByPath" xml:space="preserve"><value>By Path</value></data>
+  <data name="Organize_ByTag" xml:space="preserve"><value>By Tag</value></data>
+  <data name="Organize_BySortKey" xml:space="preserve"><value>By Sort Key</value></data>
+  <data name="Organize_Reverse" xml:space="preserve"><value>Reverse Order</value></data>
+  <data name="SortKey_Field" xml:space="preserve"><value>Sort Key</value></data>
+  <data name="SortKey_Placeholder" xml:space="preserve"><value>Optional — used when organizing</value></data>
+
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>Manage Workspaces</value></data>
   <data name="Workspace_New" xml:space="preserve"><value>New Workspace</value></data>

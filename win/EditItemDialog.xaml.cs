@@ -43,6 +43,10 @@ public sealed partial class EditItemDialog : ContentDialog
         RunAsAdminSwitch.IsOn = viewModel.RunAsAdmin;
         CustomIconPathBox.Text = viewModel.CustomIconPath;
 
+        SortKeyBox.Header = Loc.GetString("SortKey_Field");
+        SortKeyBox.PlaceholderText = Loc.GetString("SortKey_Placeholder");
+        SortKeyBox.Text = viewModel.SortKey;
+
         BuildTagPicker(viewModel, tags);
 
         if (viewModel.IsUrl)
@@ -188,6 +192,10 @@ public sealed partial class EditItemDialog : ContentDialog
         }
 
         viewModel.CustomIconPath = CustomIconPathBox.Text;
+
+        // Trimmed, unlike the fields above: trailing whitespace would quietly change where
+        // an item lands when organizing, and the user cannot see it in the box.
+        viewModel.SortKey = SortKeyBox.Text.Trim();
 
         viewModel.SetTags(SelectedTags());
     }

@@ -176,7 +176,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
                 ColorTag = vm.ColorTag,
                 AppData = appData
             };
-            var json = JsonSerializer.Serialize(export, DataService.JsonOptions);
+            var json = DataService.SerializeExport(export);
             await FileIO.WriteTextAsync(file, json);
         }
         catch (Exception ex)

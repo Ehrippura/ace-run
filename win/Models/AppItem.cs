@@ -16,4 +16,11 @@ public class AppItem
     public bool RunAsAdmin { get; set; }
     public string CustomIconPath { get; set; } = string.Empty;
     public List<Guid> TagIds { get; set; } = new();
+
+    /// <summary>
+    /// Free-form key the user can set to define an order that name, path and tags cannot
+    /// express. Read only by Organize; an empty key means "unspecified" and always sorts
+    /// last. Not matched by search and not shown on the tile.
+    /// </summary>
+    public string SortKey { get; set; } = string.Empty;
 }
