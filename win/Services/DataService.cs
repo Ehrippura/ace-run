@@ -110,6 +110,7 @@ public static class DataService
 
     public static void SaveConfig(WorkspaceConfig config)
     {
+        config.Version = WorkspaceConfig.CurrentVersion;
         var json = JsonSerializer.Serialize(config, JsonOptions);
         File.WriteAllText(_configPath, json);
     }
@@ -136,8 +137,22 @@ public static class DataService
     {
         Directory.CreateDirectory(_workspacesDir);
         var path = Path.Combine(_workspacesDir, $"{id}.json");
+        data.Version = AppData.CurrentVersion;
         var json = JsonSerializer.Serialize(data, JsonOptions);
         File.WriteAllText(path, json);
+    }
+
+    /// <summary>
+    /// Serializes a workspace for .acerun export. Exports go through here rather than
+    /// calling <see cref="JsonSerializer"/> directly so they get the same version stamp as
+    /// an ordinary save — the <see cref="AppData"/> handed in comes straight out of
+    /// <see cref="LoadWorkspace"/> and still carries that file's old number.
+    /// </summary>
+    public static string SerializeExport(WorkspaceExport export)
+    {
+        export.AceRunVersion = WorkspaceExport.CurrentVersion;
+        export.AppData.Version = AppData.CurrentVersion;
+        return JsonSerializer.Serialize(export, JsonOptions);
     }
 
     public static void DeleteWorkspace(Guid id)

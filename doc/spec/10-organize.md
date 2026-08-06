@@ -5,7 +5,9 @@
 ## 1. 資料模型
 
 - [x] `AppItem` 新增 `SortKey`（`string`，預設空字串）：使用者自訂的排序字串，只有整理會讀，不進搜尋比對、不上 tile。
-- [x] `AppData.Version` 由 5 提升至 6。與既有慣例一致，這是純文件標記，程式中無人分支；舊檔缺 `SortKey` 鍵時 `System.Text.Json` 保留欄位初始值，**不需要 migration 程式碼**。
+- [x] `AppData.Version` 由 5 提升至 6。舊檔缺 `SortKey` 鍵時 `System.Text.Json` 保留欄位初始值，**不需要 migration 程式碼**。
+- [x] 順帶修正版本號永遠不會更新的問題：`Version` 原本只是屬性初始值，載入時被檔案裡的舊值覆蓋、存檔時又原封寫回，因此實機上的檔案停在 3 而常數已經是 5。版本號描述的是**寫入者產生的形狀**，不是讀到的形狀，故改為在寫入時蓋章——`AppData`／`WorkspaceConfig`／`WorkspaceExport` 各自提供 `CurrentVersion` 常數，由 `DataService.SaveWorkspace`／`SaveConfig`／`SerializeExport` 統一蓋上。`Version` 屬性本身保留可讀，未來要做真正的 migration 時仍拿得到來源版本。
+- [x] `.acerun` 匯出原本繞過 `DataService` 直接 `JsonSerializer.Serialize`，其中的 `AppData` 直接來自 `LoadWorkspace`，會把該檔的舊版本號帶進匯出檔；改走新增的 `DataService.SerializeExport`，與一般存檔同一條路徑。
 - [x] `.acerun` 匯出／匯入走同一個 `AppData` 型別與 `DataService.JsonOptions`，`SortKey` 自動 round-trip，`ManageWorkspacesDialog` 未動。
 - [x] `AppItemViewModel` 依既有三點契約同步：backing field、通知屬性、建構子、`ToModel()`。
 
