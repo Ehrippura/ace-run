@@ -1,4 +1,5 @@
 using ace_run.Services;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -14,7 +15,7 @@ namespace ace_run;
 /// The app's entire motion budget: two moments and nothing else.
 /// 1. Launch — the app's one verb, and the only place a real animation is spent.
 ///    Programs can take seconds to show a window; this confirms the click landed.
-/// 2. Workspace switch — the spine crossfades and the content fades back in.
+/// 2. Workspace switch — the edge crossfades and the content fades back in.
 ///
 /// Hover and press are deliberately *not* here. The GridViewItem's ListViewItemPresenter
 /// already paints those states, themed and High Contrast-correct, for free. A scale on
@@ -35,7 +36,7 @@ public sealed partial class MainWindow
 
     private const double PulseFrom = 0.97;
     private static readonly TimeSpan PulseDuration = TimeSpan.FromMilliseconds(180);
-    private static readonly TimeSpan SpineDuration = TimeSpan.FromMilliseconds(220);
+    private static readonly TimeSpan EdgeDuration = TimeSpan.FromMilliseconds(220);
     private static readonly TimeSpan ContentFadeDuration = TimeSpan.FromMilliseconds(120);
 
     /// <summary>
@@ -45,26 +46,27 @@ public sealed partial class MainWindow
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
 
     /// <summary>
-    /// Dedicated brush for the spine. It must not be a resource brush from ColorTags —
+    /// Dedicated brush for the edge. It must not be a resource brush from ColorTags —
     /// those instances are shared across every tag bar and dot in the app, and animating
     /// one would drag all of them along with it.
     /// </summary>
-    private SolidColorBrush? _spineBrush;
+    private SolidColorBrush? _edgeBrush;
 
-    #region Workspace spine
+    #region Workspace edge
 
     /// <summary>
-    /// Creates the spine brush and hands the same instance to every surface that shows
-    /// "which workspace am I in": the spine, the rail's selection indicator, the search
+    /// Creates the edge brush and hands the same instance to every surface that shows
+    /// "which workspace am I in": the window edge, the rail's selection indicator, the search
     /// results' selection indicator, and the grid's selected-card border. Called from the
     /// constructor, before items are realised, because ListViewItemPresenter resolves these
     /// keys when the template is applied. One shared instance means they all crossfade
-    /// together for free, and none of them uses the system accent, which clashed with the spine.
+    /// together for free, and none of them uses the system accent, which clashed with the edge.
     /// </summary>
     private void InitializeWorkspaceBrush()
     {
-        _spineBrush = new SolidColorBrush(ResolveSpineColor(null));
-        WorkspaceSpine.Background = _spineBrush;
+        _edgeBrush = new SolidColorBrush(ResolveEdgeColor(null));
+        WorkspaceEdge.BorderBrush = _edgeBrush;
+        UpdateWindowEdgeCorners();
 
         // Overriding the brushes the built-in ListViewItemPresenter already uses keeps
         // the platform's own visuals — geometry, states and animation are untouched.
@@ -78,7 +80,7 @@ public sealed partial class MainWindow
                          "ListViewItemSelectionIndicatorPressedBrush"
                      })
             {
-                list.Resources[key] = _spineBrush;
+                list.Resources[key] = _edgeBrush;
             }
 
         // Same idea for the tile grid: the selected card's border was the system accent
@@ -90,49 +92,116 @@ public sealed partial class MainWindow
                      "GridViewItemSelectedPressedBorderBrush"
                  })
         {
-            AppGridView.Resources[key] = _spineBrush;
+            AppGridView.Resources[key] = _edgeBrush;
         }
     }
 
-    private Color ResolveSpineColor(string? colorKey)
+    private Color ResolveEdgeColor(string? colorKey)
     {
         if (ColorTags.GetBrush(colorKey) is SolidColorBrush { Color.A: > 0 } brush)
             return brush.Color;
 
-        return Application.Current.Resources["AceSpineInactiveColor"] is Color inactive
+        return Application.Current.Resources["AceEdgeInactiveColor"] is Color inactive
             ? inactive
             : Microsoft.UI.Colors.Gray;
     }
 
-    /// <summary>Repaints the spine for the active workspace, crossfading when animated.</summary>
-    private void UpdateWorkspaceSpine()
-    {
-        var target = ResolveSpineColor(_currentWorkspace.ColorTag);
+    /// <summary>
+    /// The radius DWM is rounding this window's corners at, in DIPs.
+    ///
+    /// There is no OS call that returns this. The only thing DWM exposes is
+    /// <c>DWMWA_WINDOW_CORNER_PREFERENCE</c>, and reading it back yields the *preference*
+    /// (<c>DWMWCP_DEFAULT</c> — "system decides") rather than a measurement, so it can say
+    /// whether rounding was opted out of but never how much. The number therefore has to
+    /// come from the design system, and WinUI publishes it: <c>OverlayCornerRadius</c> is
+    /// the 8 DIP it gives flyouts, dialogs and window corners alike. Reading the resource
+    /// rather than hardcoding 8 means this tracks the platform if the ramp ever moves.
+    /// </summary>
+    private static double WindowCornerRadius =>
+        Application.Current.Resources.TryGetValue("OverlayCornerRadius", out var value)
+        && value is CornerRadius radius
+            ? radius.TopLeft
+            : 8;
 
+    /// <summary>
+    /// Whether DWM is rounding the window at all right now. Two cases where it is not:
+    /// Windows 10 never rounds (this app still supports 1809), and Windows 11 squares a
+    /// window that is maximised or full-screen. Restored is the only rounded state, so
+    /// this tests for it positively rather than listing the exceptions.
+    ///
+    /// <c>Environment.OSVersion</c> is safe here — since .NET 5 it goes through
+    /// <c>RtlGetVersion</c> and reports the real build, not a manifest-shimmed one.
+    /// </summary>
+    private bool WindowIsRounded =>
+        Environment.OSVersion.Version.Build >= 22000
+        && AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Restored };
+
+    /// <summary>
+    /// Squares the edge off whenever the window itself is square. A rounded stroke inside
+    /// a square window leaves four visible notches at the corners.
+    /// </summary>
+    private void UpdateWindowEdgeCorners() =>
+        WorkspaceEdge.CornerRadius = new CornerRadius(WindowIsRounded ? WindowCornerRadius : 0);
+
+    /// <summary>
+    /// Repaints the edge for the active workspace, crossfading when animated.
+    ///
+    /// A workspace with no colour assigned shows no edge at all — the frame is the
+    /// workspace's identity, and a grey ring on every uncoloured workspace would read as
+    /// window decoration rather than as state. That is done by fading the Border's
+    /// <c>Opacity</c>, not by pushing a transparent colour into the brush: the same brush
+    /// instance also paints the rail's selection indicator and the selected tile's border,
+    /// and those must stay visible. They keep <c>AceEdgeInactiveColor</c>.
+    /// </summary>
+    private void UpdateWorkspaceEdge()
+    {
         // The brush instance is created once in the constructor and never replaced —
         // the rail's selection indicator holds the same reference.
-        if (_spineBrush is null) return;
+        if (_edgeBrush is null) return;
+
+        var target = ResolveEdgeColor(_currentWorkspace.ColorTag);
+        var edgeOpacity = HasWorkspaceColor(_currentWorkspace.ColorTag) ? 1d : 0d;
 
         if (!_animationsEnabled)
         {
-            _spineBrush.Color = target;
+            _edgeBrush.Color = target;
+            WorkspaceEdge.Opacity = edgeOpacity;
             return;
         }
 
-        var animation = new ColorAnimation
+        var storyboard = new Storyboard();
+
+        var recolor = new ColorAnimation
         {
             To = target,
-            Duration = SpineDuration,
+            Duration = EdgeDuration,
             EnableDependentAnimation = true,
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-        Storyboard.SetTarget(animation, _spineBrush);
-        Storyboard.SetTargetProperty(animation, "Color");
+        Storyboard.SetTarget(recolor, _edgeBrush);
+        Storyboard.SetTargetProperty(recolor, "Color");
+        storyboard.Children.Add(recolor);
 
-        var storyboard = new Storyboard();
-        storyboard.Children.Add(animation);
+        var fade = new DoubleAnimation
+        {
+            To = edgeOpacity,
+            Duration = EdgeDuration,
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(fade, WorkspaceEdge);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        storyboard.Children.Add(fade);
+
         storyboard.Begin();
     }
+
+    /// <summary>
+    /// Whether the workspace has a real colour, as opposed to falling through to
+    /// <c>ColorTags.NoColorBrush</c> — which is transparent, not absent, so the alpha
+    /// channel is what actually distinguishes the two.
+    /// </summary>
+    private static bool HasWorkspaceColor(string? colorKey) =>
+        ColorTags.GetBrush(colorKey) is SolidColorBrush { Color.A: > 0 };
 
     /// <summary>Fades the content surface back in after the workspace's items are swapped.</summary>
     private void FadeInContent()

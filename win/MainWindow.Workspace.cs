@@ -128,12 +128,12 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// Applies everything that identifies the active workspace: the taskbar/Alt-Tab title
-    /// (never visible inside the app) and the spine, which is.
+    /// (never visible inside the app) and the window edge, which is.
     /// </summary>
     private void ApplyWorkspaceIdentity()
     {
         AppWindow.Title = $"Ace Run \u2014 {_currentWorkspace.Name}";
-        UpdateWorkspaceSpine();
+        UpdateWorkspaceEdge();
     }
 
     public WorkspaceConfig WorkspaceConfig => _workspaceConfig;
