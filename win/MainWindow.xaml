@@ -213,6 +213,7 @@
                         AllowDrop="True"
                         DragItemsCompleted="SidebarListView_DragItemsCompleted"
                         KeyDown="SidebarListView_KeyDown"
+                        ContainerContentChanging="SidebarListView_ContainerContentChanging"
                         Padding="4,4,4,4">
                         <ListView.Header>
                             <ListViewItem x:Name="UngroupedItem"
@@ -449,7 +450,8 @@
                     SelectionMode="Single"
                     DoubleTapped="SearchResultsView_DoubleTapped"
                     RightTapped="SearchResultsView_RightTapped"
-                    PreviewKeyDown="SearchResultsView_KeyDown">
+                    PreviewKeyDown="SearchResultsView_KeyDown"
+                    ContainerContentChanging="SearchResultsView_ContainerContentChanging">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:AppItemViewModel">
                             <Grid Padding="4,4"

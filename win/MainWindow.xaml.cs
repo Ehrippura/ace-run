@@ -51,6 +51,10 @@ public sealed partial class MainWindow : Window
         InitializeWorkspaceBrush();
 
         UngroupedItemLabel.Text = Loc.GetString("UngroupedFolderName");
+        // The row is a ListViewItem whose content is a Grid, so it has no plain text of
+        // its own to name itself from. Folder rows get theirs from the container binding
+        // in SidebarListView_ContainerContentChanging; this one is a header, not an item.
+        AutomationProperties.SetName(UngroupedItem, UngroupedItemLabel.Text);
         SidebarListView.ItemsSource = _folders;
         SearchResultsView.ItemsSource = _searchResults;
         WorkspaceComboBox.ItemsSource = _workspaces;

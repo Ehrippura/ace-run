@@ -1,7 +1,9 @@
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -84,9 +86,52 @@ public sealed partial class MainWindow
     {
         if (args.Item is not AppItemViewModel vm) return;
         if (args.InRecycleQueue)
+        {
             vm.ReleaseIcon();
-        else
-            _ = vm.LoadIconAsync();
+            return;
+        }
+
+        BindContainerAutomationName(args.ItemContainer, vm, nameof(AppItemViewModel.DisplayName));
+        _ = vm.LoadIconAsync();
+    }
+
+    private void SearchResultsView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.InRecycleQueue || args.Item is not AppItemViewModel vm) return;
+        BindContainerAutomationName(args.ItemContainer, vm, nameof(AppItemViewModel.DisplayName));
+    }
+
+    private void SidebarListView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.InRecycleQueue || args.Item is not FolderViewModel vm) return;
+        BindContainerAutomationName(args.ItemContainer, vm, nameof(FolderViewModel.DisplayName));
+    }
+
+    /// <summary>
+    /// Gives an item container a real accessible name. This has to happen on the
+    /// container, not inside the item template: GridViewItem / ListViewItem derive from
+    /// ContentControl, whose automation peer names itself from the *content's* plain
+    /// text — for a templated item that is the view model's ToString(), so every tile
+    /// announced itself as "ace_run.AppItemViewModel". An AutomationProperties.Name set
+    /// on the template root only names a child of the container, and Setter.Value in the
+    /// ItemContainerStyle cannot carry a Binding in WinUI, so this is code.
+    ///
+    /// A binding rather than a plain string, so a rename under a live container (edit
+    /// dialog, folder rename) reaches the announced name. The view model is passed as an
+    /// explicit <see cref="Binding.Source"/>: an item container is a ContentControl whose
+    /// Content is the item, but its DataContext is not, so a source-less binding here
+    /// resolves against nothing. Recycling is covered by re-binding on every realization.
+    /// </summary>
+    private static void BindContainerAutomationName(DependencyObject container, object source, string path)
+    {
+        if (container is not FrameworkElement element) return;
+
+        element.SetBinding(AutomationProperties.NameProperty, new Binding
+        {
+            Path = new PropertyPath(path),
+            Source = source,
+            Mode = BindingMode.OneWay
+        });
     }
 
     private void CommitSave()
