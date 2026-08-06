@@ -229,7 +229,7 @@ public sealed partial class MainWindow
 
     // Below this the rail costs more than it gives: it would eat a large fraction of the
     // window and leave too little room for a usable tile grid.
-    private const double RailCollapseWidthDip = 900;
+    private const double RailCollapseWidthDip = 800;
 
     private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args) => ToggleRail();
 
