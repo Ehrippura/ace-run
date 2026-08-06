@@ -95,10 +95,26 @@ public sealed partial class MainWindow
         _ = vm.LoadIconAsync();
     }
 
+    /// <summary>
+    /// Loads on realization like the grid above — a query can match every item in the
+    /// workspace, and IconService has no in-memory cache, so loading the whole result set
+    /// would be one disk read and decode per hit for the handful of rows on screen.
+    /// <para>
+    /// Unlike the grid it deliberately does <b>not</b> release on recycle. A result row and
+    /// a grid tile are the same <see cref="AppItemViewModel"/> instance, and the grid is
+    /// merely collapsed while search is up — its containers are never recycled, so nothing
+    /// re-fires this to load the icon back. Releasing here blanked the tiles behind the
+    /// results: on Esc when the whole list recycled at once, and on scrolling for any row
+    /// that also lives in the open folder. Icons a search leaves resident are swept by
+    /// ReleaseHiddenIcons on the next folder switch.
+    /// </para>
+    /// </summary>
     private void SearchResultsView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
         if (args.InRecycleQueue || args.Item is not AppItemViewModel vm) return;
+
         BindContainerAutomationName(args.ItemContainer, vm, nameof(AppItemViewModel.DisplayName));
+        _ = vm.LoadIconAsync();
     }
 
     private void SidebarListView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)

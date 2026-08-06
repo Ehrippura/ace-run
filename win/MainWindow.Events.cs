@@ -105,17 +105,41 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
+    /// How well an item answers the query, best first. Doubles as the "no match" test:
+    /// <see cref="MatchRank.None"/> means the item is filtered out.
+    /// </summary>
+    private enum MatchRank
+    {
+        NamePrefix = 0,
+        NameSubstring = 1,
+        Tag = 2,
+        Path = 3,
+        None = 4
+    }
+
+    /// <summary>
     /// Name, path, launch arguments and tag names, all case-insensitive substring. Path is
     /// matched so a URL item is findable by its domain; arguments so two entries pointing at
     /// the same exe can be told apart; tag names so a tag doubles as a query.
     /// Tags are matched one by one rather than against <c>TagsSummary</c> — that string is
     /// joined with a separator, so a query could otherwise match across two tag names.
+    /// The checks run in rank order and return on the first hit, so a name match never pays
+    /// for scanning the path — the short-circuit the old <c>||</c> chain gave for free.
+    /// Path and arguments share one rank: neither is how a user identifies an item by eye.
     /// </summary>
-    private static bool MatchesQuery(AppItemViewModel app, string query) =>
-        app.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || app.FilePath.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || app.Arguments.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || app.Tags.Any(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+    private static MatchRank RankOf(AppItemViewModel app, string query)
+    {
+        if (app.DisplayName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+            return MatchRank.NamePrefix;
+        if (app.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase))
+            return MatchRank.NameSubstring;
+        if (app.Tags.Any(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            return MatchRank.Tag;
+        if (app.FilePath.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || app.Arguments.Contains(query, StringComparison.OrdinalIgnoreCase))
+            return MatchRank.Path;
+        return MatchRank.None;
+    }
 
     private void RunSearch()
     {
@@ -127,23 +151,48 @@ public sealed partial class MainWindow
 
         _searchResults.Clear();
 
+        // Position in the recent list, not just membership: it is already ordered most
+        // recent first, so the index doubles as the sort key within the recent bucket.
+        // Capped at 10 entries by TrackRecentLaunch, and an app id appears at most once.
+        var recentRank = new Dictionary<Guid, int>();
+        var recents = _appData?.RecentLaunches;
+        if (recents is not null)
+            for (int i = 0; i < recents.Count; i++)
+                recentRank[recents[i].AppId] = i;
+
+        // Collected before sorting rather than added straight to _searchResults: the
+        // collection is bound to SearchResultsView, so filling it in the wrong order and
+        // then reordering would churn containers for no reason.
+        var hits = new List<(AppItemViewModel App, int Recent, MatchRank Rank, int Order)>();
+        var order = 0;
+
+        void Collect(AppItemViewModel app, string folderLabel)
+        {
+            var rank = RankOf(app, query);
+            if (rank == MatchRank.None) return;
+
+            app.FolderLabel = folderLabel;
+            hits.Add((app, recentRank.TryGetValue(app.Id, out var r) ? r : int.MaxValue, rank, order++));
+        }
+
         var ungroupedLabel = Loc.GetString("UngroupedFolderName");
         foreach (var app in _ungroupedApps)
-            if (MatchesQuery(app, query))
-            {
-                app.FolderLabel = ungroupedLabel;
-                _searchResults.Add(app);
-            }
+            Collect(app, ungroupedLabel);
         foreach (var folder in _folders)
             foreach (var app in folder.Apps)
-                if (MatchesQuery(app, query))
-                {
-                    app.FolderLabel = folder.DisplayName;
-                    _searchResults.Add(app);
-                }
+                Collect(app, folder.DisplayName);
 
-        foreach (var app in _searchResults)
-            _ = app.LoadIconAsync();
+        // Recency wins outright: anything the user launched lately sits on top in launch
+        // order, and match quality only sorts the rest. Order is the traversal index — the
+        // arrangement the user dragged into place — so equally good hits keep their
+        // familiar sequence. OrderBy is a stable sort; List.Sort is not, and would shuffle
+        // ties. Recent ids are unique, so the later keys only ever apply to non-recent hits.
+        foreach (var hit in hits.OrderBy(h => h.Recent).ThenBy(h => h.Rank).ThenBy(h => h.Order))
+            _searchResults.Add(hit.App);
+
+        // Icons are not loaded here — SearchResultsView_ContainerContentChanging loads them
+        // per realized row, so a query matching 200 items does not start 200 disk reads for
+        // the ~10 rows that are actually on screen.
 
         // Pre-select the top hit so Enter has a visible target. Selection only — focus stays
         // in the search box, so typing carries on uninterrupted and the row renders in the

@@ -270,7 +270,15 @@ public sealed partial class MainWindow
         });
         if (_appData.RecentLaunches.Count > 10)
             _appData.RecentLaunches.RemoveRange(10, _appData.RecentLaunches.Count - 10);
-        SaveItems();
+
+        // Launching from a search result is the flow that feeds result ranking, and it is
+        // also the one SaveItems() drops on the floor — it returns early while a query is
+        // active. Commit directly there so the order survives a restart.
+        if (!string.IsNullOrEmpty(_searchText))
+            CommitSave();
+        else
+            SaveItems();
+
         ((App)Application.Current).UpdateTrayContextMenu();
     }
 
