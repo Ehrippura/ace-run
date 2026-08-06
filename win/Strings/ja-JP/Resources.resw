@@ -95,6 +95,16 @@
   <data name="Tag_Separator" xml:space="preserve"><value>、</value></data>
   <data name="Tag_Empty" xml:space="preserve"><value>タグがまだありません。作成してアプリを整理しましょう。</value></data>
 
+  <!-- Organize -->
+  <data name="Organize_Menu" xml:space="preserve"><value>整理</value></data>
+  <data name="Organize_ByName" xml:space="preserve"><value>名前順</value></data>
+  <data name="Organize_ByPath" xml:space="preserve"><value>パス順</value></data>
+  <data name="Organize_ByTag" xml:space="preserve"><value>タグ順</value></data>
+  <data name="Organize_BySortKey" xml:space="preserve"><value>ソートキー順</value></data>
+  <data name="Organize_Reverse" xml:space="preserve"><value>順序を反転</value></data>
+  <data name="SortKey_Field" xml:space="preserve"><value>ソートキー</value></data>
+  <data name="SortKey_Placeholder" xml:space="preserve"><value>任意 — 整理時の並び替えに使用</value></data>
+
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>ワークスペースの管理</value></data>
   <data name="Workspace_New" xml:space="preserve"><value>新規ワークスペース</value></data>

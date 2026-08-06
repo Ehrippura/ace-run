@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -617,33 +618,80 @@ public sealed partial class MainWindow
         var lvi = FindParent<ListViewItem>(fe);
         if (lvi is null) return;
 
+        // The Ungrouped row is the ListView.Header, so ItemFromContainer has nothing to hand
+        // back for it \u2014 which is why right-clicking it used to do nothing at all. It gets
+        // Organize only: there is no such folder to rename or delete.
         var folder = SidebarListView.ItemFromContainer(lvi) as FolderViewModel;
-        if (folder is null) return;
+        if (folder is null && !ReferenceEquals(lvi, UngroupedItem)) return;
 
+        var target = folder?.Apps ?? _ungroupedApps;
         var flyout = new MenuFlyout();
 
-        var renameItem = new MenuFlyoutItem
+        if (folder is not null)
         {
-            Text = Loc.GetString("RenameFolder"),
-            Icon = new FontIcon { Glyph = "\uE8AC" },
-            KeyboardAcceleratorTextOverride = "F2"
-        };
-        renameItem.Click += async (_, _) => await RenameFolderAsync(folder);
-        flyout.Items.Add(renameItem);
+            var renameItem = new MenuFlyoutItem
+            {
+                Text = Loc.GetString("RenameFolder"),
+                Icon = new FontIcon { Glyph = "\uE8AC" },
+                KeyboardAcceleratorTextOverride = "F2"
+            };
+            renameItem.Click += async (_, _) => await RenameFolderAsync(folder);
+            flyout.Items.Add(renameItem);
+        }
 
-        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(BuildOrganizeSubmenu(target));
 
-        var deleteItem = new MenuFlyoutItem
+        if (folder is not null)
         {
-            Text = Loc.GetString("DeleteFolder"),
-            Icon = new FontIcon { Glyph = "\uE74D" },
-            KeyboardAcceleratorTextOverride = "Del"
-        };
-        deleteItem.Click += async (_, _) => await DeleteFolderAsync(folder);
-        flyout.Items.Add(deleteItem);
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            var deleteItem = new MenuFlyoutItem
+            {
+                Text = Loc.GetString("DeleteFolder"),
+                Icon = new FontIcon { Glyph = "\uE74D" },
+                KeyboardAcceleratorTextOverride = "Del"
+            };
+            deleteItem.Click += async (_, _) => await DeleteFolderAsync(folder);
+            flyout.Items.Add(deleteItem);
+        }
 
         ShowTrackedFlyout(flyout, fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// The Organize submenu: four ascending criteria plus a reverse. Descending is covered
+    /// by organizing then reversing, which keeps the menu one level deep.
+    /// </summary>
+    private MenuFlyoutSubItem BuildOrganizeSubmenu(ObservableCollection<AppItemViewModel> target)
+    {
+        var menu = new MenuFlyoutSubItem
+        {
+            Text = Loc.GetString("Organize_Menu"),
+            Icon = new FontIcon { Glyph = "\uE8CB" },
+            // Fewer than two items has no order to impose.
+            IsEnabled = target.Count > 1
+        };
+
+        void AddCriterion(string key, OrganizeBy by)
+        {
+            var item = new MenuFlyoutItem { Text = Loc.GetString(key) };
+            item.Click += (_, _) => Organize(target, by);
+            menu.Items.Add(item);
+        }
+
+        AddCriterion("Organize_ByName", OrganizeBy.Name);
+        AddCriterion("Organize_ByPath", OrganizeBy.Path);
+        AddCriterion("Organize_ByTag", OrganizeBy.Tag);
+        AddCriterion("Organize_BySortKey", OrganizeBy.SortKey);
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        var reverseItem = new MenuFlyoutItem { Text = Loc.GetString("Organize_Reverse") };
+        reverseItem.Click += (_, _) => ReverseOrder(target);
+        menu.Items.Add(reverseItem);
+
+        return menu;
     }
 
     #endregion

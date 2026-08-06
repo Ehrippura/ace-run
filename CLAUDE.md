@@ -52,8 +52,8 @@ On first launch, `DataService.MigrateOrInitialize()` either reads `config.json` 
 
 ```
 Models/                  # Plain data classes
-  AppData                # v5: Tags + UngroupedItems + Folders + RecentLaunches
-  AppItem / FolderItem   # Leaf and group nodes
+  AppData                # v6: Tags + UngroupedItems + Folders + RecentLaunches
+  AppItem / FolderItem   # Leaf and group nodes (AppItem.SortKey = user-defined Organize key)
   TagItem                # User-defined tag (id, name, color key)
   ItemKind               # App | Url — what AppItem.FilePath points at
   WorkspaceConfig        # Top-level config (workspaces list + window state)
@@ -69,7 +69,7 @@ Styles/                  # Design layer, merged in App.xaml
   Tokens.xaml            # Spacing scale, corner radii, type ramp (no colors)
   Brushes.xaml           # ThemeDictionaries: Light / Dark / HighContrast
 ViewModels.cs            # AppItemViewModel, FolderViewModel, WorkspaceViewModel, TagViewModel (all INotifyPropertyChanged)
-MainWindow.xaml/.cs      # Primary UI + all orchestration (split across .Actions/.Data/.Events/.Motion/.Workspace partials)
+MainWindow.xaml/.cs      # Primary UI + all orchestration (split across .Actions/.Data/.Events/.Motion/.Workspace/.Organize partials)
 EditItemDialog.xaml/.cs  # ContentDialog for add/edit app or URL (folders use ad-hoc dialogs in MainWindow.Actions.cs)
 ManageWorkspacesDialog.xaml/.cs  # ContentDialog for workspace CRUD
 ManageTagsDialog.xaml/.cs        # ContentDialog for tag CRUD
@@ -88,6 +88,8 @@ Program.cs               # Entry point — single-instance via AppInstance.FindO
 **Folder navigation goes through one door.** `NavigateToFolder(target, record)` in `MainWindow.History.cs` is the *only* thing that changes which folder the content area shows — rail click, ungrouped row, "Go to folder" from a search result, deleting the open folder, and restoring the saved folder on load all route through it. It sets `_selectedFolder`, the rail selection and `UngroupedItem.IsSelected`, exits search, and refreshes, in that order. Adding a sixth entry point that does those steps by hand will silently skip the back stack. `_suppressFolderNavigation` is the reentrancy guard, playing the same role as `_suppressWorkspaceSwitch`: `NavigateToFolder` assigns `SidebarListView.SelectedItem` itself, so `SidebarListView_SelectionChanged` must ignore the echo. `record: false` marks moves the user did not ask for (workspace load, being evicted from a deleted folder). Back history is `List<Guid?>` (null = ungrouped), session-only, cleared per workspace in `ResetContentState()` and pruned on folder delete; `GoBack` re-resolves each id against `_folders` as it pops, so a stale entry is skipped rather than landing nowhere.
 
 **Save flow (`CommitSave`):** Rebuilds `AppData` from `_ungroupedApps` + `_folders`, updates `WorkspaceInfo.AppCount` (denormalized), calls `DataService.SaveWorkspace` + `DataService.SaveConfig`, then `App.UpdateTrayContextMenu()`.
+
+**Item order is collection order, and Organize does not change that.** There is no comparer, `SortMode` field, or `ICollectionView` anywhere: `CommitSave` serializes `_ungroupedApps` and each `FolderViewModel.Apps` in their current order, so whatever the `ObservableCollection` holds *is* the persisted order. `MainWindow.Organize.cs` is a **one-shot** reorder — it computes a target order and applies it with `ObservableCollection.Move`, after which the result is simply the new manual order. That is why nothing had to be added to `FolderItem` and why `CanReorderItems` stays on. Two details are load-bearing: it moves rather than `Clear()`+`Add()`, because a `Reset` recycles every `GridView` container and `AppGridView_ContainerContentChanging` would then release and reload every icon; and it calls `CommitSave()` directly, because the rail is right-clickable during a search and `SaveItems()` early-returns there — the same reason both `DragItemsCompleted` handlers commit directly. Sorting is stable (`OrderBy`, not `List.Sort`) so equal items keep their dragged order, and "by tag" ranks on the *first* tag's index in `_tags`, which `NormalizeAppTags` already keeps in workspace order — sorting on tag name instead would fight that.
 
 **Item kinds:** `AppItem.Kind` (`ItemKind.App` / `ItemKind.Url`) decides whether `FilePath` is an exe path or a URL. It is serialized as a string via `JsonStringEnumConverter` in `DataService.JsonOptions` (shared with the `.acerun` import/export in `ManageWorkspacesDialog`), and is absent from pre-v5 files — which correctly falls back to `App`, so no migration exists. `AppItemViewModel.Kind` is **read-only**: an item's kind is fixed at construction and never switches. Anything kind-specific branches on `AppItemViewModel.IsUrl`: `LaunchApp` (URLs get only `FileName` + `UseShellExecute` — no arguments, working directory, or `runas`), the `EditItemDialog` field layout, and the right-click menu ("Copy Link" instead of "Open File Location"). URL parsing lives in `UrlUtil`, which accepts any absolute URI except `file:`.
 

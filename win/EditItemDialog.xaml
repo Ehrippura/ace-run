@@ -120,6 +120,11 @@
             </DropDownButton>
         </StackPanel>
 
+        <!-- Header and placeholder are set from Loc in code rather than x:Uid: this build is
+             unpackaged, so x:Uid resolves to the XAML literal, and the other half of this
+             feature (the Organize menu) does localize. -->
+        <TextBox x:Name="SortKeyBox" />
+
         <ToggleSwitch x:Name="RunAsAdminSwitch"
                       x:Uid="RunAsAdminSwitch"
                       Header="Run as Administrator"

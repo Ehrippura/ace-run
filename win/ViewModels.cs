@@ -23,6 +23,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     private string _workingDirectory = string.Empty;
     private bool _runAsAdmin;
     private string _customIconPath = string.Empty;
+    private string _sortKey = string.Empty;
     private BitmapImage? _iconSource;
     private readonly ObservableCollection<TagViewModel> _tags = new();
     private string _folderLabel = string.Empty;
@@ -88,6 +89,17 @@ public class AppItemViewModel : INotifyPropertyChanged
                 OnPropertyChanged();
             }
         }
+    }
+
+    /// <summary>
+    /// User-defined ordering key, read only by Organize. Nothing binds to it — the edit
+    /// dialog pushes and pulls it by hand like every other field there — but it notifies
+    /// for consistency with the rest of the editable properties.
+    /// </summary>
+    public string SortKey
+    {
+        get => _sortKey;
+        set { if (_sortKey != value) { _sortKey = value; OnPropertyChanged(); } }
     }
 
     public BitmapImage? IconSource
@@ -204,6 +216,7 @@ public class AppItemViewModel : INotifyPropertyChanged
         _workingDirectory = model.WorkingDirectory;
         _runAsAdmin = model.RunAsAdmin;
         _customIconPath = model.CustomIconPath;
+        _sortKey = model.SortKey;
 
         if (model.TagIds is { Count: > 0 })
         {
@@ -229,7 +242,8 @@ public class AppItemViewModel : INotifyPropertyChanged
         WorkingDirectory = WorkingDirectory,
         RunAsAdmin = RunAsAdmin,
         CustomIconPath = CustomIconPath,
-        TagIds = _tags.Select(t => t.Id).ToList()
+        TagIds = _tags.Select(t => t.Id).ToList(),
+        SortKey = SortKey
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -95,6 +95,16 @@
   <data name="Tag_Separator" xml:space="preserve"><value>、</value></data>
   <data name="Tag_Empty" xml:space="preserve"><value>尚未建立任何標籤。建立一個以開始分類應用程式。</value></data>
 
+  <!-- Organize -->
+  <data name="Organize_Menu" xml:space="preserve"><value>整理</value></data>
+  <data name="Organize_ByName" xml:space="preserve"><value>依名稱</value></data>
+  <data name="Organize_ByPath" xml:space="preserve"><value>依路徑</value></data>
+  <data name="Organize_ByTag" xml:space="preserve"><value>依標籤</value></data>
+  <data name="Organize_BySortKey" xml:space="preserve"><value>依排序鍵</value></data>
+  <data name="Organize_Reverse" xml:space="preserve"><value>反轉順序</value></data>
+  <data name="SortKey_Field" xml:space="preserve"><value>排序鍵</value></data>
+  <data name="SortKey_Placeholder" xml:space="preserve"><value>選填，整理時的排序依據</value></data>
+
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>管理工作區</value></data>
   <data name="Workspace_New" xml:space="preserve"><value>新增工作區</value></data>
