@@ -17,45 +17,6 @@ public sealed partial class MainWindow
 {
     #region Sidebar
 
-    /// <summary>
-    /// Doubles as "a programmatic selection is in progress" — the same role
-    /// <c>_suppressWorkspaceSwitch</c> plays for the workspace picker.
-    /// <see cref="NavigateToFolder"/> assigns SidebarListView.SelectedItem itself, and the
-    /// SelectionChanged that fires must not be re-entered as a fresh navigation.
-    /// </summary>
-    private bool _suppressFolderNavigation;
-
-    /// <summary>
-    /// The single way the content area changes folder. Every entry point routes through
-    /// here — rail click, the ungrouped row, "Go to folder" from a search result, deleting
-    /// the open folder, and restoring the saved folder on load — because the five of them
-    /// had drifted into five slightly different orderings of the same five steps.
-    /// </summary>
-    private void NavigateToFolder(FolderViewModel? target)
-    {
-        _suppressFolderNavigation = true;
-        try
-        {
-            _selectedFolder = target;
-            // Assign the selection before the header row's flag, the order the rail's own
-            // handlers have always used: SelectedItem = null raises SelectionChanged, and
-            // "ungrouped is selected" should not be true for the span of that callback.
-            SidebarListView.SelectedItem = target;
-            UngroupedItem.IsSelected = target is null;
-
-            // Picking a folder means leaving search: the grid is collapsed while results are
-            // up, so refreshing it alone would leave the old result list on screen — and
-            // ReleaseHiddenIcons() would strip the icons off the very items being shown.
-            // Must run before RefreshContentArea, which reads _searchText for the empty state.
-            ExitSearchMode();
-            RefreshContentArea();
-        }
-        finally
-        {
-            _suppressFolderNavigation = false;
-        }
-    }
-
     private void SidebarListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // NavigateToFolder assigns SelectedItem itself, so this also fires for switches

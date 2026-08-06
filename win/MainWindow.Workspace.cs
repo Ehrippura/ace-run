@@ -64,7 +64,9 @@ public sealed partial class MainWindow
             ? _folders.FirstOrDefault(f => f.Id == fid)
             : null;
 
-        NavigateToFolder(savedFolder);
+        // record: false — landing where the user left off is the starting point of this
+        // workspace's history, not a step within it.
+        NavigateToFolder(savedFolder, record: false);
 
         if (PurgeStaleRecentLaunches())
             DataService.SaveWorkspace(ws.Id, _appData);
@@ -73,6 +75,9 @@ public sealed partial class MainWindow
     private void ResetContentState()
     {
         ExitSearchMode();
+
+        // Folders belong to a workspace, so the back stack cannot survive leaving one.
+        ClearHistory();
 
         _ungroupedApps.Clear();
         _folders.Clear();

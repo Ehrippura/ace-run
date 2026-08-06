@@ -275,9 +275,12 @@ public sealed partial class MainWindow
             _searchResults.Remove(app);
 
         _folders.Remove(folder);
+        PruneHistory(folder.Id);
 
+        // record: false — being pushed out of a folder that no longer exists is not a step
+        // the user took, and Back must not offer to return to it.
         if (_selectedFolder == folder)
-            NavigateToFolder(null);
+            NavigateToFolder(null, record: false);
 
         PurgeStaleRecentLaunches();
         CommitSave();

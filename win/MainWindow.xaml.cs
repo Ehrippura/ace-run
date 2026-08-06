@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window
 
         InstallCodeAccelerators();
         InitializeSearch();
+        InitializeNavigationHistory();
 
         _searchResults.CollectionChanged += OnShownAppsChanged;
 

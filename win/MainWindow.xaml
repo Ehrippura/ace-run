@@ -23,6 +23,9 @@
 
         Unmodified keys (Esc, F2, Delete, Down) are deliberately NOT accelerators: those
         would fire while SearchBox has focus. See MainWindow.Accelerators.cs.
+
+        Both back gestures (Alt+Left, mouse XButton1) are bound in code instead of here,
+        because they need handledEventsToo to survive the lists. See MainWindow.History.cs.
     -->
     <Grid x:Name="RootGrid"
           KeyboardAcceleratorPlacementMode="Hidden"
@@ -76,7 +79,10 @@
         <TitleBar Grid.Row="0" Grid.Column="1"
             x:Name="AppTitleBar"
             IsPaneToggleButtonVisible="True"
-            PaneToggleRequested="AppTitleBar_PaneToggleRequested">
+            IsBackButtonVisible="True"
+            IsBackButtonEnabled="False"
+            PaneToggleRequested="AppTitleBar_PaneToggleRequested"
+            BackRequested="AppTitleBar_BackRequested">
             <TitleBar.LeftHeader>
                 <!-- The pane toggle button now precedes this column and supplies the
                      leading gap, so no left margin of our own. -->
