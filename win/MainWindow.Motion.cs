@@ -55,11 +55,11 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// Creates the spine brush and hands the same instance to every surface that shows
-    /// "which workspace am I in": the spine, the rail's selection indicator, and the
-    /// grid's selected-card border. Called from the constructor, before items are
-    /// realised, because ListViewItemPresenter resolves these keys when the template is
-    /// applied. One shared instance means they all crossfade together for free, and
-    /// none of them uses the system accent, which clashed with the spine.
+    /// "which workspace am I in": the spine, the rail's selection indicator, the search
+    /// results' selection indicator, and the grid's selected-card border. Called from the
+    /// constructor, before items are realised, because ListViewItemPresenter resolves these
+    /// keys when the template is applied. One shared instance means they all crossfade
+    /// together for free, and none of them uses the system accent, which clashed with the spine.
     /// </summary>
     private void InitializeWorkspaceBrush()
     {
@@ -68,15 +68,18 @@ public sealed partial class MainWindow
 
         // Overriding the brushes the built-in ListViewItemPresenter already uses keeps
         // the platform's own visuals — geometry, states and animation are untouched.
-        foreach (var key in new[]
-                 {
-                     "ListViewItemSelectionIndicatorBrush",
-                     "ListViewItemSelectionIndicatorPointerOverBrush",
-                     "ListViewItemSelectionIndicatorPressedBrush"
-                 })
-        {
-            SidebarListView.Resources[key] = _spineBrush;
-        }
+        // SearchResultsView is in here because the top hit is pre-selected after every
+        // search pass, which would otherwise put a system-accent bar on screen constantly.
+        foreach (var list in new[] { SidebarListView, SearchResultsView })
+            foreach (var key in new[]
+                     {
+                         "ListViewItemSelectionIndicatorBrush",
+                         "ListViewItemSelectionIndicatorPointerOverBrush",
+                         "ListViewItemSelectionIndicatorPressedBrush"
+                     })
+            {
+                list.Resources[key] = _spineBrush;
+            }
 
         // Same idea for the tile grid: the selected card's border was the system accent
         // while the rail beside it was the workspace colour.

@@ -1,6 +1,7 @@
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -25,6 +26,9 @@ public sealed partial class MainWindow : Window
     private FolderViewModel? _selectedFolder; // null = ungrouped
     private AppData _appData = new();
     private string _searchText = string.Empty;
+    private DispatcherQueueTimer? _searchDebounce;
+    // A filter pass is queued but has not run: the query is live, the result list is not.
+    private bool _searchPending;
 
     private WorkspaceConfig _workspaceConfig = new();
     private WorkspaceInfo _currentWorkspace = new();
@@ -65,6 +69,7 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetAcceleratorKey(SettingsButton, "Ctrl+,");
 
         InstallCodeAccelerators();
+        InitializeSearch();
 
         _searchResults.CollectionChanged += OnShownAppsChanged;
 
@@ -88,6 +93,11 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        // Leave no debounce timer armed against a window that is closing (or going to the
+        // tray). Flushing rather than stopping keeps _searchPending from being stranded
+        // true, which would suppress the empty-state placeholder after the window returns.
+        FlushPendingSearch();
+
         SaveWindowSize();
 
         if (App.TrayEnabled)

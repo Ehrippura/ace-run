@@ -71,47 +71,110 @@ public sealed partial class MainWindow
 
     #region Search
 
+    /// <summary>
+    /// How long typing has to settle before the filter runs. A pass walks every item in the
+    /// workspace and starts an icon load per hit — work the intermediate states of a word
+    /// being typed do not need.
+    /// </summary>
+    private const int SearchDebounceMs = 180;
+
+    private void InitializeSearch()
+    {
+        _searchDebounce = DispatcherQueue.CreateTimer();
+        _searchDebounce.Interval = TimeSpan.FromMilliseconds(SearchDebounceMs);
+        _searchDebounce.IsRepeating = false;
+        _searchDebounce.Tick += (_, _) => RunSearch();
+    }
+
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         _searchText = sender.Text;
 
         if (string.IsNullOrEmpty(_searchText))
         {
+            // Emptying the box is never debounced — the grid has to come back at once.
+            _searchDebounce?.Stop();
+            _searchPending = false;
             SearchResultsView.Visibility = Visibility.Collapsed;
             AppGridView.Visibility = Visibility.Visible;
             _searchResults.Clear();
+            return;
         }
-        else
-        {
-            AppGridView.Visibility = Visibility.Collapsed;
-            SearchResultsView.Visibility = Visibility.Visible;
 
-            _searchResults.Clear();
-            var query = _searchText;
+        // The mode switch stays immediate; only the result list waits. _searchText doubles
+        // as the "search is active" flag for SaveItems / UpdateEmptyState, so it must lead.
+        AppGridView.Visibility = Visibility.Collapsed;
+        SearchResultsView.Visibility = Visibility.Visible;
 
-            // Path is matched too, so a URL item is findable by its domain.
-            bool Matches(AppItemViewModel app) =>
-                app.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || app.FilePath.Contains(query, StringComparison.OrdinalIgnoreCase);
+        // _searchResults is deliberately left alone here: clearing it up front would flash
+        // the "no results" placeholder between every keystroke. The previous hits stay on
+        // screen until the new pass replaces them, and _searchPending holds the placeholder
+        // back for the first character, where there is nothing to keep showing.
+        _searchPending = true;
+        _searchDebounce?.Stop();
+        _searchDebounce?.Start();
+    }
 
-            var ungroupedLabel = Loc.GetString("UngroupedFolderName");
-            foreach (var app in _ungroupedApps)
-                if (Matches(app))
+    /// <summary>
+    /// Name, path, launch arguments and tag names, all case-insensitive substring. Path is
+    /// matched so a URL item is findable by its domain; arguments so two entries pointing at
+    /// the same exe can be told apart; tag names so a tag doubles as a query.
+    /// Tags are matched one by one rather than against <c>TagsSummary</c> — that string is
+    /// joined with a separator, so a query could otherwise match across two tag names.
+    /// </summary>
+    private static bool MatchesQuery(AppItemViewModel app, string query) =>
+        app.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || app.FilePath.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || app.Arguments.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || app.Tags.Any(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+    private void RunSearch()
+    {
+        _searchDebounce?.Stop();
+        _searchPending = false;
+
+        var query = _searchText;
+        if (string.IsNullOrEmpty(query)) return;
+
+        _searchResults.Clear();
+
+        var ungroupedLabel = Loc.GetString("UngroupedFolderName");
+        foreach (var app in _ungroupedApps)
+            if (MatchesQuery(app, query))
+            {
+                app.FolderLabel = ungroupedLabel;
+                _searchResults.Add(app);
+            }
+        foreach (var folder in _folders)
+            foreach (var app in folder.Apps)
+                if (MatchesQuery(app, query))
                 {
-                    app.FolderLabel = ungroupedLabel;
+                    app.FolderLabel = folder.DisplayName;
                     _searchResults.Add(app);
                 }
-            foreach (var folder in _folders)
-                foreach (var app in folder.Apps)
-                    if (Matches(app))
-                    {
-                        app.FolderLabel = folder.DisplayName;
-                        _searchResults.Add(app);
-                    }
 
-            foreach (var app in _searchResults)
-                _ = app.LoadIconAsync();
-        }
+        foreach (var app in _searchResults)
+            _ = app.LoadIconAsync();
+
+        // Pre-select the top hit so Enter has a visible target. Selection only — focus stays
+        // in the search box, so typing carries on uninterrupted and the row renders in the
+        // "Selected Unfocused" state. Setting this before the containers are realized is
+        // fine: SelectedIndex selects on the data, and the visual follows on realization.
+        SearchResultsView.SelectedIndex = _searchResults.Count > 0 ? 0 : -1;
+
+        // _searchPending suppressed the placeholder while the pass was queued.
+        UpdateEmptyState();
+    }
+
+    /// <summary>
+    /// Runs a queued pass right now. Enter and Down act on <c>_searchResults</c>, so they
+    /// must not be served the previous keystroke's list — or an empty one on the first
+    /// character, which would make a fast "type and hit Enter" launch nothing at all.
+    /// </summary>
+    private void FlushPendingSearch()
+    {
+        if (_searchPending)
+            RunSearch();
     }
 
     /// <summary>
@@ -128,6 +191,10 @@ public sealed partial class MainWindow
     {
         if (string.IsNullOrEmpty(_searchText) && string.IsNullOrEmpty(SearchBox.Text))
             return;
+
+        // A queued pass would otherwise fire after the folder switch and re-enter search mode.
+        _searchDebounce?.Stop();
+        _searchPending = false;
 
         _searchText = string.Empty;
         SearchBox.Text = string.Empty;

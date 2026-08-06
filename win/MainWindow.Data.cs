@@ -45,6 +45,16 @@ public sealed partial class MainWindow
     private void UpdateEmptyState()
     {
         bool searching = !string.IsNullOrEmpty(_searchText);
+
+        // A debounced pass is queued, so _searchResults still holds the previous query's
+        // hits (or nothing, on the first character). Announcing "no results" for that
+        // window would flash the placeholder while the user is still typing.
+        if (searching && _searchPending)
+        {
+            EmptyStateView.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         bool empty = searching
             ? _searchResults.Count == 0
             : (_selectedFolder?.Apps ?? _ungroupedApps).Count == 0;

@@ -248,7 +248,13 @@ public sealed partial class MainWindow
     /// <summary>Enter in the search box launches the top hit — what a launcher should do.</summary>
     private void SearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
-        if (_searchResults.Count > 0)
+        FlushPendingSearch(); // typing fast and hitting Enter must not launch a stale top hit
+
+        // The top hit is pre-selected, but a click or Down can move the highlight elsewhere
+        // and focus can come back to the box — Enter has to launch whatever looks selected.
+        if (SearchResultsView.SelectedItem is AppItemViewModel selected)
+            LaunchApp(selected);
+        else if (_searchResults.Count > 0)
             LaunchApp(_searchResults[0]);
     }
 
@@ -272,7 +278,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (e.Key != VirtualKey.Down || _searchResults.Count == 0) return;
+        if (e.Key != VirtualKey.Down) return;
+
+        FlushPendingSearch(); // the list has to exist before focus can move into it
+        if (_searchResults.Count == 0) return;
 
         SearchResultsView.SelectedIndex = 0;
         if (SearchResultsView.ContainerFromIndex(0) is ListViewItem item)
