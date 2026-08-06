@@ -83,7 +83,13 @@ public sealed partial class MainWindow : Window
         _ungroupedApps.CollectionChanged += (_, _) => UpdateUngroupedCount();
         UpdateUngroupedCount();
 
-        RootGrid.SizeChanged += (_, e) => UpdateRailForWidth(e.NewSize.Width);
+        // Maximise/restore is the only thing that changes the window's corner shape, and
+        // it always changes the size — so this one subscription covers both jobs.
+        RootGrid.SizeChanged += (_, e) =>
+        {
+            UpdateRailForWidth(e.NewSize.Width);
+            UpdateWindowEdgeCorners();
+        };
 
         _ = InitializeWorkspacesAsync();
         Closed += MainWindow_Closed;

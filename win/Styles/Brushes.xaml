@@ -5,7 +5,7 @@
 
     <!--
         Chroma means context. Only two things in this app are allowed a hue:
-        the workspace colour (shell identity - spine, workspace chip, rail selection)
+        the workspace colour (shell identity - window edge, workspace chip, rail selection)
         and the tag colour (item identity - the bar along a tile's bottom edge).
         Everything else is achromatic, and interactive controls keep the system accent
         so we never fight the OS contract.
@@ -27,10 +27,10 @@
             <SolidColorBrush x:Key="AceTagBrushYellow" Color="#B85C00" />
             <SolidColorBrush x:Key="AceTagBrushPurple" Color="#7C3AED" />
             <SolidColorBrush x:Key="AceTagBrushGray"   Color="#616161" />
-            <!-- Spine colour for a workspace with no colour assigned: present but quiet,
-                 so the layout stays stable and the slot reads as fillable. A Color rather
-                 than a Brush because the spine crossfades via ColorAnimation. -->
-            <Color x:Key="AceSpineInactiveColor">#C8C8C8</Color>
+            <!-- Edge colour for a workspace with no colour assigned: present but quiet,
+                 so the window still reads as framed and the slot reads as fillable. A Color
+                 rather than a Brush because the edge crossfades via ColorAnimation. -->
+            <Color x:Key="AceEdgeInactiveColor">#C8C8C8</Color>
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Dark">
@@ -40,7 +40,7 @@
             <SolidColorBrush x:Key="AceTagBrushYellow" Color="#F5A524" />
             <SolidColorBrush x:Key="AceTagBrushPurple" Color="#B48CF2" />
             <SolidColorBrush x:Key="AceTagBrushGray"   Color="#A0A0A0" />
-            <Color x:Key="AceSpineInactiveColor">#4A4A4A</Color>
+            <Color x:Key="AceEdgeInactiveColor">#4A4A4A</Color>
         </ResourceDictionary>
 
         <!--
@@ -56,7 +56,7 @@
             <SolidColorBrush x:Key="AceTagBrushYellow" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="AceTagBrushPurple" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="AceTagBrushGray"   Color="{ThemeResource SystemColorWindowTextColor}" />
-            <StaticResource x:Key="AceSpineInactiveColor" ResourceKey="SystemColorWindowTextColor" />
+            <StaticResource x:Key="AceEdgeInactiveColor" ResourceKey="SystemColorWindowTextColor" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>

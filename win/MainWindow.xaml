@@ -43,27 +43,11 @@
                  Alt+Enter is NOT here — see AppGridView_KeyDown. -->
         </Grid.KeyboardAccelerators>
 
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!--
-            The workspace spine. Colour = the active workspace, crossfaded on switch.
-            The workspace colour already existed in the data model but only ever rendered
-            as a 10px dot you had to go and read; as a full-height edge it makes "which
-            workspace am I in" a peripheral-vision fact instead. That is this app's one
-            real error mode - launching something in the wrong workspace.
-            Background is assigned in code so the animated brush is not shared.
-        -->
-        <Border x:Name="WorkspaceSpine"
-            Grid.Column="0"
-            Grid.Row="0"
-            Grid.RowSpan="2" />
 
         <!--
             The chrome is one row. The workspace picker, search, and the primary Add
@@ -76,7 +60,7 @@
             repeated what the taskbar and the window's own Title already say, and pushed
             the search field - the actual hero - off centre.
         -->
-        <TitleBar Grid.Row="0" Grid.Column="1"
+        <TitleBar Grid.Row="0"
             x:Name="AppTitleBar"
             IsPaneToggleButtonVisible="True"
             IsBackButtonVisible="True"
@@ -190,7 +174,7 @@
              the rail can collapse at narrow widths; DisplayMode and IsPaneOpen are driven
              from Window.SizeChanged in code-behind. AdaptiveTrigger would mean a
              VisualStateManager on a bare Window rather than a Page, which is fragile. -->
-        <SplitView Grid.Row="1" Grid.Column="1"
+        <SplitView Grid.Row="1"
             x:Name="RailSplitView"
             DisplayMode="Inline"
             IsPaneOpen="True"
@@ -565,5 +549,29 @@
             </Grid>
             </Border>
         </SplitView>
+
+        <!--
+            The workspace edge. Colour = the active workspace, crossfaded on switch.
+            The workspace colour already existed in the data model but only ever rendered
+            as a 10px dot you had to go and read; as a hairline around the whole window it
+            makes "which workspace am I in" a peripheral-vision fact instead. That is this
+            app's one real error mode - launching something in the wrong workspace.
+
+            Last child of RootGrid so it draws over the title bar and the content surface,
+            and RowSpan="2" so it is one unbroken rectangle rather than two segments. It
+            must not take input: it sits on top of the caption buttons and the resize grip.
+            Starts hidden: a workspace with no colour shows no edge at all, so the first
+            paint must not flash the inactive grey before UpdateWorkspaceEdge runs.
+
+            BorderBrush, Opacity and CornerRadius are all driven from MainWindow.Motion.cs -
+            see UpdateWorkspaceEdge and UpdateWindowEdgeCorners.
+        -->
+        <Border x:Name="WorkspaceEdge"
+            Opacity="0"
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            BorderThickness="2"
+            CornerRadius="8"
+            IsHitTestVisible="False" />
     </Grid>
 </Window>
