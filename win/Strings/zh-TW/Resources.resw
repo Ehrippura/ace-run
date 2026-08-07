@@ -12,6 +12,8 @@
   <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>新增資料夾</value></data>
   <data name="EmptyStateAddButton.Content" xml:space="preserve"><value>新增第一個項目</value></data>
   <data name="SettingsButton_Label" xml:space="preserve"><value>管理</value></data>
+  <data name="TitleBar_Back" xml:space="preserve"><value>返回</value></data>
+  <data name="TitleBar_ToggleRail" xml:space="preserve"><value>顯示/隱藏資料夾清單</value></data>
   <data name="Shortcut_Format" xml:space="preserve"><value>{0}（{1}）</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>搜尋應用程式...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>編輯</value></data>

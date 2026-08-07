@@ -12,6 +12,8 @@
   <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>新規フォルダー</value></data>
   <data name="EmptyStateAddButton.Content" xml:space="preserve"><value>最初の項目を追加</value></data>
   <data name="SettingsButton_Label" xml:space="preserve"><value>管理</value></data>
+  <data name="TitleBar_Back" xml:space="preserve"><value>戻る</value></data>
+  <data name="TitleBar_ToggleRail" xml:space="preserve"><value>フォルダー一覧の表示切り替え</value></data>
   <data name="Shortcut_Format" xml:space="preserve"><value>{0}（{1}）</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>アプリを検索...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>編集</value></data>

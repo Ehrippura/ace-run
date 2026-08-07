@@ -55,120 +55,164 @@
             row plus a transparent 32px drag strip the toolbar had to dodge with
             Padding="12,35,12,0".
 
-            No Title or IconSource: the workspace picker sits immediately after the pane
-            toggle and is the only identity the window needs. The app name and icon
-            repeated what the taskbar and the window's own Title already say, and pushed
-            the search field - the actual hero - off centre.
+            A plain Grid, not Microsoft.UI.Xaml.Controls.TitleBar. That control reserves
+            the caption strip in a template column whose width it takes straight from
+            AppWindow.TitleBar.RightInset — which is in *physical pixels*, assigned into a
+            DIP-valued ColumnDefinition. At 150% scaling that over-reserved 72 DIP on top
+            of a hard-coded 48 DIP spacer, leaving a ~120 DIP hole between the gear button
+            and the minimise button that no public property could shrink. Owning the
+            columns makes the reserve one line of our own arithmetic; see
+            UpdateTitleBarInsets() in MainWindow.TitleBar.cs.
+
+            What the control supplied and this row re-implements: the back and pane-toggle
+            buttons (ordinary Buttons now, which is also why their tooltips are localised —
+            the SDK template hardcoded "Back"), and the dimming when the window loses
+            focus. Everything else here was already ours.
+
+            No app name or icon: the workspace picker is the only identity the window
+            needs. The app name and icon repeated what the taskbar and the window's own
+            Title already say, and pushed the search field — the actual hero — off centre.
         -->
-        <TitleBar Grid.Row="0"
-            x:Name="AppTitleBar"
-            IsPaneToggleButtonVisible="True"
-            IsBackButtonVisible="True"
-            IsBackButtonEnabled="False"
-            PaneToggleRequested="AppTitleBar_PaneToggleRequested"
-            BackRequested="AppTitleBar_BackRequested">
-            <TitleBar.LeftHeader>
-                <!-- The pane toggle button now precedes this column and supplies the
-                     leading gap, so no left margin of our own. -->
-                <ComboBox x:Name="WorkspaceComboBox"
-                    MinWidth="140"
-                    Margin="0,0,4,0"
-                    VerticalAlignment="Center"
-                    SelectionChanged="WorkspaceComboBox_SelectionChanged">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="local:WorkspaceViewModel">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Width="10" Height="10"
-                                         Fill="{x:Bind ColorBrush, Mode=OneWay}"
-                                         Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
-                                         VerticalAlignment="Center" />
-                                <TextBlock Text="{x:Bind Name, Mode=OneWay}"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </TitleBar.LeftHeader>
+        <Grid Grid.Row="0" x:Name="AppTitleBar">
+            <Grid.ColumnDefinitions>
+                <!-- Both inset columns are driven from AppWindow.TitleBar by
+                     UpdateTitleBarInsets(). Zero in XAML so the first paint cannot show a
+                     gap on the wrong side, and named for a side rather than for "caption"
+                     because RTL puts the caption buttons on the left. -->
+                <ColumnDefinition x:Name="TitleBarLeftInsetColumn" Width="0" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0" />
+            </Grid.ColumnDefinitions>
 
-            <!-- Search is the launcher's actual hero, so it sits centre stage.
-                 The template's ContentPresenter centres and sizes to content, which
-                 overrides HorizontalAlignment="Stretch" — MinWidth is what actually
-                 holds the box open. Without it the clear button eats most of the field. -->
-            <TitleBar.Content>
-                <AutoSuggestBox x:Name="SearchBox"
-                    x:Uid="SearchBox"
-                    PlaceholderText="Search apps..."
-                    MinWidth="320"
-                    MaxWidth="520"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Center"
-                    QueryIcon="Find"
-                    AutomationProperties.AcceleratorKey="Ctrl+F"
-                    TextChanged="SearchBox_TextChanged"
-                    QuerySubmitted="SearchBox_QuerySubmitted"
-                    PreviewKeyDown="SearchBox_PreviewKeyDown" />
-            </TitleBar.Content>
+            <!-- Both chrome buttons ride NavigationBackButtonNormalStyle: it is the
+                 platform's own 40x40 subtle-icon button, already wired to
+                 SymbolThemeFontFamily, so the toggle only has to swap the glyph. Their
+                 margins reproduce the spacing the SDK template used (2 / 4 / 2). -->
+            <Button x:Name="BackButton" Grid.Column="1"
+                Style="{StaticResource NavigationBackButtonNormalStyle}"
+                Margin="2,0,0,0"
+                IsEnabled="False"
+                VerticalAlignment="Center"
+                Click="BackButton_Click" />
 
-            <TitleBar.RightHeader>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <!-- Primary click keeps the .exe picker, dropdown adds a URL -->
-                    <SplitButton x:Name="AddButton"
-                        Click="AddSplitButton_Click"
-                        AutomationProperties.AcceleratorKey="Ctrl+N"
-                        VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE710;" FontSize="14" />
-                            <TextBlock x:Uid="AddButtonLabel" Text="Add" />
+            <Button x:Name="PaneToggleButton" Grid.Column="2"
+                Style="{StaticResource NavigationBackButtonNormalStyle}"
+                Margin="4,0,0,0"
+                Content="&#xE700;"
+                VerticalAlignment="Center"
+                Click="PaneToggleButton_Click" />
+
+            <ComboBox x:Name="WorkspaceComboBox" Grid.Column="3"
+                MinWidth="140"
+                Margin="2,0,4,0"
+                VerticalAlignment="Center"
+                SelectionChanged="WorkspaceComboBox_SelectionChanged">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="local:WorkspaceViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse Width="10" Height="10"
+                                     Fill="{x:Bind ColorBrush, Mode=OneWay}"
+                                     Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
+                                     VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                       VerticalAlignment="Center" />
                         </StackPanel>
-                        <SplitButton.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuFlyoutItem x:Uid="AddMenuAppItem"
-                                    Text="Add App"
-                                    KeyboardAcceleratorTextOverride="Ctrl+N"
-                                    Click="AddButton_Click">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xECAA;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Uid="AddMenuUrlItem"
-                                    Text="Add URL"
-                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+N"
-                                    Click="AddUrlMenuItem_Click">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE774;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </SplitButton.Flyout>
-                    </SplitButton>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
-                    <!-- The two icon-only manage buttons collapse into one menu.
-                         Button rather than DropDownButton: the latter always draws a
-                         chevron, which reads as noise next to a lone gear glyph. -->
-                    <Button x:Name="SettingsButton"
-                        Height="32"
-                        VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE713;" FontSize="14" />
-                        <Button.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuFlyoutItem x:Name="ManageWorkspacesMenuItem"
-                                    Click="ManageWorkspacesButton_Click">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE821;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Name="ManageTagsMenuItem"
-                                    Click="ManageTagsButton_Click">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE8EC;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </Button.Flyout>
-                    </Button>
-                </StackPanel>
-            </TitleBar.RightHeader>
-        </TitleBar>
+            <!-- Search is the launcher's actual hero, so it sits centre stage: it is the
+                 only star column, which is what centres it in the *window* rather than in
+                 whatever the flanking columns left over.
+
+                 Stretch with a MaxWidth and no MinWidth, so the field is elastic in both
+                 directions: it grows with the window until 720 DIP and then stops (a
+                 text field wider than that is harder to read, not easier), and it gives
+                 way instead of overflowing when the window is dragged down to its 720 DIP
+                 minimum. A MinWidth here would win over the column and push the field out
+                 under the workspace picker. Stretch still reads as centred once MaxWidth
+                 clamps it — a clamped Stretch centres in its slot. The side margins are
+                 what keep it off the picker and the Add button. -->
+            <AutoSuggestBox x:Name="SearchBox" Grid.Column="4"
+                x:Uid="SearchBox"
+                PlaceholderText="Search apps..."
+                MaxWidth="720"
+                Margin="14,0,14,0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                QueryIcon="Find"
+                AutomationProperties.AcceleratorKey="Ctrl+F"
+                TextChanged="SearchBox_TextChanged"
+                QuerySubmitted="SearchBox_QuerySubmitted"
+                PreviewKeyDown="SearchBox_PreviewKeyDown" />
+
+            <!-- The right margin is the whole point of the exercise: a deliberate 12 DIP
+                 of air before the caption buttons, instead of the SDK's 120. -->
+            <StackPanel Grid.Column="5"
+                    Orientation="Horizontal" Spacing="8"
+                    Margin="0,0,12,0"
+                    VerticalAlignment="Center">
+                <!-- Primary click keeps the .exe picker, dropdown adds a URL -->
+                <SplitButton x:Name="AddButton"
+                    Click="AddSplitButton_Click"
+                    AutomationProperties.AcceleratorKey="Ctrl+N"
+                    VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE710;" FontSize="14" />
+                        <TextBlock x:Uid="AddButtonLabel" Text="Add" />
+                    </StackPanel>
+                    <SplitButton.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuFlyoutItem x:Uid="AddMenuAppItem"
+                                Text="Add App"
+                                KeyboardAcceleratorTextOverride="Ctrl+N"
+                                Click="AddButton_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xECAA;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Uid="AddMenuUrlItem"
+                                Text="Add URL"
+                                KeyboardAcceleratorTextOverride="Ctrl+Shift+N"
+                                Click="AddUrlMenuItem_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE774;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </SplitButton.Flyout>
+                </SplitButton>
+
+                <!-- The two icon-only manage buttons collapse into one menu.
+                     Button rather than DropDownButton: the latter always draws a
+                     chevron, which reads as noise next to a lone gear glyph. -->
+                <Button x:Name="SettingsButton"
+                    Height="32"
+                    VerticalAlignment="Center">
+                    <FontIcon Glyph="&#xE713;" FontSize="14" />
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuFlyoutItem x:Name="ManageWorkspacesMenuItem"
+                                Click="ManageWorkspacesButton_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE821;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="ManageTagsMenuItem"
+                                Click="ManageTagsButton_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8EC;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
+        </Grid>
 
         <!-- Main content area: rail + content. SplitView rather than a fixed column so
              the rail can collapse at narrow widths; DisplayMode and IsPaneOpen are driven
