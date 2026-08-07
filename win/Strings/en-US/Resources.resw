@@ -12,6 +12,8 @@
   <data name="NewFolderButtonLabel.Text" xml:space="preserve"><value>New Folder</value></data>
   <data name="EmptyStateAddButton.Content" xml:space="preserve"><value>Add your first app</value></data>
   <data name="SettingsButton_Label" xml:space="preserve"><value>Manage</value></data>
+  <data name="TitleBar_Back" xml:space="preserve"><value>Back</value></data>
+  <data name="TitleBar_ToggleRail" xml:space="preserve"><value>Toggle folder list</value></data>
   <data name="Shortcut_Format" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
   <data name="EditMenuItem.Text" xml:space="preserve"><value>Edit</value></data>

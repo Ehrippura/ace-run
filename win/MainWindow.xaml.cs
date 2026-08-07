@@ -41,10 +41,11 @@ public sealed partial class MainWindow : Window
         ApplyInitialWindowSize();
 
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
-        // TitleBar grows to 48px once Content/headers are populated; without this the
-        // system caption buttons stay 32px tall against a 48px band.
+        // The chrome row is 48px tall; without this the system caption buttons stay 32px
+        // tall against a 48px band. Set before InitializeTitleBar so the first inset pass
+        // reads the tall height rather than the standard one.
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        InitializeTitleBar();
 
         // Must run before ItemsSource: the rail's selection indicator resolves its brush
         // when the item template is applied.
@@ -84,11 +85,13 @@ public sealed partial class MainWindow : Window
         UpdateUngroupedCount();
 
         // Maximise/restore is the only thing that changes the window's corner shape, and
-        // it always changes the size — so this one subscription covers both jobs.
+        // it always changes the size — so this one subscription covers all three jobs.
+        // Maximising also changes the caption height, which the inset pass owns.
         RootGrid.SizeChanged += (_, e) =>
         {
             UpdateRailForWidth(e.NewSize.Width);
             UpdateWindowEdgeCorners();
+            UpdateTitleBarInsets();
         };
 
         _ = InitializeWorkspacesAsync();

@@ -231,8 +231,6 @@ public sealed partial class MainWindow
     // window and leave too little room for a usable tile grid.
     private const double RailCollapseWidthDip = 800;
 
-    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args) => ToggleRail();
-
     /// <summary>Shared by the title bar's pane toggle button and the Ctrl+B accelerator.</summary>
     private void ToggleRail() => RailSplitView.IsPaneOpen = !RailSplitView.IsPaneOpen;
 

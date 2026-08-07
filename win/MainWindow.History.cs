@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
 using System.Collections.Generic;
@@ -193,17 +192,13 @@ public sealed partial class MainWindow
     // Kept enabled/disabled rather than shown/hidden: collapsing the button would shift the
     // pane toggle and the workspace picker sideways every time the history empties.
     private void UpdateBackButtonState() =>
-        AppTitleBar.IsBackButtonEnabled = _folderHistory.Count > 0;
+        BackButton.IsEnabled = _folderHistory.Count > 0;
 
     #endregion
 
     #region Input
 
-    private void AppTitleBar_BackRequested(TitleBar sender, object args)
-    {
-        if (IsModal) return;
-        GoBack();
-    }
+    // BackButton_Click lives in MainWindow.TitleBar.cs, with the rest of the chrome row.
 
     /// <summary>
     /// Alt+Left. Not a <see cref="KeyboardAccelerator"/> like the other modified keys:
