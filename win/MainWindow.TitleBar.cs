@@ -1,7 +1,11 @@
+using System.Collections.Generic;
 using ace_run.Services;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Foundation;
+using Windows.Graphics;
 
 namespace ace_run;
 
@@ -57,7 +61,54 @@ public sealed partial class MainWindow
             // Fires on DPI change, which moves both the inset (physical) and the scale.
             AppTitleBar.XamlRoot.Changed += (_, _) => UpdateTitleBarInsets();
             UpdateTitleBarInsets();
+
+            // Search is the row's one star column, so it absorbs every other change in the
+            // row — including the inset columns being rewritten, which resizes nothing else
+            // and so raises no other event. Its size pass is the reliable "something moved".
+            // A pure sideways move (the field clamped at MaxWidth, sliding as the window
+            // grows) does not raise it, which is what the RootGrid.SizeChanged call covers.
+            SearchBox.SizeChanged += (_, _) => UpdateTitleBarPassthrough();
+            UpdateTitleBarPassthrough();
         };
+    }
+
+    /// <summary>
+    /// Cuts the row's own controls out of the drag region.
+    ///
+    /// <c>SetTitleBar(AppTitleBar)</c> registers exactly one Caption rect — the whole row —
+    /// and no Passthrough rects at all, so every control in the row sits in *non-client*
+    /// space. XAML still routes pointer input into them, which is why clicking and typing
+    /// have always worked; but the cursor is picked by the non-client hit test, which knows
+    /// nothing about the children, so <c>DefWindowProc</c> keeps answering HTCAPTION and the
+    /// search box never shows an I-beam. Registering the children as Passthrough subtracts
+    /// them from the caption rect, which is what makes the hit test — and therefore the
+    /// cursor — land on the client area.
+    ///
+    /// Each control is listed individually rather than their parent panel, so the gaps
+    /// between them stay draggable.
+    /// </summary>
+    private void UpdateTitleBarPassthrough()
+    {
+        var scale = AppTitleBar.XamlRoot?.RasterizationScale ?? 0;
+        if (scale <= 0) return;
+
+        var rects = new List<RectInt32>(6);
+        foreach (var child in new FrameworkElement[]
+                 { BackButton, PaneToggleButton, WorkspaceComboBox, SearchBox, AddButton, SettingsButton })
+        {
+            // Zero-sized until the first arrange pass; a 0x0 rect is harmless but pointless.
+            if (child.ActualWidth <= 0 || child.ActualHeight <= 0) continue;
+
+            var origin = child.TransformToVisual(Content).TransformPoint(new Point(0, 0));
+            rects.Add(new RectInt32(
+                (int)(origin.X * scale),
+                (int)(origin.Y * scale),
+                (int)(child.ActualWidth * scale),
+                (int)(child.ActualHeight * scale)));
+        }
+
+        InputNonClientPointerSource.GetForWindowId(AppWindow.Id)
+            .SetRegionRects(NonClientRegionKind.Passthrough, rects.ToArray());
     }
 
     /// <summary>

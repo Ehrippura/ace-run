@@ -92,6 +92,7 @@ public sealed partial class MainWindow : Window
             UpdateRailForWidth(e.NewSize.Width);
             UpdateWindowEdgeCorners();
             UpdateTitleBarInsets();
+            UpdateTitleBarPassthrough();
         };
 
         _ = InitializeWorkspacesAsync();
