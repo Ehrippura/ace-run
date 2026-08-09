@@ -62,6 +62,7 @@ public sealed partial class MainWindow : Window
 
         ManageWorkspacesMenuItem.Text = Loc.GetString("Workspace_Manage");
         ManageTagsMenuItem.Text = Loc.GetString("Tag_Manage");
+        SettingsMenuItem.Text = Loc.GetString("Settings_Title");
 
         // Accessible name for the icon-only button (screen readers, UIA). Its own label,
         // not "Manage Workspaces" — the menu behind it covers workspaces and tags both.
@@ -76,6 +77,7 @@ public sealed partial class MainWindow : Window
         InstallCodeAccelerators();
         InitializeSearch();
         InitializeNavigationHistory();
+        InitializeSettings();
 
         _searchResults.CollectionChanged += OnShownAppsChanged;
 
@@ -115,7 +117,7 @@ public sealed partial class MainWindow : Window
 
         SaveWindowSize();
 
-        if (App.TrayEnabled)
+        if (App.TrayEnabled && Settings.CloseToTray)
         {
             CommitSave();
             args.Handled = true;
@@ -124,6 +126,13 @@ public sealed partial class MainWindow : Window
         }
 
         CommitSave();
+
+        // Letting the window close is not the same as quitting: the tray icon keeps a
+        // message loop alive, so without this the process lingers with no window. Before
+        // the close-to-tray setting existed this branch was only reachable when the tray
+        // icon had failed to initialize, which is why it went unnoticed.
+        if (App.TrayEnabled)
+            ((App)Application.Current).ExitApp(closeWindow: false);
     }
 
     private void SaveWindowSize()
@@ -180,6 +189,24 @@ public sealed partial class MainWindow : Window
 
     private void UpdateUngroupedCount() =>
         UngroupedItemCount.Text = _ungroupedApps.Count.ToString();
+
+    /// <summary>
+    /// First descendant of the given type, breadth-first-ish. The counterpart to
+    /// <see cref="FindParent{T}"/>, and the only way to reach a template part from outside
+    /// the control — <c>GetTemplateChild</c> is protected and <c>FindName</c> does not cross
+    /// into a template's namescope.
+    /// </summary>
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is T match) return match;
+            if (FindDescendant<T>(child) is { } nested) return nested;
+        }
+        return null;
+    }
 
     private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
     {

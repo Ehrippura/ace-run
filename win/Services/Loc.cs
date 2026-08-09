@@ -9,11 +9,44 @@ namespace ace_run.Services;
 
 internal static class Loc
 {
-    private static readonly Microsoft.Windows.ApplicationModel.Resources.ResourceLoader? _loader;
-    private static readonly Dictionary<string, string> _fallbacks;
+    private static Microsoft.Windows.ApplicationModel.Resources.ResourceLoader? _loader;
+    private static Dictionary<string, string> _fallbacks;
 
-    static Loc()
+    /// <summary>
+    /// The static constructor still resolves the language on its own, so any call site that
+    /// runs before <see cref="Initialize"/> gets the system language rather than nothing.
+    /// </summary>
+    static Loc() => _fallbacks = Resolve(null);
+
+    /// <summary>
+    /// Applies the user's language override. Must run before the first
+    /// <see cref="GetString"/> call — <c>App.OnLaunched</c> does it before constructing the
+    /// main window, because every string in the UI is read once, at construction, and the
+    /// app has no mechanism for re-reading them. Changing the language therefore needs a
+    /// restart, which the settings window says out loud.
+    /// </summary>
+    /// <param name="languageTag">A BCP-47 tag, or null/empty to follow the system.</param>
+    public static void Initialize(string? languageTag) => _fallbacks = Resolve(languageTag);
+
+    private static Dictionary<string, string> Resolve(string? languageTag)
     {
+        // Also steers the packaged path: ResourceLoader picks its language from the
+        // thread's UI culture, so setting this before constructing it is what makes the
+        // override apply to both halves of the lookup in GetString.
+        if (!string.IsNullOrWhiteSpace(languageTag))
+        {
+            try
+            {
+                var culture = new CultureInfo(languageTag);
+                CultureInfo.DefaultThreadCurrentUICulture = culture;
+                CultureInfo.CurrentUICulture = culture;
+            }
+            catch (CultureNotFoundException)
+            {
+                languageTag = null; // a hand-edited config.json should not brick the strings
+            }
+        }
+
         try
         {
             _loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
@@ -23,15 +56,19 @@ internal static class Loc
             // ignore
         }
 
-        var culture = CultureInfo.CurrentUICulture.Name;
+        var name = string.IsNullOrWhiteSpace(languageTag)
+            ? CultureInfo.CurrentUICulture.Name
+            : languageTag;
+
         string resourceName;
-        if (culture.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+        if (name.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
             resourceName = "ace_run.Strings.zh-TW.Resources.resw";
-        else if (culture.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
+        else if (name.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
             resourceName = "ace_run.Strings.ja-JP.Resources.resw";
         else
             resourceName = "ace_run.Strings.en-US.Resources.resw";
-        _fallbacks = LoadFromEmbeddedResw(resourceName);
+
+        return LoadFromEmbeddedResw(resourceName);
     }
 
     public static string GetString(string key)

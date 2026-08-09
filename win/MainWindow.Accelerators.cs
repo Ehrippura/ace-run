@@ -34,9 +34,18 @@ public sealed partial class MainWindow
     private int _modalDepth;
     private bool IsModal => _modalDepth > 0;
 
-    /// <summary>Shows a dialog with the modal guard held for its lifetime.</summary>
+    /// <summary>
+    /// Shows a dialog with the modal guard held for its lifetime.
+    ///
+    /// Also the one place the theme override reaches a dialog: a ContentDialog is hosted on
+    /// the popup layer rather than inside the element tree that carries RequestedTheme, so
+    /// it would otherwise come up in the system theme while the window behind it is in the
+    /// chosen one. Every dialog in the app goes through here for exactly that reason.
+    /// </summary>
     private async Task<ContentDialogResult> ShowModalAsync(ContentDialog dialog)
     {
+        dialog.RequestedTheme = Services.ThemeService.ToElementTheme(App.CurrentTheme);
+
         _modalDepth++;
         try { return await dialog.ShowAsync(); }
         finally { _modalDepth--; }
@@ -139,10 +148,32 @@ public sealed partial class MainWindow
     {
         args.Handled = true;
         if (IsModal) return;
+        FocusSearchBox();
+    }
 
-        // Keyboard rather than Programmatic: it selects any existing query, so Ctrl+F
-        // followed by typing replaces the search instead of appending to it.
+    /// <summary>
+    /// Puts the caret in the search box with any existing query selected, so the next
+    /// keystroke replaces it. Shared by Ctrl+F and by the global hotkey, which focuses the
+    /// box after summoning the window — arriving at a launcher and having to reach for the
+    /// mouse before typing defeats the point of the hotkey.
+    ///
+    /// <c>Focus</c> alone is not enough, whatever <see cref="FocusState"/> it is given: it
+    /// lands the caret but leaves the selection collapsed at the end of the old text, so
+    /// summoning onto yesterday's "steam" and typing "chrome" produced "steamchrome".
+    /// Verified by hand — this comment used to claim Keyboard focus selected the query, and
+    /// it never did.
+    ///
+    /// The selection is made on the inner TextBox because AutoSuggestBox exposes no
+    /// selection API of its own, and that TextBox is a template part rather than a named
+    /// child of this page. Selecting rather than clearing is deliberate: a summon that only
+    /// wanted to look at the previous results again still finds them on screen.
+    /// </summary>
+    public void FocusSearchBox()
+    {
         SearchBox.Focus(FocusState.Keyboard);
+
+        if (FindDescendant<TextBox>(SearchBox) is { } inner)
+            inner.SelectAll();
     }
 
     private async void AddApp_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
@@ -215,9 +246,12 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Escape, handled most-local-first. Deliberately does not hide the window: without a
-    /// global hotkey the only way back would be the tray icon, which reads as the app
-    /// having vanished.
+    /// Escape, handled most-local-first. Deliberately does not hide the window. The
+    /// original reason — no global hotkey, so the tray icon would be the only way back and
+    /// the app would read as having vanished — no longer holds for everyone, but the
+    /// hotkey is off by default and Esc cannot branch on whether one is bound without
+    /// becoming unpredictable. Hiding on Esc is a settings-gated behaviour change, not a
+    /// side effect of this key.
     /// </summary>
     private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {

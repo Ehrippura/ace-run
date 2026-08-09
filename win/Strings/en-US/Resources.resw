@@ -128,4 +128,31 @@
   <data name="Workspace_AppCount" xml:space="preserve"><value>{0} apps</value></data>
   <data name="Workspace_ManageTitle" xml:space="preserve"><value>Manage Workspaces</value></data>
   <data name="Workspace_NewTitle" xml:space="preserve"><value>New Workspace</value></data>
+
+  <!-- Settings -->
+  <data name="Settings_Title" xml:space="preserve"><value>Settings</value></data>
+  <data name="Settings_Group_General" xml:space="preserve"><value>General</value></data>
+  <data name="Settings_Group_Appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="Settings_Hotkey_Header" xml:space="preserve"><value>Global shortcut</value></data>
+  <data name="Settings_Hotkey_Desc" xml:space="preserve"><value>Summons the window from anywhere; press it again to put it away.</value></data>
+  <data name="Settings_Hotkey_None" xml:space="preserve"><value>Not set</value></data>
+  <data name="Settings_Hotkey_Recording" xml:space="preserve"><value>Press a key combination…</value></data>
+  <data name="Settings_Hotkey_Clear" xml:space="preserve"><value>Clear shortcut</value></data>
+  <data name="Settings_Hotkey_NeedModifier" xml:space="preserve"><value>Include Ctrl, Alt or Win — a bare key would be captured system-wide.</value></data>
+  <data name="Settings_Hotkey_Conflict" xml:space="preserve"><value>That combination is already in use by another program. The previous shortcut was kept.</value></data>
+  <data name="Settings_Startup_Header" xml:space="preserve"><value>Start with Windows</value></data>
+  <data name="Settings_Startup_Desc" xml:space="preserve"><value>Launches to the system tray when you sign in.</value></data>
+  <data name="Settings_CloseToTray_Header" xml:space="preserve"><value>Close to the system tray</value></data>
+  <data name="Settings_CloseToTray_Desc" xml:space="preserve"><value>When off, closing the window exits Ace Run.</value></data>
+  <data name="Settings_HideOnLaunch_Header" xml:space="preserve"><value>Hide after launching</value></data>
+  <data name="Settings_HideOnLaunch_Desc" xml:space="preserve"><value>Puts the window away once an item has been launched.</value></data>
+  <data name="Settings_Theme_Header" xml:space="preserve"><value>Theme</value></data>
+  <data name="Settings_Theme_Desc" xml:space="preserve"><value>Applies immediately.</value></data>
+  <data name="Settings_Theme_System" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="Settings_Theme_Light" xml:space="preserve"><value>Light</value></data>
+  <data name="Settings_Theme_Dark" xml:space="preserve"><value>Dark</value></data>
+  <data name="Settings_Language_Header" xml:space="preserve"><value>Language</value></data>
+  <data name="Settings_Language_Desc" xml:space="preserve"><value>Takes effect the next time Ace Run starts.</value></data>
+  <data name="Settings_Language_System" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="Settings_Language_RestartRequired" xml:space="preserve"><value>Restart Ace Run to apply the new language.</value></data>
 </root>

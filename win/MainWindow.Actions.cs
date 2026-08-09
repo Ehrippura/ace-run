@@ -244,9 +244,7 @@ public sealed partial class MainWindow
     public void LaunchApp(AppItemViewModel app)
     {
         LaunchCore(app);
-
-        PersistAfterEdit();
-        ((App)Application.Current).UpdateTrayContextMenu();
+        AfterLaunch();
     }
 
     /// <summary>
@@ -264,8 +262,7 @@ public sealed partial class MainWindow
         foreach (var app in apps)
             LaunchCore(app);
 
-        PersistAfterEdit();
-        ((App)Application.Current).UpdateTrayContextMenu();
+        AfterLaunch();
     }
 
     private void LaunchCore(AppItemViewModel app)
