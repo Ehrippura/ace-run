@@ -33,11 +33,12 @@
   <data name="SaveButton" xml:space="preserve"><value>Save</value></data>
   <data name="CloseButton" xml:space="preserve"><value>Close</value></data>
   <data name="DragDropCaption" xml:space="preserve"><value>Add to Ace Run</value></data>
+  <data name="DragMoveCaption" xml:space="preserve"><value>Move to {0}</value></data>
 
   <!-- Multi-select operations -->
   <data name="DeleteSelectedMenuItem" xml:space="preserve"><value>Delete {0} items</value></data>
   <data name="DeleteSelectedTitle" xml:space="preserve"><value>Delete Items</value></data>
-  <data name="DeleteSelectedContent" xml:space="preserve"><value>Delete {0} items? Folders will be removed along with their contents.</value></data>
+  <data name="DeleteSelectedContent" xml:space="preserve"><value>Delete {0} items?</value></data>
 
   <!-- Folder operations -->
   <data name="NewFolderTitle" xml:space="preserve"><value>New Folder</value></data>

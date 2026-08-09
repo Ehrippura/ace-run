@@ -188,7 +188,7 @@ public sealed partial class MainWindow
     #region Unmodified keys
 
     /// <summary>
-    /// Enter launches, Alt+Enter edits (Explorer's "Properties" gesture).
+    /// Enter launches the whole selection, Alt+Enter edits (Explorer's "Properties" gesture).
     ///
     /// Alt+Enter is handled here rather than as a <see cref="KeyboardAccelerator"/> on
     /// RootGrid like every other modified key: an Alt-modified accelerator never fired in
@@ -196,12 +196,22 @@ public sealed partial class MainWindow
     /// route. Both lists already own Enter via PreviewKeyDown, so branching on the
     /// modifier costs nothing and works.
     /// </summary>
-    private async Task LaunchOrEditAsync(AppItemViewModel app, KeyRoutedEventArgs e)
+    private async Task LaunchOrEditAsync(ListViewBase list, KeyRoutedEventArgs e)
     {
+        var apps = SelectedAppsInOrder(list);
+        if (apps.Count == 0) return;
+
         if (e.KeyStatus.IsMenuKeyDown)
-            await EditAppAsync(app);
+        {
+            // There is no batch form of "edit" — EditItemDialog edits one item. Rather than
+            // pick an arbitrary member of the selection, a multi-selection does nothing.
+            if (apps.Count == 1)
+                await EditAppAsync(apps[0]);
+        }
         else
-            LaunchApp(app);
+        {
+            LaunchApps(apps);
+        }
     }
 
     /// <summary>
@@ -283,7 +293,7 @@ public sealed partial class MainWindow
         FlushPendingSearch(); // the list has to exist before focus can move into it
         if (_searchResults.Count == 0) return;
 
-        SearchResultsView.SelectedIndex = 0;
+        SelectOnly(SearchResultsView, _searchResults[0]);
         if (SearchResultsView.ContainerFromIndex(0) is ListViewItem item)
             item.Focus(FocusState.Keyboard);
         else

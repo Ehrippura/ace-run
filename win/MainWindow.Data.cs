@@ -175,6 +175,19 @@ public sealed partial class MainWindow
         CommitSave();
     }
 
+    /// <summary>
+    /// Saves an edit that can be made from *either* view. SaveItems() returns early while a
+    /// query is active, so every flow reachable from the search results — launching, tagging,
+    /// moving, deleting — has to commit directly instead. Nothing else distinguishes the two.
+    /// </summary>
+    private void PersistAfterEdit()
+    {
+        if (!string.IsNullOrEmpty(_searchText))
+            CommitSave();
+        else
+            SaveItems();
+    }
+
     private bool PurgeStaleRecentLaunches()
     {
         var allIds = new HashSet<Guid>();
@@ -239,32 +252,51 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Adds or removes one tag on an app, then persists.</summary>
-    private void ToggleTagOnApp(AppItemViewModel app, TagViewModel tag, bool assign)
+    /// <summary>
+    /// Adds or removes one tag across a batch, then persists once.
+    ///
+    /// The rebuild goes through <c>_tags.Where(...)</c> rather than appending to the item's
+    /// own list: that is what keeps each item in workspace tag order for free, which is the
+    /// invariant <see cref="NormalizeAppTags"/> exists to defend.
+    /// </summary>
+    private void SetTagOnApps(IList<AppItemViewModel> apps, TagViewModel tag, bool assign)
     {
-        var assigned = new HashSet<Guid>(app.Tags.Select(t => t.Id));
-        if (assign ? !assigned.Add(tag.Id) : !assigned.Remove(tag.Id))
-            return;
+        var changed = false;
 
-        SetAppTags(app, _tags.Where(t => assigned.Contains(t.Id)));
+        foreach (var app in apps)
+        {
+            var assigned = new HashSet<Guid>(app.Tags.Select(t => t.Id));
+            if (assign ? !assigned.Add(tag.Id) : !assigned.Remove(tag.Id))
+                continue; // already in the requested state
+
+            app.SetTags(_tags.Where(t => assigned.Contains(t.Id)));
+            changed = true;
+        }
+
+        if (changed)
+            PersistAfterEdit();
     }
 
-    private void ClearTagsOnApp(AppItemViewModel app)
+    private void ClearTagsOnApps(IList<AppItemViewModel> apps)
     {
-        if (app.Tags.Count == 0) return;
-        SetAppTags(app, Array.Empty<TagViewModel>());
+        var changed = false;
+
+        foreach (var app in apps)
+        {
+            if (app.Tags.Count == 0) continue;
+            app.SetTags(Array.Empty<TagViewModel>());
+            changed = true;
+        }
+
+        if (changed)
+            PersistAfterEdit();
     }
 
     /// <summary>Assigns the given tags (kept in workspace order) and saves.</summary>
     private void SetAppTags(AppItemViewModel app, IEnumerable<TagViewModel> tags)
     {
         app.SetTags(tags);
-
-        // Search mode blocks SaveItems(); commit directly so the change persists.
-        if (!string.IsNullOrEmpty(_searchText))
-            CommitSave();
-        else
-            SaveItems();
+        PersistAfterEdit();
     }
 
     #endregion

@@ -275,6 +275,32 @@ public class FolderViewModel : INotifyPropertyChanged
     /// </summary>
     public string AppCountText => Apps.Count.ToString();
 
+    private bool _isDropTarget;
+
+    /// <summary>
+    /// True while a drag is hovering this row. Session-only and never persisted — it is not
+    /// in <see cref="ToModel"/> and must not be: it describes the pointer, not the folder.
+    ///
+    /// The highlight is driven from the view model rather than by poking the container's
+    /// Background, because the row's fills belong to ListViewItemPresenter and setting them
+    /// by hand fights the platform's own rest / hover / selected states.
+    /// </summary>
+    public bool IsDropTarget
+    {
+        get => _isDropTarget;
+        set
+        {
+            if (_isDropTarget == value) return;
+            _isDropTarget = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DropTargetVisibility));
+        }
+    }
+
+    /// <summary>Visibility-typed for x:Bind, matching the AppItemViewModel members.</summary>
+    public Visibility DropTargetVisibility =>
+        _isDropTarget ? Visibility.Visible : Visibility.Collapsed;
+
     public FolderViewModel(FolderItem model)
     {
         Id = model.Id;

@@ -139,14 +139,28 @@ public sealed partial class MainWindow
         }
     }
 
-    private void MoveAppTo(AppItemViewModel app, FolderViewModel? targetFolder)
+    /// <summary>
+    /// Moves a batch of items into <paramref name="targetFolder"/> (null = ungrouped),
+    /// appending them in the order given and saving once at the end.
+    ///
+    /// Callers pass the items in *visual* order, not selection order — see
+    /// <see cref="SelectedAppsInOrder"/>. Landing order in the target is otherwise decided
+    /// by the sequence the user happened to Ctrl+click in.
+    /// </summary>
+    private void MoveAppsTo(IList<AppItemViewModel> apps, FolderViewModel? targetFolder)
     {
-        _ungroupedApps.Remove(app);
-        foreach (var folder in _folders)
-            folder.Apps.Remove(app);
+        if (apps.Count == 0) return;
 
         var target = targetFolder?.Apps ?? _ungroupedApps;
-        target.Add(app);
+
+        foreach (var app in apps)
+        {
+            _ungroupedApps.Remove(app);
+            foreach (var folder in _folders)
+                folder.Apps.Remove(app);
+
+            target.Add(app);
+        }
 
         CommitSave();
     }
@@ -229,6 +243,33 @@ public sealed partial class MainWindow
 
     public void LaunchApp(AppItemViewModel app)
     {
+        LaunchCore(app);
+
+        PersistAfterEdit();
+        ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    /// <summary>
+    /// Launches a batch. The per-item work is identical to <see cref="LaunchApp"/>; only the
+    /// save and the tray rebuild are hoisted out of the loop — ten selected items used to
+    /// mean ten workspace writes and ten tray menu rebuilds.
+    ///
+    /// Items are launched in the order given, so the last one ends up at the top of the
+    /// recent list (<see cref="TrackRecentLaunch"/> inserts at 0).
+    /// </summary>
+    private void LaunchApps(IList<AppItemViewModel> apps)
+    {
+        if (apps.Count == 0) return;
+
+        foreach (var app in apps)
+            LaunchCore(app);
+
+        PersistAfterEdit();
+        ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    private void LaunchCore(AppItemViewModel app)
+    {
         // Before the try: the confirmation is for the click, not for the outcome.
         PulseLaunch(app);
 
@@ -270,16 +311,6 @@ public sealed partial class MainWindow
         });
         if (_appData.RecentLaunches.Count > 10)
             _appData.RecentLaunches.RemoveRange(10, _appData.RecentLaunches.Count - 10);
-
-        // Launching from a search result is the flow that feeds result ranking, and it is
-        // also the one SaveItems() drops on the floor — it returns early while a query is
-        // active. Commit directly there so the order survives a restart.
-        if (!string.IsNullOrEmpty(_searchText))
-            CommitSave();
-        else
-            SaveItems();
-
-        ((App)Application.Current).UpdateTrayContextMenu();
     }
 
     public List<RecentLaunch> GetRecentLaunches() => _appData.RecentLaunches;

@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -55,6 +56,125 @@ public sealed partial class MainWindow
     private void SidebarListView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
     {
         CommitSave();
+    }
+
+    /// <summary>
+    /// Resolves the rail row under a drag. Returns false when the pointer is not over a drop
+    /// target at all; on true, a null <paramref name="folder"/> means the "Ungrouped" row.
+    ///
+    /// The row is found by hit-testing the pointer, *not* by walking up from
+    /// <c>e.OriginalSource</c>. On a drag event the OriginalSource is the ListView itself
+    /// rather than the row under the cursor — verified by logging every DragOver during a
+    /// real drag — so the FindParent pattern used by the Tapped and RightTapped handlers
+    /// silently resolves nothing here and every drop gets refused.
+    /// </summary>
+    private bool TryResolveRailDropTarget(DragEventArgs e, out FolderViewModel? folder)
+    {
+        folder = null;
+
+        // GetPosition(null) is relative to the XamlRoot, which is the coordinate space
+        // FindElementsInHostCoordinates expects. Results come back topmost-first.
+        var hit = VisualTreeHelper
+            .FindElementsInHostCoordinates(e.GetPosition(null), SidebarListView)
+            .OfType<ListViewItem>()
+            .FirstOrDefault();
+        if (hit is null) return false;
+
+        // "Ungrouped" is the ListView.Header rather than a collection item, so there is
+        // nothing to look up — the container *is* the target.
+        if (ReferenceEquals(hit, UngroupedItem)) return true;
+
+        if (SidebarListView.ItemFromContainer(hit) is not FolderViewModel target) return false;
+        folder = target;
+        return true;
+    }
+
+    /// <summary>
+    /// Accepts app tiles dragged onto a rail row. The rail had AllowDrop="True" for its own
+    /// folder reordering but no drop handler, so tiles dragged here simply did nothing.
+    ///
+    /// A drag that is not carrying app items returns without touching AcceptedOperation or
+    /// Handled — that is what leaves the ListView's built-in folder-reorder drag working.
+    /// </summary>
+    private void SidebarListView_DragOver(object sender, DragEventArgs e)
+    {
+        if (_draggedApps is not { Count: > 0 }) return;
+
+        if (!TryResolveRailDropTarget(e, out var folder)
+            || ReferenceEquals(folder, _selectedFolder))
+        {
+            // Dropping into the folder already on screen would remove and re-append every
+            // item, silently reordering the view the user is looking at. Refuse instead.
+            // ReferenceEquals also covers ungrouped-onto-ungrouped, where both are null.
+            // The highlight is cleared too, so a refused row never looks like a live target.
+            ClearRailDropHighlight();
+            e.AcceptedOperation = DataPackageOperation.None;
+            e.Handled = true;
+            return;
+        }
+
+        HighlightRailDropTarget(folder);
+
+        e.AcceptedOperation = DataPackageOperation.Move;
+        e.DragUIOverride.Caption = string.Format(
+            Loc.GetString("DragMoveCaption"),
+            folder?.DisplayName ?? Loc.GetString("UngroupedFolderName"));
+        e.DragUIOverride.IsGlyphVisible = true;
+        e.Handled = true;
+    }
+
+    /// <summary>Clears the highlight when the pointer leaves the rail entirely.</summary>
+    private void SidebarListView_DragLeave(object sender, DragEventArgs e) =>
+        ClearRailDropHighlight();
+
+    private void SidebarListView_Drop(object sender, DragEventArgs e)
+    {
+        ClearRailDropHighlight();
+
+        if (_draggedApps is not { Count: > 0 } apps) return;
+        if (!TryResolveRailDropTarget(e, out var folder)) return;
+        if (ReferenceEquals(folder, _selectedFolder)) return;
+
+        MoveAppsTo(apps, folder);
+        _draggedApps = null;
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// The rail row currently lit up as the drop target. Held as the *folder* rather than
+    /// the container so it survives container recycling mid-drag; null while the ungrouped
+    /// header is the target, which is why <see cref="_railDropIsUngrouped"/> exists — null
+    /// alone cannot tell "the ungrouped row" apart from "nothing".
+    /// </summary>
+    private FolderViewModel? _railDropFolder;
+    private bool _railDropIsUngrouped;
+
+    private void HighlightRailDropTarget(FolderViewModel? folder)
+    {
+        var isUngrouped = folder is null;
+        if (ReferenceEquals(folder, _railDropFolder) && isUngrouped == _railDropIsUngrouped)
+            return; // same row, nothing to repaint
+
+        ClearRailDropHighlight();
+
+        if (folder is not null)
+            folder.IsDropTarget = true;
+        else
+            UngroupedDropHighlight.Visibility = Visibility.Visible;
+
+        _railDropFolder = folder;
+        _railDropIsUngrouped = isUngrouped;
+    }
+
+    private void ClearRailDropHighlight()
+    {
+        if (_railDropFolder is not null)
+            _railDropFolder.IsDropTarget = false;
+        if (_railDropIsUngrouped)
+            UngroupedDropHighlight.Visibility = Visibility.Collapsed;
+
+        _railDropFolder = null;
+        _railDropIsUngrouped = false;
     }
 
     #endregion
@@ -198,8 +318,8 @@ public sealed partial class MainWindow
         // Pre-select the top hit so Enter has a visible target. Selection only — focus stays
         // in the search box, so typing carries on uninterrupted and the row renders in the
         // "Selected Unfocused" state. Setting this before the containers are realized is
-        // fine: SelectedIndex selects on the data, and the visual follows on realization.
-        SearchResultsView.SelectedIndex = _searchResults.Count > 0 ? 0 : -1;
+        // fine: the selection is on the data, and the visual follows on realization.
+        SelectOnly(SearchResultsView, _searchResults.Count > 0 ? _searchResults[0] : null);
 
         // _searchPending suppressed the placeholder while the pass was queued.
         UpdateEmptyState();
@@ -255,26 +375,8 @@ public sealed partial class MainWindow
         }
     }
 
-    private void SearchResultsView_RightTapped(object sender, RightTappedRoutedEventArgs e)
-    {
-        if (e.OriginalSource is not FrameworkElement fe) return;
-
-        var lvi = FindParent<ListViewItem>(fe);
-        if (lvi is null || SearchResultsView.ItemFromContainer(lvi) is not AppItemViewModel app)
-            return;
-
-        var flyout = new MenuFlyout();
-        var goToFolderItem = new MenuFlyoutItem
-        {
-            Text = Loc.GetString("Search_GoToFolder"),
-            Icon = new FontIcon { Glyph = "\uE8B7" }
-        };
-        goToFolderItem.Click += (_, _) => NavigateToAppFolder(app);
-        flyout.Items.Add(goToFolderItem);
-
-        ShowTrackedFlyout(flyout, fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
-        e.Handled = true;
-    }
+    private void SearchResultsView_RightTapped(object sender, RightTappedRoutedEventArgs e) =>
+        ShowAppMenu(SearchResultsView, e);
 
     /// <summary>Clears the search and switches the content area to the folder that
     /// contains <paramref name="app"/> (or the ungrouped page), then selects it.</summary>
@@ -282,7 +384,7 @@ public sealed partial class MainWindow
     {
         NavigateToFolder(FindFolderOfApp(app));
 
-        AppGridView.SelectedItem = app;
+        SelectOnly(AppGridView, app);
         AppGridView.ScrollIntoView(app);
     }
 
@@ -291,16 +393,44 @@ public sealed partial class MainWindow
         if (e.Key == Windows.System.VirtualKey.Enter)
         {
             e.Handled = true;
-            if (SearchResultsView.SelectedItem is AppItemViewModel app)
-                await LaunchOrEditAsync(app, e);
+            await LaunchOrEditAsync(SearchResultsView, e);
         }
         else if (e.Key == Windows.System.VirtualKey.Delete)
         {
             e.Handled = true;
-            var targets = SearchResultsView.SelectedItems.Cast<AppItemViewModel>().ToList();
-            await DeleteAppsAsync(targets);
+            await DeleteAppsAsync(SelectedAppsInOrder(SearchResultsView));
         }
     }
+
+    #endregion
+
+    #region Selection
+
+    /// <summary>
+    /// Replaces the selection with one item, or clears it when <paramref name="item"/> is
+    /// null. Under SelectionMode="Extended", assigning SelectedItem / SelectedIndex is not a
+    /// reliable *replace* \u2014 it can add to what is already selected \u2014 so every programmatic
+    /// "select just this one" goes through here.
+    /// </summary>
+    private static void SelectOnly(ListViewBase list, object? item)
+    {
+        list.SelectedItems.Clear();
+        if (item is not null)
+            list.SelectedItems.Add(item);
+    }
+
+    /// <summary>
+    /// The selected apps in the order they appear on screen.
+    ///
+    /// SelectedItems is in *selection* order. Without this, a batch move would land items in
+    /// whatever sequence the user happened to Ctrl+click, and Launch All would fire in that
+    /// order too \u2014 neither of which the user can see or predict from the screen.
+    /// </summary>
+    private static List<AppItemViewModel> SelectedAppsInOrder(ListViewBase list) =>
+        list.SelectedItems
+            .OfType<AppItemViewModel>()
+            .OrderBy(app => list.Items.IndexOf(app))
+            .ToList();
 
     #endregion
 
@@ -319,8 +449,44 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// The apps currently being dragged out of the grid.
+    ///
+    /// The rail's drop handlers need two things the DataPackage cannot give them: the items
+    /// themselves (a ListViewBase's internal reorder payload has no public reader) and a way
+    /// to tell an app drag apart from the rail's own folder-reorder drag. This field answers
+    /// both — null means "not an app drag, keep your hands off the event".
+    /// </summary>
+    private List<AppItemViewModel>? _draggedApps;
+
+    private void AppGridView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        // Extended selection drags the whole selection, so e.Items already holds all of it.
+        _draggedApps = e.Items.OfType<AppItemViewModel>().ToList();
+
+        // Both lists are ListViewBase with CanReorderItems, which switches on WinUI's
+        // built-in cross-list item transfer: the rail decides these tiles are items it
+        // should *insert*, opens a gap between two rows and offers an insertion line. That
+        // is wrong twice over — a folder row is a container to drop *into*, and an
+        // AppItemViewModel has no business being inserted into _folders — and the gap also
+        // breaks the drop itself, because the hit test in TryResolveRailDropTarget then
+        // lands on the ScrollViewer between the parted rows and resolves nothing, which
+        // freezes the drag caption on whichever row last succeeded.
+        //
+        // Turning reorder off for the duration of an app drag removes all of it. AllowDrop
+        // stays on, so our own handlers still run, and the rail's own folder reordering is
+        // untouched: a folder drag never comes through here.
+        SidebarListView.CanReorderItems = false;
+    }
+
     private void AppGridView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
     {
+        // Fires after the rail's Drop handler, so clearing here cannot cut a move short.
+        // Also fires when the drag is cancelled, so the rail always gets reorder back and
+        // never keeps a stale highlight after a drag that ended anywhere else.
+        SidebarListView.CanReorderItems = true;
+        ClearRailDropHighlight();
+        _draggedApps = null;
         CommitSave();
     }
 
@@ -420,14 +586,12 @@ public sealed partial class MainWindow
         if (e.Key == Windows.System.VirtualKey.Enter)
         {
             e.Handled = true;
-            if (AppGridView.SelectedItem is AppItemViewModel app)
-                await LaunchOrEditAsync(app, e);
+            await LaunchOrEditAsync(AppGridView, e);
         }
         else if (e.Key == Windows.System.VirtualKey.Delete)
         {
             e.Handled = true;
-            var targets = AppGridView.SelectedItems.Cast<AppItemViewModel>().ToList();
-            await DeleteAppsAsync(targets);
+            await DeleteAppsAsync(SelectedAppsInOrder(AppGridView));
         }
     }
 
@@ -435,181 +599,40 @@ public sealed partial class MainWindow
 
     #region Context Menus
 
-    private void AppGridView_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    /// <summary>
+    /// Shared right-click entry point for both item views.
+    ///
+    /// Resolves the tapped item, then collapses the selection onto it when the click landed
+    /// outside the current selection — Explorer's behaviour, and the thing that makes a
+    /// right-click on an unselected tile act on that tile rather than on whatever happened
+    /// to be selected elsewhere. A click inside the selection leaves it intact, so the menu
+    /// is built for the whole batch.
+    ///
+    /// Right-clicking empty space below the items shows no menu, as before.
+    /// </summary>
+    private void ShowAppMenu(ListViewBase list, RightTappedRoutedEventArgs e)
     {
         if (e.OriginalSource is not FrameworkElement fe) return;
 
-        var gvi = FindParent<GridViewItem>(fe);
-        AppItemViewModel? tappedApp = null;
-        if (gvi is not null)
-            tappedApp = AppGridView.ItemFromContainer(gvi) as AppItemViewModel;
+        // SelectorItem is the common base of GridViewItem and ListViewItem, so one lookup
+        // serves the tile grid and the search rows alike.
+        var container = FindParent<SelectorItem>(fe);
+        if (container is null || list.ItemFromContainer(container) is not AppItemViewModel tapped)
+            return;
 
-        var selectedApps = AppGridView.SelectedItems.Cast<AppItemViewModel>().ToList();
-        bool isMultiSelect = selectedApps.Count > 1 && tappedApp is not null && selectedApps.Contains(tappedApp);
+        if (!list.SelectedItems.Contains(tapped))
+            SelectOnly(list, tapped);
 
-        if (tappedApp is null) return;
+        var flyout = BuildAppMenu(list, SelectedAppsInOrder(list));
 
-        if (!selectedApps.Contains(tappedApp))
-        {
-            AppGridView.SelectedItem = tappedApp;
-            selectedApps = new List<AppItemViewModel> { tappedApp };
-            isMultiSelect = false;
-        }
-
-        var flyout = new MenuFlyout();
-
-        if (isMultiSelect)
-        {
-            var launchAllItem = new MenuFlyoutItem
-            {
-                Text = Loc.GetString("LaunchAllMenuItem"),
-                Icon = new FontIcon { Glyph = "\uE768" }
-            };
-            var capturedApps = selectedApps.ToList();
-            launchAllItem.Click += (_, _) =>
-            {
-                foreach (var app in capturedApps)
-                    LaunchApp(app);
-            };
-            flyout.Items.Add(launchAllItem);
-
-            flyout.Items.Add(new MenuFlyoutSeparator());
-
-            var deleteMultiItem = new MenuFlyoutItem
-            {
-                Text = string.Format(Loc.GetString("DeleteSelectedMenuItem"), selectedApps.Count),
-                Icon = new FontIcon { Glyph = "\uE74D" }
-            };
-            var capturedApps2 = selectedApps.ToList();
-            deleteMultiItem.Click += async (_, _) => await DeleteAppsAsync(capturedApps2);
-            flyout.Items.Add(deleteMultiItem);
-        }
-        else if (tappedApp is not null)
-        {
-            var app = tappedApp;
-
-            var launchItem = new MenuFlyoutItem
-            {
-                Text = Loc.GetString("LaunchMenuItem"),
-                Icon = new FontIcon { Glyph = "\uE768" }
-            };
-            launchItem.Click += (_, _) => LaunchApp(app);
-            flyout.Items.Add(launchItem);
-
-            flyout.Items.Add(new MenuFlyoutSeparator());
-
-            // Display-only hint. The accelerator itself lives on RootGrid: a flyout that
-            // has never been opened has no realized visual tree, so an accelerator
-            // attached here would never fire.
-            var editItem = new MenuFlyoutItem
-            {
-                Text = Loc.GetString("EditMenuItem.Text"),
-                Icon = new FontIcon { Glyph = "\uE70F" },
-                KeyboardAcceleratorTextOverride = "Alt+Enter",
-                Tag = app
-            };
-            editItem.Click += EditApp_Click;
-            flyout.Items.Add(editItem);
-
-            // "Open File Location" is meaningless for a URL \u2014 offer the link instead.
-            if (app.IsUrl)
-            {
-                var copyUrlItem = new MenuFlyoutItem
-                {
-                    Text = Loc.GetString("CopyUrlMenuItem"),
-                    Icon = new FontIcon { Glyph = "\uE71B" },
-                    Tag = app
-                };
-                copyUrlItem.Click += CopyUrl_Click;
-                flyout.Items.Add(copyUrlItem);
-            }
-            else
-            {
-                var openFolderItem = new MenuFlyoutItem
-                {
-                    Text = Loc.GetString("OpenFolderMenuItem.Text"),
-                    Icon = new FontIcon { Glyph = "\uE838" },
-                    Tag = app
-                };
-                openFolderItem.Click += OpenFolder_Click;
-                flyout.Items.Add(openFolderItem);
-            }
-
-            flyout.Items.Add(new MenuFlyoutSeparator());
-
-            var moveToMenu = new MenuFlyoutSubItem
-            {
-                Text = Loc.GetString("MoveToMenuItem"),
-                Icon = new FontIcon { Glyph = "\uE8DE" }
-            };
-
-            var moveToUngrouped = new MenuFlyoutItem
-            {
-                Text = Loc.GetString("UngroupedFolderName")
-            };
-            moveToUngrouped.Click += (_, _) => MoveAppTo(app, null);
-            moveToMenu.Items.Add(moveToUngrouped);
-
-            foreach (var folder in _folders)
-            {
-                var folderCapture = folder;
-                var moveToFolder = new MenuFlyoutItem { Text = folder.DisplayName };
-                moveToFolder.Click += (_, _) => MoveAppTo(app, folderCapture);
-                moveToMenu.Items.Add(moveToFolder);
-            }
-
-            flyout.Items.Add(moveToMenu);
-
-            var setTagMenu = new MenuFlyoutSubItem
-            {
-                Text = Loc.GetString("Tag_Set"),
-                Icon = new FontIcon { Glyph = "\uE8EC" }
-            };
-
-            var assignedTagIds = new HashSet<Guid>(app.Tags.Select(t => t.Id));
-
-            var clearTagsItem = new MenuFlyoutItem
-            {
-                Text = Loc.GetString("Tag_Clear"),
-                IsEnabled = assignedTagIds.Count > 0
-            };
-            clearTagsItem.Click += (_, _) => ClearTagsOnApp(app);
-            setTagMenu.Items.Add(clearTagsItem);
-            setTagMenu.Items.Add(new MenuFlyoutSeparator());
-
-            foreach (var tag in _tags)
-            {
-                var tagCapture = tag;
-                // A flyout closes on click, so assigning several tags this way means
-                // reopening the menu. The edit dialog is the path for doing it in one go.
-                var tagItem = new ToggleMenuFlyoutItem
-                {
-                    Text = tag.Name,
-                    IsChecked = assignedTagIds.Contains(tag.Id),
-                    Icon = new FontIcon { Glyph = "\uEA3B", Foreground = tag.ColorBrush }
-                };
-                tagItem.Click += (s, _) =>
-                    ToggleTagOnApp(app, tagCapture, ((ToggleMenuFlyoutItem)s).IsChecked);
-                setTagMenu.Items.Add(tagItem);
-            }
-
-            flyout.Items.Add(setTagMenu);
-
-            flyout.Items.Add(new MenuFlyoutSeparator());
-
-            var deleteItem = new MenuFlyoutItem
-            {
-                Text = Loc.GetString("DeleteMenuItem.Text"),
-                Icon = new FontIcon { Glyph = "\uE74D" },
-                KeyboardAcceleratorTextOverride = "Del"
-            };
-            deleteItem.Click += async (_, _) => await DeleteAppsAsync(new[] { app });
-            flyout.Items.Add(deleteItem);
-        }
-
+        // ShowTrackedFlyout, not ShowAt: an open flyout does not suppress RootGrid's
+        // accelerators on its own, so it has to be folded into the modal guard.
         ShowTrackedFlyout(flyout, fe, new FlyoutShowOptions { Position = e.GetPosition(fe) });
         e.Handled = true;
     }
+
+    private void AppGridView_RightTapped(object sender, RightTappedRoutedEventArgs e) =>
+        ShowAppMenu(AppGridView, e);
 
     private void SidebarListView_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {

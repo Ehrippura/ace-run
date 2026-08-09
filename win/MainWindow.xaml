@@ -239,6 +239,9 @@
                         CanReorderItems="True"
                         CanDragItems="True"
                         AllowDrop="True"
+                        DragOver="SidebarListView_DragOver"
+                        DragLeave="SidebarListView_DragLeave"
+                        Drop="SidebarListView_Drop"
                         DragItemsCompleted="SidebarListView_DragItemsCompleted"
                         KeyDown="SidebarListView_KeyDown"
                         ContainerContentChanging="SidebarListView_ContainerContentChanging"
@@ -258,6 +261,14 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+                                    <!-- Same highlight as a folder row. Toggled from code
+                                         rather than bound: the header is not a view model. -->
+                                    <Border x:Name="UngroupedDropHighlight"
+                                        Grid.Column="0" Grid.ColumnSpan="3"
+                                        Margin="-12,-4"
+                                        CornerRadius="4"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="Collapsed" />
                                     <FontIcon Grid.Column="0"
                                         Glyph="&#xE8FD;" FontSize="14"
                                         Margin="0,0,8,0"
@@ -282,6 +293,20 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+
+                                    <!-- Drop-target highlight. Behind the row content and
+                                         spanning every column; the negative margin cancels
+                                         the container's 12,4 padding so the fill reaches the
+                                         row edges instead of floating as an inset pill.
+                                         Achromatic on purpose — the rail already spends its
+                                         colour budget on the workspace selection indicator,
+                                         and this is the platform's own hover fill, which is
+                                         what a drop target should look like. -->
+                                    <Border Grid.Column="0" Grid.ColumnSpan="3"
+                                        Margin="-12,-4"
+                                        CornerRadius="4"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind DropTargetVisibility, Mode=OneWay}" />
 
                                     <FontIcon Grid.Column="0"
                                         Glyph="&#xE8B7;"
@@ -348,11 +373,12 @@
                 <GridView
                     x:Name="AppGridView"
                     Padding="12,12,4,4"
-                    SelectionMode="Single"
+                    SelectionMode="Extended"
                     CanReorderItems="True"
                     CanDragItems="True"
                     AllowDrop="True"
                     DoubleTapped="AppGridView_DoubleTapped"
+                    DragItemsStarting="AppGridView_DragItemsStarting"
                     DragOver="AppGridView_DragOver"
                     Drop="AppGridView_Drop"
                     DragItemsCompleted="AppGridView_DragItemsCompleted"
@@ -475,7 +501,7 @@
                     x:Name="SearchResultsView"
                     Visibility="Collapsed"
                     Padding="8,0,8,8"
-                    SelectionMode="Single"
+                    SelectionMode="Extended"
                     DoubleTapped="SearchResultsView_DoubleTapped"
                     RightTapped="SearchResultsView_RightTapped"
                     PreviewKeyDown="SearchResultsView_KeyDown"
