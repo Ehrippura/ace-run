@@ -45,7 +45,7 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 | `Ctrl+A` (in the item list) | Select every item in the current view |
 | `Delete` | Delete the selected items — or the selected folder, in the sidebar |
 | `F2` | Rename the selected folder (sidebar) |
-| Your global shortcut | Summon the window from any app; press again to hide it (off by default — set it in Settings) |
+| Your global shortcut | Summon the window from any app and land in the search box, ready to type; press again to hide it (off by default — set it in Settings) |
 
 ## Requirements
 

@@ -190,6 +190,15 @@ namespace ace_run
             }
 
             ShowWindow();
+
+            // Queued rather than called inline. BringToForeground does its own work on the
+            // dispatcher, and focus set before the window is actually foreground does not
+            // stick. The queue is FIFO, so this lands after it.
+            //
+            // Only the hotkey path does this. Clicking the tray icon is a deliberate,
+            // mouse-in-hand act; being dropped into a text field there is not what was asked
+            // for, and it would steal the caret from whatever the user clicks next.
+            _window.DispatcherQueue.TryEnqueue(() => _window?.FocusSearchBox());
         }
 
         /// <summary>

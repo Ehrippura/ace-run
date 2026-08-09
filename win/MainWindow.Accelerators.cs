@@ -148,10 +148,32 @@ public sealed partial class MainWindow
     {
         args.Handled = true;
         if (IsModal) return;
+        FocusSearchBox();
+    }
 
-        // Keyboard rather than Programmatic: it selects any existing query, so Ctrl+F
-        // followed by typing replaces the search instead of appending to it.
+    /// <summary>
+    /// Puts the caret in the search box with any existing query selected, so the next
+    /// keystroke replaces it. Shared by Ctrl+F and by the global hotkey, which focuses the
+    /// box after summoning the window — arriving at a launcher and having to reach for the
+    /// mouse before typing defeats the point of the hotkey.
+    ///
+    /// <c>Focus</c> alone is not enough, whatever <see cref="FocusState"/> it is given: it
+    /// lands the caret but leaves the selection collapsed at the end of the old text, so
+    /// summoning onto yesterday's "steam" and typing "chrome" produced "steamchrome".
+    /// Verified by hand — this comment used to claim Keyboard focus selected the query, and
+    /// it never did.
+    ///
+    /// The selection is made on the inner TextBox because AutoSuggestBox exposes no
+    /// selection API of its own, and that TextBox is a template part rather than a named
+    /// child of this page. Selecting rather than clearing is deliberate: a summon that only
+    /// wanted to look at the previous results again still finds them on screen.
+    /// </summary>
+    public void FocusSearchBox()
+    {
         SearchBox.Focus(FocusState.Keyboard);
+
+        if (FindDescendant<TextBox>(SearchBox) is { } inner)
+            inner.SelectAll();
     }
 
     private async void AddApp_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
