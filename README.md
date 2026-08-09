@@ -67,7 +67,7 @@ dotnet run --project win/ace-run.csproj
 
 ## Publish
 
-Self-contained publish (x64) — the .NET runtime ships with the app, so the target machine needs no separate install:
+Self-contained publish (x64). Both the .NET runtime and the Windows App SDK runtime ship inside the output folder (`SelfContained` covers the former, `WindowsAppSDKSelfContained` the latter), so the target machine needs no separate install — at the cost of a ~262 MB folder. `dotnet publish` does not clear the target directory, so empty it first when switching publish settings:
 
 ```bash
 dotnet publish win/ace-run.csproj -p:PublishProfile=win/Properties/PublishProfiles/FolderProfile.pubxml

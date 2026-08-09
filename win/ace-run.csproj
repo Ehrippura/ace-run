@@ -75,7 +75,23 @@
 	<PropertyGroup>
 		<PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
 		<PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-		<PublishTrimmed Condition="'$(Configuration)' != 'Debug' and '$(SelfContained)' == 'true'">True</PublishTrimmed>
+
+		<!--
+			Never trim. WinUI 3 resolves XAML types by reflection and this app also binds
+			WScript.Shell through `dynamic` (ResolveLnkTarget), so the trimmer removes
+			metadata nothing statically references. A trimmed publish builds and installs
+			happily and then dies on startup with 0xC000027B inside Microsoft.UI.Xaml.dll.
+
+			This line used to read
+			  Condition="'$(Configuration)' != 'Debug' and '$(SelfContained)' == 'true'"
+			which was inert while SelfContained was false. Turning SelfContained on armed it,
+			and — only on the publish paths where the profile's properties are in scope before
+			this one is evaluated, e.g. Visual Studio's Publish — it produced exactly that
+			crash. Trimming also flips
+			System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault to false, which would
+			take DataService's whole config layer down with it.
+		-->
+		<PublishTrimmed>false</PublishTrimmed>
 		<WindowsPackageType>None</WindowsPackageType>
 	</PropertyGroup>
 </Project>

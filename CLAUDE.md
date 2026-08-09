@@ -33,6 +33,27 @@ dotnet publish win/ace-run.csproj -p:PublishProfile=win/Properties/PublishProfil
 
 The solution file is `win/ace-run.slnx` (can also be opened in Visual Studio).
 
+**The publish output is fully self-contained, and must never be trimmed.** Two *independent*
+switches, both in `FolderProfile.pubxml`: `SelfContained` bundles .NET,
+`WindowsAppSDKSelfContained` bundles the Windows App SDK. Neither implies the other, and both
+are needed — the WindowsAppRuntime is not a Windows component, no ordinary user installs it,
+and it is version-band specific, so a machine carrying 1.6 still cannot run a 1.8 build. The
+pair costs ~262 MB / 513 files; dropping `SelfContained` alone gives 154 MB but moves the
+prerequisite to the .NET 10 Desktop Runtime, which is the same problem one size smaller.
+
+`PublishTrimmed` is pinned to **false** in the csproj. WinUI 3 resolves XAML types by
+reflection and `ResolveLnkTarget` binds WScript.Shell through `dynamic`, so a trimmed build
+compiles (with IL2026 warnings), publishes, and then crashes on startup with `0xC000027B`
+inside `Microsoft.UI.Xaml.dll`. It also flips
+`System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault` to false, which would take
+`DataService` down with it. Note that trimming only engages on a Release **publish** — an
+ordinary `dotnet build` is silent about it, so nothing warns you until the shipped folder
+refuses to start.
+
+Also note `dotnet publish` does **not** clear `PublishDir`. Switching between a trimmed and an
+untrimmed (or framework-dependent and self-contained) publish leaves the old assemblies behind;
+empty the folder first.
+
 ## Data Storage
 
 All data lives under `%LOCALAPPDATA%\AceRun\`:
