@@ -106,6 +106,9 @@
                 VerticalAlignment="Center"
                 Click="PaneToggleButton_Click" />
 
+            <!-- The 4 on the right is not slack: the ComboBox paints ~4 DIP short of its
+                 layout slot, so this is what makes the visible gap to the search field
+                 match the 30 the search field leaves on its other side. -->
             <ComboBox x:Name="WorkspaceComboBox" Grid.Column="3"
                 MinWidth="140"
                 Margin="2,0,4,0"
@@ -135,20 +138,65 @@
                  way instead of overflowing when the window is dragged down to its 720 DIP
                  minimum. A MinWidth here would win over the column and push the field out
                  under the workspace picker. Stretch still reads as centred once MaxWidth
-                 clamps it — a clamped Stretch centres in its slot. The side margins are
-                 what keep it off the picker and the Add button. -->
-            <AutoSuggestBox x:Name="SearchBox" Grid.Column="4"
-                x:Uid="SearchBox"
-                PlaceholderText="Search apps..."
+                 clamps it — a clamped Stretch centres in its slot.
+
+                 The side margins are what keep it off the picker and the Add button, and
+                 they are the *floor*: at the window's minimum width the star column is the
+                 only thing that gives, so whatever is set here is the narrowest the gaps
+                 ever get. 30 DIP — chosen by eye rather than off the spacing scale, which
+                 tops out at 24; the field is the row's hero and wanted the extra air.
+                 Measured, not derived: the picker's painted right edge sits ~4 DIP inside
+                 its layout slot, so its own 4 DIP right margin is what makes both flanks
+                 land on the same 30.
+
+                 The sizing lives on this host Grid rather than on the box, because the
+                 magnifier is a sibling that has to track the box exactly: once MaxWidth
+                 clamps, a Stretch element centres in its slot, so a Left-aligned icon in
+                 the *column* would sit 100+ DIP away from the field it belongs to. Inside
+                 a host that is itself the clamped element, Left means the field's left. -->
+            <Grid Grid.Column="4"
                 MaxWidth="720"
-                Margin="14,0,14,0"
+                Margin="30,0,30,0"
                 HorizontalAlignment="Stretch"
-                VerticalAlignment="Center"
-                QueryIcon="Find"
-                AutomationProperties.AcceleratorKey="Ctrl+F"
-                TextChanged="SearchBox_TextChanged"
-                QuerySubmitted="SearchBox_QuerySubmitted"
-                PreviewKeyDown="SearchBox_PreviewKeyDown" />
+                VerticalAlignment="Center">
+
+                <!-- QueryIcon is null: the built-in one is a *button* pinned to the right of
+                     the template, and there is no property that moves it. Leading glyph is
+                     the search convention (and the direction the eye reads the field), so it
+                     is drawn as an overlay instead and the TextBox is padded to clear it.
+                     Nothing is lost with the button gone — Enter still raises QuerySubmitted,
+                     and the clear "X" still appears on the right once there is text. The
+                     glyph is decorative, hence IsHitTestVisible=False: a click there lands in
+                     the field and puts the caret at the start, which is what a user aiming
+                     at the left edge of a search box wants. -->
+                <AutoSuggestBox x:Name="SearchBox"
+                    x:Uid="SearchBox"
+                    PlaceholderText="Search apps..."
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    QueryIcon="{x:Null}"
+                    AutomationProperties.AcceleratorKey="Ctrl+F"
+                    TextChanged="SearchBox_TextChanged"
+                    QuerySubmitted="SearchBox_QuerySubmitted"
+                    PreviewKeyDown="SearchBox_PreviewKeyDown">
+                    <AutoSuggestBox.TextBoxStyle>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+                            <!-- Left is the platform's own 11 plus room for the 16 DIP glyph
+                                 and the gap after it; the other three sides are the theme's
+                                 TextControlThemePadding untouched. -->
+                            <Setter Property="Padding" Value="35,5,6,6" />
+                        </Style>
+                    </AutoSuggestBox.TextBoxStyle>
+                </AutoSuggestBox>
+
+                <FontIcon Glyph="&#xE721;"
+                    FontSize="16"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Margin="11,0,0,0"
+                    IsHitTestVisible="False"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
 
             <!-- The right margin is the whole point of the exercise: a deliberate 12 DIP
                  of air before the caption buttons, instead of the SDK's 120. -->
