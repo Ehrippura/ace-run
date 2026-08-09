@@ -4,6 +4,8 @@ A lightweight Windows application launcher built with WinUI 3 and C#.
 
 Manage a hierarchical list of `.exe` files and URLs across multiple workspaces and launch them quickly with custom parameters — all from a clean, modern interface.
 
+![Ace Run screenshot](img/screenshot.png)
+
 ## Features
 
 - **Quick Launch** — Add executables and launch them with one click
