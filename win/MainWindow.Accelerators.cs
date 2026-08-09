@@ -34,9 +34,18 @@ public sealed partial class MainWindow
     private int _modalDepth;
     private bool IsModal => _modalDepth > 0;
 
-    /// <summary>Shows a dialog with the modal guard held for its lifetime.</summary>
+    /// <summary>
+    /// Shows a dialog with the modal guard held for its lifetime.
+    ///
+    /// Also the one place the theme override reaches a dialog: a ContentDialog is hosted on
+    /// the popup layer rather than inside the element tree that carries RequestedTheme, so
+    /// it would otherwise come up in the system theme while the window behind it is in the
+    /// chosen one. Every dialog in the app goes through here for exactly that reason.
+    /// </summary>
     private async Task<ContentDialogResult> ShowModalAsync(ContentDialog dialog)
     {
+        dialog.RequestedTheme = Services.ThemeService.ToElementTheme(App.CurrentTheme);
+
         _modalDepth++;
         try { return await dialog.ShowAsync(); }
         finally { _modalDepth--; }
@@ -215,9 +224,12 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Escape, handled most-local-first. Deliberately does not hide the window: without a
-    /// global hotkey the only way back would be the tray icon, which reads as the app
-    /// having vanished.
+    /// Escape, handled most-local-first. Deliberately does not hide the window. The
+    /// original reason — no global hotkey, so the tray icon would be the only way back and
+    /// the app would read as having vanished — no longer holds for everyone, but the
+    /// hotkey is off by default and Esc cannot branch on whether one is bound without
+    /// becoming unpredictable. Hiding on Esc is a settings-gated behaviour change, not a
+    /// side effect of this key.
     /// </summary>
     private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {

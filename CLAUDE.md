@@ -39,7 +39,7 @@ All data lives under `%LOCALAPPDATA%\AceRun\`:
 
 | File/Dir | Purpose |
 |---|---|
-| `config.json` | `WorkspaceConfig` — workspace list, active/default workspace ID, window state |
+| `config.json` | `WorkspaceConfig` — workspace list, active/default workspace ID, window state, `AppSettings` |
 | `workspaces/<guid>.json` | Per-workspace `AppData` — ungrouped items, folders, recent launches |
 | `icons/<guid>.png` | Cached app icons (keyed by `AppItem.Id`) |
 | `apps.json.bak` | Migration backup from pre-workspace format |
@@ -56,24 +56,30 @@ Models/                  # Plain data classes
   AppItem / FolderItem   # Leaf and group nodes (AppItem.SortKey = user-defined Organize key)
   TagItem                # User-defined tag (id, name, color key)
   ItemKind               # App | Url — what AppItem.FilePath points at
-  WorkspaceConfig        # Top-level config (workspaces list + window state)
+  WorkspaceConfig        # v2: Top-level config (workspaces list + window state + Settings)
   WorkspaceInfo          # Workspace metadata (id, name, color tag, app count)
   WorkspaceExport        # Import/export container
+  AppSettings            # App-level prefs; AppTheme + HotkeyBinding live in the same file
 Services/                # Static service classes
   DataService            # JSON persistence, workspace CRUD, migration, shared JsonOptions
   IconService            # Icon cache (disk) + extraction via StorageFile thumbnail
   UrlUtil                # URL normalization / display name / .url shortcut parsing
   Loc                    # Localization (ResourceLoader with embedded .resw fallback)
   ColorTags              # Color-key list + resolution to the shared theme brushes
+  HotkeyService          # RegisterHotKey + WM_HOTKEY via SetWindowSubclass on the main HWND
+  StartupService         # "Start with Windows" via the HKCU Run key
+  ThemeService           # AppTheme -> ElementTheme, applied per root element
 Styles/                  # Design layer, merged in App.xaml
   Tokens.xaml            # Spacing scale, corner radii, type ramp (no colors)
   Brushes.xaml           # ThemeDictionaries: Light / Dark / HighContrast
 ViewModels.cs            # AppItemViewModel, FolderViewModel, WorkspaceViewModel, TagViewModel (all INotifyPropertyChanged)
 MainWindow.xaml/.cs      # Primary UI + all orchestration (split across .Actions/.Data/.Events/.Motion/.TitleBar/.Workspace/.Organize/.ItemMenu partials)
 MainWindow.ItemMenu.cs   # The app-item right-click menu, shared by the tile grid and the search results
+MainWindow.Settings.cs   # The bridge between SettingsWindow and everything the settings change
 EditItemDialog.xaml/.cs  # ContentDialog for add/edit app or URL (folders use ad-hoc dialogs in MainWindow.Actions.cs)
 ManageWorkspacesDialog.xaml/.cs  # ContentDialog for workspace CRUD
 ManageTagsDialog.xaml/.cs        # ContentDialog for tag CRUD
+SettingsWindow.xaml/.cs  # Standalone window (not a dialog) for the six app-level settings
 App.xaml.cs              # App lifecycle, single-instance, tray icon
 Program.cs               # Entry point — single-instance via AppInstance.FindOrRegisterForKey
 ```
@@ -89,6 +95,18 @@ Program.cs               # Entry point — single-instance via AppInstance.FindO
 **Folder navigation goes through one door.** `NavigateToFolder(target, record)` in `MainWindow.History.cs` is the *only* thing that changes which folder the content area shows — rail click, ungrouped row, "Go to folder" from a search result, deleting the open folder, and restoring the saved folder on load all route through it. It sets `_selectedFolder`, the rail selection and `UngroupedItem.IsSelected`, exits search, and refreshes, in that order. Adding a sixth entry point that does those steps by hand will silently skip the back stack. `_suppressFolderNavigation` is the reentrancy guard, playing the same role as `_suppressWorkspaceSwitch`: `NavigateToFolder` assigns `SidebarListView.SelectedItem` itself, so `SidebarListView_SelectionChanged` must ignore the echo. `record: false` marks moves the user did not ask for (workspace load, being evicted from a deleted folder). Back history is `List<Guid?>` (null = ungrouped), session-only, cleared per workspace in `ResetContentState()` and pruned on folder delete; `GoBack` re-resolves each id against `_folders` as it pops, so a stale entry is skipped rather than landing nowhere.
 
 **Save flow (`CommitSave`):** Rebuilds `AppData` from `_ungroupedApps` + `_folders`, updates `WorkspaceInfo.AppCount` (denormalized), calls `DataService.SaveWorkspace` + `DataService.SaveConfig`, then `App.UpdateTrayContextMenu()`.
+
+**Settings have exactly one owner, and it is not the settings window.** `AppSettings` hangs off `WorkspaceConfig` (which is why `WorkspaceConfig.CurrentVersion` is 2; a v1 file simply lacks the key and `System.Text.Json` leaves the property initializer alone, so there is no migration). `MainWindow` holds the one live `WorkspaceConfig` and writes the **whole** thing back from `SaveWindowSize`, `CommitSave`, and `PersistSettings`. `SettingsWindow` therefore never calls `LoadConfig()` — it is handed the `MainWindow` and mutates `owner.Config.Settings` in place. A second copy would be silently overwritten the moment the main window closed. Every default reproduces the pre-settings behaviour (`CloseToTray = true`, no hotkey, `Theme = System`), so an existing install that gains a `Settings` block changes nothing until the user touches something.
+
+`MainWindow.Settings.cs` is the seam. `InitializeSettings()` runs from the constructor — the HWND exists as soon as the `Window` does, and attaching the message hook later would race the first `ApplySettings()`. `ApplySettings()` runs once the config is loaded (top of `InitializeWorkspacesAsync`) and is the only place that fans settings out. `TryApplyHotkey` is separate because it is the one setting that can *fail*: it returns false when Windows refuses the chord, leaving `Settings` untouched so the caller can put the old binding back.
+
+**The global hotkey needs a message loop WinUI does not expose.** `RegisterHotKey` delivers `WM_HOTKEY` to a window's wndproc, so `HotkeyService` subclasses the main HWND with `SetWindowSubclass` (comctl32) rather than standing up a message-only window — the main HWND is stable for the whole process, since closing to the tray is `args.Handled = true` + `AppWindow.Hide()` and never destroys it. Two details are load-bearing: the `SUBCLASSPROC` delegate is held in a **static** field, because unmanaged code keeps no managed reference and a local would be collected out from under every later message; and `MOD_NOREPEAT` is OR'd into the modifiers, without which holding the chord toggles the window dozens of times a second.
+
+**Theme is per-element, and each root has to be told separately.** `Application.RequestedTheme` can only be set before the first window exists, so it cannot serve a toggle; `ThemeService.Apply` writes `FrameworkElement.RequestedTheme` instead, and `App.ApplyTheme` fans it out to the main window and the settings window. A `ContentDialog` lives on the popup layer, outside the tree carrying the override, so it gets its own `RequestedTheme` — set in `ShowModalAsync`, which is why the two manage dialogs were moved off their bare `ShowAsync()` calls and now route through it like every other dialog. `MicaBackdrop` and the system caption buttons both follow the root element's actual theme, so neither needs its own pass.
+
+**`App.TrayEnabled` is not the close-to-tray preference.** It means "the tray icon was created successfully"; the preference is `AppSettings.CloseToTray`, and `MainWindow_Closed` needs both. The else branch has to call `App.ExitApp()`: letting the window close is not quitting, because the tray icon keeps a message loop alive and the process would linger with no window. That branch was unreachable before the setting existed (`TrayEnabled` was only false when tray init threw), which is how the bug survived this long.
+
+**`Loc.Initialize(tag)` must run before the first `GetString`.** Every string in the UI is read once, at construction, and nothing re-reads them — so the language override is applied in `App.OnLaunched` before `new MainWindow()`, and changing it needs a restart, which the settings window says out loud. That costs a second synchronous read of `config.json` (`ApplyInitialWindowSize` does the first); both have to happen before the window is shown. The static constructor still resolves the system language on its own, so a call site that somehow runs earlier gets strings rather than keys.
 
 **Item order is collection order, and Organize does not change that.** There is no comparer, `SortMode` field, or `ICollectionView` anywhere: `CommitSave` serializes `_ungroupedApps` and each `FolderViewModel.Apps` in their current order, so whatever the `ObservableCollection` holds *is* the persisted order. `MainWindow.Organize.cs` is a **one-shot** reorder — it computes a target order and applies it with `ObservableCollection.Move`, after which the result is simply the new manual order. That is why nothing had to be added to `FolderItem` and why `CanReorderItems` stays on. Two details are load-bearing: it moves rather than `Clear()`+`Add()`, because a `Reset` recycles every `GridView` container and `AppGridView_ContainerContentChanging` would then release and reload every icon; and it calls `CommitSave()` directly, because the rail is right-clickable during a search and `SaveItems()` early-returns there — the same reason both `DragItemsCompleted` handlers commit directly. Sorting is stable (`OrderBy`, not `List.Sort`) so equal items keep their dragged order, and "by tag" ranks on the *first* tag's index in `_tags`, which `NormalizeAppTags` already keeps in workspace order — sorting on tag name instead would fight that.
 
@@ -145,7 +163,7 @@ Three things the SDK control supplied come back to us. The back and pane-toggle 
 
 **Single instance:** `Program.cs` uses `AppInstance.FindOrRegisterForKey("AceRun-Main")`. If a second instance starts, it redirects activation to the first and exits. The first instance calls `App.BringToForeground()` via P/Invoke on receiving the redirect.
 
-**System tray:** Initialized in `App.xaml.cs` via H.NotifyIcon. Closing the window hides it (`args.Handled = true`) when `App.TrayEnabled` is true. Exiting via tray calls `Environment.Exit(0)` after disposing the icon. `UpdateTrayContextMenu()` is public — called from `MainWindow` after saves to refresh recent launches.
+**System tray:** Initialized in `App.xaml.cs` via H.NotifyIcon. Closing the window hides it (`args.Handled = true`) when the tray icon exists **and** `CloseToTray` is on; otherwise `App.ExitApp()` disposes the icon and calls `Environment.Exit(0)`. `UpdateTrayContextMenu()` is public — called from `MainWindow` after saves to refresh recent launches. The menu carries a Settings entry because it is the only way in while the window is hidden.
 
 ### Notable Capabilities
 

@@ -62,6 +62,7 @@ public sealed partial class MainWindow : Window
 
         ManageWorkspacesMenuItem.Text = Loc.GetString("Workspace_Manage");
         ManageTagsMenuItem.Text = Loc.GetString("Tag_Manage");
+        SettingsMenuItem.Text = Loc.GetString("Settings_Title");
 
         // Accessible name for the icon-only button (screen readers, UIA). Its own label,
         // not "Manage Workspaces" — the menu behind it covers workspaces and tags both.
@@ -76,6 +77,7 @@ public sealed partial class MainWindow : Window
         InstallCodeAccelerators();
         InitializeSearch();
         InitializeNavigationHistory();
+        InitializeSettings();
 
         _searchResults.CollectionChanged += OnShownAppsChanged;
 
@@ -115,7 +117,7 @@ public sealed partial class MainWindow : Window
 
         SaveWindowSize();
 
-        if (App.TrayEnabled)
+        if (App.TrayEnabled && Settings.CloseToTray)
         {
             CommitSave();
             args.Handled = true;
@@ -124,6 +126,13 @@ public sealed partial class MainWindow : Window
         }
 
         CommitSave();
+
+        // Letting the window close is not the same as quitting: the tray icon keeps a
+        // message loop alive, so without this the process lingers with no window. Before
+        // the close-to-tray setting existed this branch was only reachable when the tray
+        // icon had failed to initialize, which is why it went unnoticed.
+        if (App.TrayEnabled)
+            ((App)Application.Current).ExitApp(closeWindow: false);
     }
 
     private void SaveWindowSize()

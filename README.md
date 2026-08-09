@@ -20,6 +20,8 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 - **Single Instance** — Re-launching brings the existing window to the foreground instead of opening a second copy
 - **Icon Extraction** — Automatically displays and caches each app's icon
 - **Keyboard Shortcuts** — Drive the whole app from the keyboard; see below
+- **Global Shortcut** — Bind a key combination that summons the window from anywhere and puts it away again
+- **Settings** — Global shortcut, start with Windows, close-to-tray, hide-after-launch, theme, and language, in their own window
 - **Fluent Design** — Mica backdrop with the workspace color framing the window; light, dark, and high-contrast themes
 - **i18n** — English, Traditional Chinese, and Japanese
 
@@ -36,13 +38,14 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 | `Ctrl+Alt+N` | New folder |
 | `Ctrl+B` | Toggle the sidebar |
 | `Alt+Left` / mouse back button | Go back to the previous folder |
-| `Ctrl+,` | Open the Manage menu (workspaces / tags) |
+| `Ctrl+,` | Open the Manage menu (workspaces / tags / settings) |
 | `Ctrl+1`…`Ctrl+9` | Switch to workspace 1–9 |
 | `Enter` | Launch the selected item(s) |
 | `Alt+Enter` | Edit the selected item |
 | `Ctrl+A` (in the item list) | Select every item in the current view |
 | `Delete` | Delete the selected items — or the selected folder, in the sidebar |
 | `F2` | Rename the selected folder (sidebar) |
+| Your global shortcut | Summon the window from any app; press again to hide it (off by default — set it in Settings) |
 
 ## Requirements
 

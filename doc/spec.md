@@ -29,3 +29,4 @@
 | 第八階段：鍵盤快捷鍵 | [8-keyboard-shortcuts.md](spec/8-keyboard-shortcuts.md) | 已實作 |
 | 第九階段：多標籤支援 | [9-multi-tag.md](spec/9-multi-tag.md) | 已實作（tag 篩選未實作） |
 | 第十階段：整理與排序鍵 | [10-organize.md](spec/10-organize.md) | 已實作 |
+| 第十一階段：設定畫面 | [11-settings.md](spec/11-settings.md) | 已實作 |

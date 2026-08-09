@@ -128,4 +128,31 @@
   <data name="Workspace_AppCount" xml:space="preserve"><value>{0} 個應用程式</value></data>
   <data name="Workspace_ManageTitle" xml:space="preserve"><value>管理工作區</value></data>
   <data name="Workspace_NewTitle" xml:space="preserve"><value>新增工作區</value></data>
+
+  <!-- Settings -->
+  <data name="Settings_Title" xml:space="preserve"><value>設定</value></data>
+  <data name="Settings_Group_General" xml:space="preserve"><value>一般</value></data>
+  <data name="Settings_Group_Appearance" xml:space="preserve"><value>外觀</value></data>
+  <data name="Settings_Hotkey_Header" xml:space="preserve"><value>全域快捷鍵</value></data>
+  <data name="Settings_Hotkey_Desc" xml:space="preserve"><value>在任何地方喚出視窗，再按一次收起。</value></data>
+  <data name="Settings_Hotkey_None" xml:space="preserve"><value>未設定</value></data>
+  <data name="Settings_Hotkey_Recording" xml:space="preserve"><value>請按下組合鍵…</value></data>
+  <data name="Settings_Hotkey_Clear" xml:space="preserve"><value>清除快捷鍵</value></data>
+  <data name="Settings_Hotkey_NeedModifier" xml:space="preserve"><value>必須包含 Ctrl、Alt 或 Win——單獨一個按鍵會被整個系統攔截。</value></data>
+  <data name="Settings_Hotkey_Conflict" xml:space="preserve"><value>這組快捷鍵已被其他程式占用，維持原本的設定。</value></data>
+  <data name="Settings_Startup_Header" xml:space="preserve"><value>開機時自動啟動</value></data>
+  <data name="Settings_Startup_Desc" xml:space="preserve"><value>登入後在系統匣待命，不會跳出視窗。</value></data>
+  <data name="Settings_CloseToTray_Header" xml:space="preserve"><value>關閉視窗時縮到系統匣</value></data>
+  <data name="Settings_CloseToTray_Desc" xml:space="preserve"><value>關閉此項時，按下關閉鈕就結束 Ace Run。</value></data>
+  <data name="Settings_HideOnLaunch_Header" xml:space="preserve"><value>啟動項目後隱藏視窗</value></data>
+  <data name="Settings_HideOnLaunch_Desc" xml:space="preserve"><value>啟動應用程式或連結後自動收起視窗。</value></data>
+  <data name="Settings_Theme_Header" xml:space="preserve"><value>佈景主題</value></data>
+  <data name="Settings_Theme_Desc" xml:space="preserve"><value>立即生效。</value></data>
+  <data name="Settings_Theme_System" xml:space="preserve"><value>跟隨系統</value></data>
+  <data name="Settings_Theme_Light" xml:space="preserve"><value>淺色</value></data>
+  <data name="Settings_Theme_Dark" xml:space="preserve"><value>深色</value></data>
+  <data name="Settings_Language_Header" xml:space="preserve"><value>語言</value></data>
+  <data name="Settings_Language_Desc" xml:space="preserve"><value>下次啟動 Ace Run 時生效。</value></data>
+  <data name="Settings_Language_System" xml:space="preserve"><value>跟隨系統</value></data>
+  <data name="Settings_Language_RestartRequired" xml:space="preserve"><value>請重新啟動 Ace Run 以套用新的語言。</value></data>
 </root>

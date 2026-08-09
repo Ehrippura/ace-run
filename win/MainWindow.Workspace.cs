@@ -16,6 +16,10 @@ public sealed partial class MainWindow
     {
         _workspaceConfig = DataService.MigrateOrInitialize();
 
+        // The one point where the settings become real. Before this the config held only
+        // defaults, so the theme and the hotkey had nothing to act on.
+        ApplySettings();
+
         _workspaces.Clear();
         foreach (var ws in _workspaceConfig.Workspaces)
             _workspaces.Add(new WorkspaceViewModel(ws));
@@ -164,7 +168,7 @@ public sealed partial class MainWindow
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var dialog = new ManageWorkspacesDialog(hwnd, _currentWorkspace.Id);
             dialog.XamlRoot = Content.XamlRoot;
-            await dialog.ShowAsync();
+            await ShowModalAsync(dialog);
             await ReloadAfterWorkspaceManagement();
         });
 
@@ -173,7 +177,7 @@ public sealed partial class MainWindow
         {
             var dialog = new ManageTagsDialog(_tags);
             dialog.XamlRoot = Content.XamlRoot;
-            await dialog.ShowAsync();
+            await ShowModalAsync(dialog);
 
             // Reconcile apps with the (possibly) changed tag list, then persist. Renames
             // and recolors need no pass here: the tiles bind the tag instances directly.
