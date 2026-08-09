@@ -30,9 +30,6 @@ internal static class Loc
 
     private static Dictionary<string, string> Resolve(string? languageTag)
     {
-        // Also steers the packaged path: ResourceLoader picks its language from the
-        // thread's UI culture, so setting this before constructing it is what makes the
-        // override apply to both halves of the lookup in GetString.
         if (!string.IsNullOrWhiteSpace(languageTag))
         {
             try
@@ -45,6 +42,25 @@ internal static class Loc
             {
                 languageTag = null; // a hand-edited config.json should not brick the strings
             }
+        }
+
+        // The culture assignment above steers .NET formatting and nothing else. MRT — the
+        // `ace-run.pri` next to the exe — resolves against its own ResourceContext and never
+        // looks at CultureInfo, so for a long time the override changed the embedded-.resw
+        // fallback while the real answers still came back in the system language.
+        // PrimaryLanguageOverride is the one knob MRT reads, and it steers both halves of
+        // this: the ResourceLoader below *and* XAML's x:Uid, which never comes through here.
+        // It has to be set before either resolves anything, which is why App.OnLaunched
+        // calls Initialize before constructing the main window.
+        try
+        {
+            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride =
+                string.IsNullOrWhiteSpace(languageTag) ? string.Empty : languageTag;
+        }
+        catch
+        {
+            // An unsupported tag is refused rather than thrown at the user; the app then
+            // runs in the system language, same as before the override existed.
         }
 
         try

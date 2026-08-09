@@ -120,9 +120,9 @@
             </DropDownButton>
         </StackPanel>
 
-        <!-- Header and placeholder are set from Loc in code rather than x:Uid: this build is
-             unpackaged, so x:Uid resolves to the XAML literal, and the other half of this
-             feature (the Organize menu) does localize. -->
+        <!-- Header and placeholder come from Loc in code rather than x:Uid. Either would work
+             — MRT resolves x:Uid in this unpackaged build too — but the other half of this
+             feature (the Organize menu) is built in code, so both halves read from one place. -->
         <TextBox x:Name="SortKeyBox" />
 
         <ToggleSwitch x:Name="RunAsAdminSwitch"
