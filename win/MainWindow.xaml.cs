@@ -67,15 +67,17 @@ public sealed partial class MainWindow : Window
         ManageTagsMenuItem.Text = Loc.GetString("Tag_Manage");
         SettingsMenuItem.Text = Loc.GetString("Settings_Title");
 
+        // Ctrl+, opens Settings itself, not this menu, so the hint belongs on the entry that
+        // does the same thing. Text override rather than a real KeyboardAccelerator on the
+        // item: the accelerator lives on RootGrid, and a flyout item's visual tree does not
+        // exist until the flyout has been opened once.
+        SettingsMenuItem.KeyboardAcceleratorTextOverride = "Ctrl+,";
+
         // Accessible name for the icon-only button (screen readers, UIA). Its own label,
         // not "Manage Workspaces" — the menu behind it covers workspaces and tags both.
-        // The shortcut is appended by hand: every accelerator is declared with
-        // KeyboardAcceleratorPlacementMode="Hidden" on RootGrid, so the framework's own
-        // hint would have nowhere to appear.
         var manage = Loc.GetString("SettingsButton_Label");
-        ToolTipService.SetToolTip(SettingsButton, string.Format(Loc.GetString("Shortcut_Format"), manage, "Ctrl+,"));
+        ToolTipService.SetToolTip(SettingsButton, manage);
         AutomationProperties.SetName(SettingsButton, manage);
-        AutomationProperties.SetAcceleratorKey(SettingsButton, "Ctrl+,");
 
         InstallCodeAccelerators();
         InitializeSearch();

@@ -107,7 +107,7 @@ public sealed partial class MainWindow
                 () => SelectWorkspaceByIndex(index));
         }
 
-        AddAccelerator(VirtualKeyComma, VirtualKeyModifiers.Control, OpenManageMenu);
+        AddAccelerator(VirtualKeyComma, VirtualKeyModifiers.Control, OpenSettingsWindow);
 
         // The two persistent title-bar flyouts. Transient right-click menus get the same
         // treatment at their ShowAt call sites via ShowTrackedFlyout.
@@ -205,13 +205,20 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Opens the gear menu rather than a specific dialog: both entries behind it are rare,
-    /// and arrow keys reach either one immediately.
+    /// Ctrl+, opens Settings directly — the convention the shortcut carries everywhere else.
+    /// It used to open the gear menu instead, which made the app's one standard shortcut
+    /// land on a menu the user then had to arrow through; workspaces and tags are still one
+    /// click away behind the gear.
+    ///
+    /// The modal guard still applies even though SettingsWindow is a top-level window rather
+    /// than a ContentDialog: raising it over an open dialog would leave a modal the user
+    /// cannot see behind a window they can. <c>App.ShowSettings</c> owns the single-instance
+    /// rule, so a repeat press just brings the open one forward.
     /// </summary>
-    private void OpenManageMenu()
+    private void OpenSettingsWindow()
     {
         if (IsModal) return;
-        SettingsButton.Flyout?.ShowAt(SettingsButton);
+        ((App)Application.Current).ShowSettings(this);
     }
 
     #endregion
