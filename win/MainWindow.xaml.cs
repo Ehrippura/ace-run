@@ -40,6 +40,9 @@ public sealed partial class MainWindow : Window
 
         ApplyInitialWindowSize();
 
+        // Alt+Tab and the taskbar read the window's own icon, which WinUI never sets.
+        WindowIconService.Apply(this);
+
         ExtendsContentIntoTitleBar = true;
         // The chrome row is 48px tall; without this the system caption buttons stay 32px
         // tall against a 48px band. Set before InitializeTitleBar so the first inset pass

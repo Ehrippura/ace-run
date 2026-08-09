@@ -45,6 +45,7 @@ public sealed partial class SettingsWindow : Window
         InitializeComponent();
 
         ApplyInitialWindowSize();
+        WindowIconService.Apply(this);
 
         ExtendsContentIntoTitleBar = true;
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
