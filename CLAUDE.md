@@ -27,7 +27,7 @@ dotnet build win/ace-run.csproj
 # Run (unpackaged mode)
 dotnet run --project win/ace-run.csproj
 
-# Publish (framework-dependent, x64)
+# Publish (self-contained, x64)
 dotnet publish win/ace-run.csproj -p:PublishProfile=win/Properties/PublishProfiles/FolderProfile.pubxml
 ```
 

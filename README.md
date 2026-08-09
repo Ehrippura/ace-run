@@ -10,15 +10,17 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 - **URLs & Protocols** — Add web links alongside your apps; custom protocols like `steam://`, `obsidian://` and `ms-settings:` work too
 - **Custom Parameters** — Set arguments, working directory, and admin mode per app
 - **Drag & Drop** — Drop `.exe`, `.lnk` or `.url` files into the window, or drag a link straight from your browser; silently added with sensible defaults
-- **Folder Grouping** — Organize apps into folders with drag-to-reorder
-- **Tags** — Label apps with color-coded tags and filter/organize by them
-- **Multiple Workspaces** — Switch between independent app lists, each with its own folders and tags; export/import as `.acerun` files
-- **Multi-Select** — Batch delete and reorder multiple items at once
-- **Search** — Filter your app list instantly by name or path/URL, with folder context and one-click jump to an item's folder
+- **Folder Grouping** — Organize apps into folders with drag-to-reorder; drag tiles onto a sidebar folder to move them there, and go back to the previous folder with `Alt+Left` or the mouse back button
+- **Organize** — Right-click a folder in the sidebar to sort it in one pass by name, path, tag, or a custom sort key — or reverse it. The result becomes the new manual order, so drag-to-reorder keeps working afterwards
+- **Tags** — Give an app any number of color-coded tags; tag names are searchable, and a folder can be sorted by tag
+- **Multiple Workspaces** — Switch between independent app lists, each with its own folders, tags, and accent color; export/import as `.acerun` files
+- **Multi-Select** — Select several items and launch, tag, move, delete, or drag them onto a folder in one go
+- **Search** — Instantly filter by name, path/URL, launch arguments, or tag name, ranked with recently launched items first; every result shows its folder and can jump to it
 - **System Tray** — Minimize to tray, quick-launch recent apps from the context menu
 - **Single Instance** — Re-launching brings the existing window to the foreground instead of opening a second copy
 - **Icon Extraction** — Automatically displays and caches each app's icon
 - **Keyboard Shortcuts** — Drive the whole app from the keyboard; see below
+- **Fluent Design** — Mica backdrop with the workspace color framing the window; light, dark, and high-contrast themes
 - **i18n** — English, Traditional Chinese, and Japanese
 
 ## Keyboard Shortcuts
@@ -33,11 +35,13 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 | `Ctrl+Shift+N` | Add a URL |
 | `Ctrl+Alt+N` | New folder |
 | `Ctrl+B` | Toggle the sidebar |
+| `Alt+Left` / mouse back button | Go back to the previous folder |
 | `Ctrl+,` | Open the Manage menu (workspaces / tags) |
 | `Ctrl+1`…`Ctrl+9` | Switch to workspace 1–9 |
-| `Enter` | Launch the selected item |
+| `Enter` | Launch the selected item(s) |
 | `Alt+Enter` | Edit the selected item |
-| `Delete` | Delete the selected item(s) |
+| `Ctrl+A` (in the item list) | Select every item in the current view |
+| `Delete` | Delete the selected items — or the selected folder, in the sidebar |
 | `F2` | Rename the selected folder (sidebar) |
 
 ## Requirements
@@ -60,7 +64,7 @@ dotnet run --project win/ace-run.csproj
 
 ## Publish
 
-Framework-dependent publish (x64):
+Self-contained publish (x64) — the .NET runtime ships with the app, so the target machine needs no separate install:
 
 ```bash
 dotnet publish win/ace-run.csproj -p:PublishProfile=win/Properties/PublishProfiles/FolderProfile.pubxml
