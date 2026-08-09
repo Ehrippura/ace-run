@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using H.NotifyIcon;
@@ -231,20 +232,29 @@ namespace ace_run
         {
             _window?.DispatcherQueue.TryEnqueue(() =>
             {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
-                if (IsIconic(hwnd))
-                    ShowWindowWin32(hwnd, SW_RESTORE);
+                // Un-minimise through the presenter rather than ShowWindow(SW_RESTORE):
+                // OverlappedPresenter answers both halves of that (State and Restore), and
+                // MainWindow.Motion.cs already reads State for the corner-radius gate.
+                if (_window!.AppWindow.Presenter is OverlappedPresenter
+                    { State: OverlappedPresenterState.Minimized } presenter)
+                    presenter.Restore();
+
                 _window.AppWindow.Show();
-                SetForegroundWindow(hwnd);
+
+                // SetForegroundWindow has no Windows App SDK equivalent, and Activate() alone
+                // is not one: a process that is not already foreground cannot raise itself
+                // through it, which is the whole job here — the caller is a global hotkey or a
+                // second instance redirecting activation.
+                SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(_window));
                 _window.Activate();
             });
         }
 
+        // Only the two calls that genuinely have no managed counterpart are left. "Is my
+        // window the foreground one" could be tracked from Window.Activated instead, but a
+        // cached bool can desync from the OS; asking is cheaper than maintaining.
         [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
         [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
-        [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hWnd);
-        [DllImport("user32.dll", EntryPoint = "ShowWindow")] private static extern bool ShowWindowWin32(IntPtr hWnd, int nCmdShow);
-        private const int SW_RESTORE = 9;
 
         /// <summary>
         /// Public because the close button now reaches it: with close-to-tray switched off,

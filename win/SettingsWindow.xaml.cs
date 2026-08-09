@@ -282,16 +282,18 @@ public sealed partial class SettingsWindow : Window
     }
 
     /// <summary>
-    /// GetKeyState, not <c>InputKeyboardSource.GetKeyStateForCurrentThread</c>. The latter
-    /// reported *no* modifiers for Ctrl+Alt+Space in testing — the chord came through as a
-    /// bare Space and was rejected as "needs a modifier" — while reading Ctrl+Alt+K
-    /// correctly. GetKeyState is the API defined to answer for the message currently being
-    /// processed, which is exactly the question a recorder is asking.
+    /// This used to be Win32 <c>GetKeyState</c>, on the belief that
+    /// <c>InputKeyboardSource.GetKeyStateForCurrentThread</c> could not see the modifiers —
+    /// it "read Ctrl+Alt+K correctly but reported none for Ctrl+Alt+Space". That was a bad
+    /// diagnosis. Ctrl+Alt+Space is registered as another application's global hotkey on the
+    /// machine it was tested on, so the OS consumed it: instrumenting this method to log both
+    /// APIs for the *same* keystroke showed Ctrl and Alt arriving and **both APIs agreeing**,
+    /// with no Space event at all. Across every chord that actually reaches the window the two
+    /// never disagreed, so the P/Invoke bought nothing. Don't reintroduce it on the strength of
+    /// a chord that some other process owns — check first that the key even arrives.
     /// </summary>
-    private static bool IsDown(VirtualKey key) => (GetKeyState((int)key) & 0x8000) != 0;
-
-    [DllImport("user32.dll")]
-    private static extern short GetKeyState(int nVirtKey);
+    private static bool IsDown(VirtualKey key) =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
 
     #endregion
 
