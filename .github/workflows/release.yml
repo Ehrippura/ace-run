@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本號 (例如 v1.0.0)，用於手動測試打包'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.rid }}
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            rid: win-x64
+          - platform: ARM64
+            rid: win-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = if ($env:GITHUB_REF -like 'refs/tags/*') { $env:GITHUB_REF -replace '^refs/tags/', '' }
+               else { '${{ github.event.inputs.version }}' }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Restore
+        run: dotnet restore win/ace-run.csproj -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }}
+
+      # The self-contained profile carries both SelfContained switches and PublishTrimmed=false
+      # (see CLAUDE.md). PublishDir is overridden here because the checked-in profile points at
+      # a local Desktop folder; command-line properties are global and win over the profile.
+      - name: Publish
+        run: >
+          dotnet publish win/ace-run.csproj
+          -c Release
+          -p:Platform=${{ matrix.platform }}
+          -r ${{ matrix.rid }}
+          -p:PublishProfile=self-contained
+          -p:PublishDir=${{ github.workspace }}\artifacts\${{ matrix.rid }}\
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "ace-run-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.zip"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path "artifacts\${{ matrix.rid }}\*" -DestinationPath "dist\$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ace-run-${{ matrix.rid }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF#refs/tags/}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${GITHUB_REF#refs/tags/}" \
+            --generate-notes \
+            dist/*.zip

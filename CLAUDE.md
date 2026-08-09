@@ -30,10 +30,21 @@ dotnet build win/ace-run.csproj
 dotnet run --project win/ace-run.csproj
 
 # Publish (self-contained, x64). Empty the output folder first — publish does not clear it.
-dotnet publish win/ace-run.csproj -p:PublishProfile=win/Properties/PublishProfiles/FolderProfile.pubxml
+dotnet publish win/ace-run.csproj -c Release -p:Platform=x64 -r win-x64 -p:PublishProfile=self-contained
 ```
 
 The solution file is `win/ace-run.slnx` (can also be opened in Visual Studio).
+
+**`-p:Platform` is not optional.** The csproj declares `x86;x64;ARM64` and no AnyCPU, so any build or publish that omits it resolves no configuration. `PublishProfile` takes the *name*, not a path — MSBuild looks under `win/Properties/PublishProfiles/`.
+
+There are two profiles, and each pins `Configuration=Release`, `Platform=x64` and `RuntimeIdentifier=win-x64` so a bare `-p:PublishProfile=<name>` works on its own:
+
+| Profile | Bundles | Target needs |
+|---|---|---|
+| `self-contained` | .NET **and** the Windows App SDK (~263 MB) | nothing — this is the one users get |
+| `environment-deps` | neither (~41 MB, no ReadyToRun) | .NET 10 Desktop Runtime **and** WindowsAppRuntime 1.8 preinstalled |
+
+Both carry a `PublishDir` pointing at a local Desktop folder, which is a personal convenience and not something to depend on. Override it — and the platform/RID for a non-x64 build — with command-line properties: those are MSBuild *global* properties and win over anything the profile sets, which is exactly how `.github/workflows/release.yml` retargets the same profile at `win-arm64` and at its own artifacts folder.
 
 **Two self-contained switches, and no trimming.** `SelfContained` bundles .NET, `WindowsAppSDKSelfContained` bundles the Windows App SDK; neither implies the other and both are needed, because no ordinary user installs the WindowsAppRuntime and it is version-band specific. `PublishTrimmed` is pinned **false**: WinUI 3 resolves XAML types by reflection, so a trimmed build publishes cleanly and then crashes on startup inside `Microsoft.UI.Xaml.dll`. Trimming engages only on a Release *publish*, so an ordinary build never warns you.
 
