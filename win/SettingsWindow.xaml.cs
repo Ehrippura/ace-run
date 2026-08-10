@@ -44,7 +44,7 @@ public sealed partial class SettingsWindow : Window
         _owner = owner;
         InitializeComponent();
 
-        ApplyInitialWindowSize();
+        ApplyInitialWindowPlacement();
         WindowIconService.Apply(this);
 
         ExtendsContentIntoTitleBar = true;
@@ -70,7 +70,7 @@ public sealed partial class SettingsWindow : Window
         _loading = false;
     }
 
-    private void ApplyInitialWindowSize()
+    private void ApplyInitialWindowPlacement()
     {
         var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
         var scale = GetDpiForWindow(hwnd) / 96.0;
@@ -83,7 +83,40 @@ public sealed partial class SettingsWindow : Window
 
         // AppWindow.Resize takes physical pixels; XamlRoot.RasterizationScale is not
         // available this early, hence the P/Invoke — same as MainWindow.
-        AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
+        var size = new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale));
+        AppWindow.Resize(size);
+        CenterOverOwner(size);
+    }
+
+    /// <summary>
+    /// Puts the window over the middle of the main window. Without this the OS picks the
+    /// spot, and a cascade from the last top-level window can land it a screen away from
+    /// the window it belongs to.
+    ///
+    /// The owner's own monitor is what the result is clamped to, not the settings window's:
+    /// its <c>DisplayArea</c> is resolved from where the OS happened to put it, which is the
+    /// placement being replaced. A minimised owner reports a position off-screen
+    /// (-32000), so that case centres on the monitor instead.
+    /// </summary>
+    private void CenterOverOwner(SizeInt32 size)
+    {
+        var owner = _owner.AppWindow;
+        var work = DisplayArea.GetFromWindowId(owner.Id, DisplayAreaFallback.Primary).WorkArea;
+
+        var minimized = owner.Presenter is OverlappedPresenter
+            { State: OverlappedPresenterState.Minimized };
+
+        var anchor = minimized
+            ? new RectInt32(work.X, work.Y, work.Width, work.Height)
+            : new RectInt32(owner.Position.X, owner.Position.Y, owner.Size.Width, owner.Size.Height);
+
+        var x = anchor.X + (anchor.Width - size.Width) / 2;
+        var y = anchor.Y + (anchor.Height - size.Height) / 2;
+
+        x = Math.Clamp(x, work.X, Math.Max(work.X, work.X + work.Width - size.Width));
+        y = Math.Clamp(y, work.Y, Math.Max(work.Y, work.Y + work.Height - size.Height));
+
+        AppWindow.Move(new PointInt32(x, y));
     }
 
     #region Strings
