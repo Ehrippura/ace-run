@@ -49,6 +49,7 @@
 - [x] 獨立 `Window` 而非 `ContentDialog`：項目分成六組，塞進對話框會過高，且即時套用的互動與另外兩個對話框的確定／取消流程不同調。
 - [x] `MicaBackdrop` + `ExtendsContentIntoTitleBar`，標題列只有一個靠左的標題文字，`SetTitleBar` 整條。**不需要** `UpdateTitleBarInsets` 那套實體像素÷scale 的算術——標題列右端沒有任何控制項，caption strip 底下是空的。
 - [x] 尺寸於建構子決定（560×680 DIP），沿用 `MainWindow.ApplyInitialWindowSize()` 的 DPI 手法（`GetDpiForWindow`，`AppWindow.Resize` 吃實體像素）；`IsMaximizable = false`。
+- [x] 位置也在建構子決定，於主視窗上置中（`ApplyInitialWindowPlacement` → `CenterOverOwner`）。不指定位置時由 OS 的層疊規則決定，實測會落在離主視窗很遠、甚至另一個螢幕的地方。夾住結果用的是**主視窗所在螢幕**的 `WorkArea`，不是設定視窗自己的——後者反映的正是要取代的那個隨手擺放位置。主視窗最小化時位置回報為離屏值（-32000），該情況改在螢幕工作區置中。
 - [x] 單一實例：`App` 持有欄位，已開啟就 `Activate()` 而非開第二扇。
 - [x] 版面為 `ScrollViewer` + 手刻的設定卡（`Border` 吃 `CardBackgroundFillColorDefaultBrush` 與 `Styles/Tokens.xaml` 的圓角）。不引入 `CommunityToolkit.WinUI.Controls.SettingsControls`：為六張卡片增加專案第二個第三方相依不划算。
 - [x] **即時套用，沒有確定／取消**，每次變更立刻 `DataService.SaveConfig` 並回呼主視窗重新套用。
