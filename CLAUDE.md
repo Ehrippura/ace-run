@@ -7,6 +7,7 @@ It records **rules and the reasons behind them** — the things that look like c
 ## Working Rules
 
 - After finishing edits, do not automatically commit changes unless the user explicitly asks for a commit.
+- **When a change touches something an existing phase already specified, amend that phase's file under `doc/spec/` — do not add a new phase.** Phase numbers are historical order, not scope boundaries, and a reader of one file must not be misled by it. Only genuinely new scope earns a new phase. Numbering gaps are expected (phase 9 was merged back into 6); never renumber to close one.
 
 ## Project Overview
 
