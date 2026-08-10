@@ -15,7 +15,7 @@ namespace ace_run.Models;
 /// </summary>
 public class AppSettings
 {
-    /// <summary>null = no global hotkey registered. Off by default — see 11-settings.md §2.</summary>
+    /// <summary>null = no global hotkey registered. Off by default — see 10-settings.md §2.</summary>
     public HotkeyBinding? Hotkey { get; set; }
 
     public bool StartWithWindows { get; set; }

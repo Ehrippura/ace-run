@@ -2,9 +2,9 @@
 
 ## 1. 使用 H.NotifyIcon 提供 System Tray 支援
 
-- [x] 支援將應用程式最小化至 System Tray。第十一階段起這是可關閉的偏好（`AppSettings.CloseToTray`，預設開啟）；關閉時按下關閉鈕即結束程式。
+- [x] 支援將應用程式最小化至 System Tray。第十階段起這是可關閉的偏好（`AppSettings.CloseToTray`，預設開啟）；關閉時按下關閉鈕即結束程式。
 - [x] 雙擊 Tray Icon 恢復視窗顯示。
-- [x] Tray Icon 右鍵選單包含「最近開啟的程式」與「結束」選項，第十一階段另加入「設定」（視窗隱藏時這是唯一入口）。
+- [x] Tray Icon 右鍵選單包含「最近開啟的程式」與「結束」選項，第十階段另加入「設定」（視窗隱藏時這是唯一入口）。
 
 ## 2. 資料夾分組管理 (Folder Grouping)
 

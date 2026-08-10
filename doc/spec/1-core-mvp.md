@@ -18,6 +18,6 @@
 
 ## 4. 資料持久化 (Persistence)
 
-- [x] 定義資料模型 (AppItem)，包含 Id、DisplayName、FilePath 等屬性。後續階段擴充了 `TagIds`（第六階段）、`Kind`（第七階段）與 `SortKey`（第十階段）。
+- [x] 定義資料模型 (AppItem)，包含 Id、DisplayName、FilePath 等屬性。後續階段擴充了 `TagIds`（第六階段）、`Kind`（第七階段）與 `SortKey`（第九階段）。
 - [x] 應用程式關閉時，將列表序列化為 JSON 儲存至 `%LOCALAPPDATA%\AceRun\`。最初是單一檔案 `apps.json`；第五階段起改為 `config.json`（工作區清單與設定）加上每個工作區一份的 `workspaces/<guid>.json`，`apps.json` 只以 `.bak` 形式保留為遷移備份。
 - [x] 應用程式開啟時，讀取 JSON 並還原列表。首次啟動由 `DataService.MigrateOrInitialize()` 判斷要讀 `config.json` 還是遷移舊的 `apps.json`。

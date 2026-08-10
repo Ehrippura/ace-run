@@ -1,4 +1,4 @@
-# 第十一階段：設定畫面 ✓ 已完成
+# 第十階段：設定畫面 ✓ 已完成
 
 目標：在此之前應用程式層級的行為全部寫死——關閉視窗一律縮到系統匣、主題與語言完全跟隨系統、沒有全域快捷鍵。`MainWindow.Accelerators.cs` 的 Esc 處理註解直接寫明它之所以不隱藏視窗，就是因為沒有全域快捷鍵可以喚回來，兩個缺口互相卡住。本階段補上一個獨立的設定視窗，把四組行為開關化，並以全域快捷鍵為主軸。
 
@@ -8,7 +8,7 @@
   - `AppSettings`：`Hotkey`（`HotkeyBinding?`，null = 停用）、`StartWithWindows`、`CloseToTray`（預設 `true`，維持現行行為）、`Theme`、`Language`（`""` = 跟隨系統）、`HideOnLaunch`。
   - `AppTheme`：`System` / `Light` / `Dark`。
   - `HotkeyBinding`：`VirtualKeyModifiers Modifiers` + `VirtualKey Key`。兩者都是 WinRT enum，靠 `DataService.JsonOptions` 既有的 `JsonStringEnumConverter` 存成 `"Control, Menu"` / `"Space"` 這種人看得懂的字串，不另寫轉換器。
-- [x] `WorkspaceConfig` 新增 `Settings`，`CurrentVersion` 由 1 提升至 2。舊檔缺 `Settings` 鍵時 `System.Text.Json` 保留屬性初始值，**不需要 migration 程式碼**（與第十階段 `SortKey` 同一個理由）。
+- [x] `WorkspaceConfig` 新增 `Settings`，`CurrentVersion` 由 1 提升至 2。舊檔缺 `Settings` 鍵時 `System.Text.Json` 保留屬性初始值，**不需要 migration 程式碼**（與第九階段 `SortKey` 同一個理由）。
 - [x] 設定放在 `config.json` 而非各 workspace：這些是應用程式層級的偏好，跟著使用者不跟著工作區。
 - [x] **單一擁有者**：`MainWindow` 持有 `_workspaceConfig` 並在關閉時整份寫回。設定視窗若自行 `LoadConfig()` 一份來改，主視窗關閉時那份舊的會把設定蓋掉。因此 `SettingsWindow` 由建構子接收**主視窗手上那個實例**，改的是同一個 `AppSettings` 物件。
 

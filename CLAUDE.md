@@ -7,7 +7,7 @@ It records **rules and the reasons behind them** — the things that look like c
 ## Working Rules
 
 - After finishing edits, do not automatically commit changes unless the user explicitly asks for a commit.
-- **When a change touches something an existing phase already specified, amend that phase's file under `doc/spec/` — do not add a new phase.** Phase numbers are historical order, not scope boundaries, and a reader of one file must not be misled by it. Only genuinely new scope earns a new phase. Numbering gaps are expected (phase 9 was merged back into 6); never renumber to close one.
+- **When a change touches something an existing phase already specified, amend that phase's file under `doc/spec/` — do not add a new phase.** Phase numbers are historical order, not scope boundaries, and a reader of one file must not be misled by it. Only genuinely new scope earns a new phase. Merging a phase away (phase 9 went back into 6) means renumbering the ones after it to close the gap — and updating every cross-reference: the `doc/spec.md` table, the "第 N 階段" mentions inside other phase files, and filenames cited in code comments.
 
 ## Project Overview
 
