@@ -8,7 +8,7 @@
 
 ### 多標籤支援（第九階段）
 
-解除「一個項目只能有一個 tag」的 UI 限制。資料格式未變（`AppItem.TagIds` 本即 `List<Guid>`，`AppData` 維持 v5），舊 workspace 直接可讀。詳見 [doc/spec/9-multi-tag.md](spec/9-multi-tag.md)。
+解除「一個項目只能有一個 tag」的 UI 限制。資料格式未變（`AppItem.TagIds` 本即 `List<Guid>`，`AppData` 維持 v5），舊 workspace 直接可讀。詳見 [doc/spec/6-tags.md](spec/6-tags.md)（原 `9-multi-tag.md`，已併入第六階段）。
 
 - `AppItemViewModel.Tags` 改為持有 `MainWindow._tags` 的同一批 `TagViewModel` 實例，改名／改色透過 tag 自身的 `INotifyPropertyChanged` 傳播到所有卡片；移除原本的 `TagColorKey` / `TagName` 反正規化欄位與 `RefreshAllAppTagColors()`。
 - `NormalizeAppTags()` 改為去除失效 tag、去重並依 workspace tag 順序排序——指派順序刻意不作為使用者狀態，讓相同標籤組合在各卡片上排列一致。

@@ -1,4 +1,4 @@
-# 第八階段：鍵盤快捷鍵
+# 第八階段：鍵盤快捷鍵 ✓ 已完成
 
 目標：讓 launcher 能完全以鍵盤驅動。快捷鍵為**固定**不可自訂，不新增設定 UI 或持久化欄位，也不含全域熱鍵。
 
@@ -35,4 +35,4 @@
 
 - [x] 所有 accelerator 設 `KeyboardAcceleratorPlacementMode="Hidden"`，改以 `MenuFlyoutItem.KeyboardAcceleratorTextOverride` 與 `AutomationProperties.AcceleratorKey` 提供提示。
 - [x] 修飾鍵名稱（Ctrl / Shift / Alt）不在地化，與 Windows 各語系一致；僅新增 `Shortcut_Format` 一個在地化字串。
-- [ ] `TitleBar` 內建側欄切換按鈕位於控制項範本內，無法設 `AcceleratorKey`，`Ctrl+B` 不會被朗讀程式念出（已知限制）。
+- 已知限制（非待辦）：`TitleBar` 內建側欄切換按鈕位於控制項範本內，無法設 `AcceleratorKey`，`Ctrl+B` 不會被朗讀程式念出。

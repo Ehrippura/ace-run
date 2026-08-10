@@ -1,4 +1,4 @@
-# 第七階段：URL 項目支援
+# 第七階段：URL 項目支援 — 已實作
 
 目標：讓網址（以及 `steam://`、`obsidian://`、`ms-settings:` 等自訂協定）能與應用程式並列管理，共用同一套 workspace／資料夾／標籤／搜尋／最近啟動機制。
 
@@ -6,7 +6,7 @@
 
 - [x] 新增 `ItemKind` 列舉（`App` / `Url`），`AppItem.Kind` 預設 `App`。
 - [x] JSON 以字串形式儲存（`JsonStringEnumConverter`），舊 workspace 檔案缺少 `Kind` 時自動視為 `App`，不需 migration。
-- [x] `AppData` 版本升至 **5**。
+- [x] 本階段將 `AppData` 版本推進至 5，第十階段再推進至 **6**（現值）。
 - [x] `DataService.JsonOptions` 對外公開，`.acerun` 匯入匯出改為共用同一份序列化設定。
 
 ## 2. 判斷與正規化
