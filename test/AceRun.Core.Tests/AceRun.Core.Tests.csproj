@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Unit tests for AceRun.Core.
+
+    The single ProjectReference below is a rule, not an accident: this project must never
+    reference win/ace-run.csproj. Doing so would pull WinUI and the Windows App SDK into the
+    test host, which needs the WindowsAppRuntime installed to activate anything — and would
+    let logic stay in MainWindow while still looking tested. If something here needs testing,
+    it belongs in AceRun.Core.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.22000.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>ace_run.Tests</RootNamespace>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\AceRun.Core\AceRun.Core.csproj" />
+  </ItemGroup>
+
+</Project>

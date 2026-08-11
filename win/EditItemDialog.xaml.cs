@@ -167,8 +167,7 @@ public sealed partial class EditItemDialog : ContentDialog
     }
 
     /// <summary>Selected tags in workspace order, so assignment order is never user state.</summary>
-    private List<TagViewModel> SelectedTags() =>
-        _tags.Where(t => _selectedTagIds.Contains(t.Id)).ToList();
+    private List<TagViewModel> SelectedTags() => TagOrdering.InWorkspaceOrder(_tags, _selectedTagIds);
 
     public void ApplyTo(AppItemViewModel viewModel)
     {

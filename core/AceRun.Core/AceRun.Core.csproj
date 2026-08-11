@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The app's logic layer, with nothing from WinUI in it.
+
+    Windows TFM, not plain net10.0: Models/AppSettings.cs stores a hotkey as
+    Windows.System.VirtualKey / VirtualKeyModifiers. Those are WinRT *enums* — metadata-only
+    value types — so they need no COM activation and no UI thread, but they do need the
+    Windows SDK projection that a Windows TFM brings in. That projection is implicit; this
+    project deliberately has no PackageReference at all, and must not gain one on
+    Microsoft.WindowsAppSDK. The test project's whole point is that it runs without the
+    WindowsAppRuntime installed.
+
+    AnyCPU is here so `dotnet test` works without -p:Platform. The app has no AnyCPU
+    configuration (see ace-run.csproj) and dragging that constraint into the tests would
+    mean every test run needed the same incantation the app build does.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.22000.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>ace_run</RootNamespace>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

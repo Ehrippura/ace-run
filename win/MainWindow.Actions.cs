@@ -50,26 +50,11 @@ public sealed partial class MainWindow
         await AddUrlAsync(string.Empty);
     }
 
-    private static AppItem CreateAppItemFromPath(string filePath) => new()
-    {
-        DisplayName = Path.GetFileNameWithoutExtension(filePath),
-        FilePath = filePath,
-        WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
-    };
-
-    // No WorkingDirectory: Path.GetDirectoryName on a URL yields junk like "https:\example.com".
-    private static AppItem CreateUrlItem(string url) => new()
-    {
-        Kind = ItemKind.Url,
-        DisplayName = url.Length > 0 ? UrlUtil.SuggestDisplayName(url) : string.Empty,
-        FilePath = url
-    };
-
     private Task AddItemFromPathAsync(string filePath) =>
-        AddItemWithDialogAsync(CreateAppItemFromPath(filePath), "AddItemTitle");
+        AddItemWithDialogAsync(ItemFactory.FromPath(filePath), "AddItemTitle");
 
     private Task AddUrlAsync(string url) =>
-        AddItemWithDialogAsync(CreateUrlItem(url), "AddUrlTitle");
+        AddItemWithDialogAsync(ItemFactory.FromUrl(url), "AddUrlTitle");
 
     private async Task AddItemWithDialogAsync(AppItem item, string titleKey)
     {
@@ -90,10 +75,10 @@ public sealed partial class MainWindow
     }
 
     private void AddItemDirectly(string filePath, int? index = null) =>
-        AddDirectly(CreateAppItemFromPath(filePath), index);
+        AddDirectly(ItemFactory.FromPath(filePath), index);
 
     private void AddUrlDirectly(string url, int? index = null) =>
-        AddDirectly(CreateUrlItem(url), index);
+        AddDirectly(ItemFactory.FromUrl(url), index);
 
     /// <param name="index">
     /// Where to insert, for a drop that landed between two tiles — see
@@ -311,17 +296,7 @@ public sealed partial class MainWindow
     }
 
     private void TrackRecentLaunch(AppItemViewModel app)
-    {
-        _appData.RecentLaunches.RemoveAll(r => r.AppId == app.Id);
-        _appData.RecentLaunches.Insert(0, new RecentLaunch
-        {
-            AppId = app.Id,
-            DisplayName = app.DisplayName,
-            FilePath = app.FilePath
-        });
-        if (_appData.RecentLaunches.Count > 10)
-            _appData.RecentLaunches.RemoveRange(10, _appData.RecentLaunches.Count - 10);
-    }
+        => RecentLaunchList.Track(_appData.RecentLaunches, app);
 
     public List<RecentLaunch> GetRecentLaunches() => _appData.RecentLaunches;
 

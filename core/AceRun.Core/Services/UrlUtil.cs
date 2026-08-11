@@ -8,7 +8,7 @@ namespace ace_run.Services;
 /// <c>ms-settings:</c> work alongside http(s). <c>file:</c> is rejected because a
 /// local path belongs to an App item instead.
 /// </summary>
-internal static class UrlUtil
+public static class UrlUtil
 {
     /// <summary>
     /// Trims <paramref name="input"/> and, when it looks like a bare host, prefixes
@@ -60,7 +60,10 @@ internal static class UrlUtil
 
     /// <summary>
     /// Default display name for a URL: the host without a leading "www.".
-    /// Falls back to the raw string for schemes without a host (mailto:, ms-settings:).
+    /// Falls back to the raw string for schemes without a host (ms-settings:, and anything
+    /// that does not parse). Note that <c>mailto:</c> is <em>not</em> such a scheme — Uri
+    /// treats the part after the @ as the host, so a mailto item is named after its mail
+    /// domain rather than shown whole.
     /// </summary>
     public static string SuggestDisplayName(string url)
     {

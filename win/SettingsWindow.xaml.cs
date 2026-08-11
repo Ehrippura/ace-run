@@ -107,16 +107,15 @@ public sealed partial class SettingsWindow : Window
             { State: OverlappedPresenterState.Minimized };
 
         var anchor = minimized
-            ? new RectInt32(work.X, work.Y, work.Width, work.Height)
-            : new RectInt32(owner.Position.X, owner.Position.Y, owner.Size.Width, owner.Size.Height);
+            ? new PixelRect(work.X, work.Y, work.Width, work.Height)
+            : new PixelRect(owner.Position.X, owner.Position.Y, owner.Size.Width, owner.Size.Height);
 
-        var x = anchor.X + (anchor.Width - size.Width) / 2;
-        var y = anchor.Y + (anchor.Height - size.Height) / 2;
+        var position = WindowPlacement.CenterIn(
+            anchor,
+            new PixelSize(size.Width, size.Height),
+            new PixelRect(work.X, work.Y, work.Width, work.Height));
 
-        x = Math.Clamp(x, work.X, Math.Max(work.X, work.X + work.Width - size.Width));
-        y = Math.Clamp(y, work.Y, Math.Max(work.Y, work.Y + work.Height - size.Height));
-
-        AppWindow.Move(new PointInt32(x, y));
+        AppWindow.Move(new PointInt32(position.X, position.Y));
     }
 
     #region Strings

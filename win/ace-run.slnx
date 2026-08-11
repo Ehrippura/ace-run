@@ -10,4 +10,20 @@
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
+  <!--
+    Both live outside win/ because ace-run.csproj has no <Compile> items and relies on the
+    SDK's default globbing, which would otherwise pull their sources into the app as well.
+    They build AnyCPU whatever the solution platform is: the app has no AnyCPU configuration,
+    but the logic layer has no reason to care about the architecture.
+  -->
+  <Project Path="..\core\AceRun.Core\AceRun.Core.csproj">
+    <Platform Solution="*|ARM64" Project="AnyCPU" />
+    <Platform Solution="*|x64" Project="AnyCPU" />
+    <Platform Solution="*|x86" Project="AnyCPU" />
+  </Project>
+  <Project Path="..\test\AceRun.Core.Tests\AceRun.Core.Tests.csproj">
+    <Platform Solution="*|ARM64" Project="AnyCPU" />
+    <Platform Solution="*|x64" Project="AnyCPU" />
+    <Platform Solution="*|x86" Project="AnyCPU" />
+  </Project>
 </Solution>

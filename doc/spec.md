@@ -44,3 +44,4 @@
 | 第八階段：鍵盤快捷鍵 | [8-keyboard-shortcuts.md](spec/8-keyboard-shortcuts.md) | ✓ 已完成 |
 | 第九階段：整理與排序鍵 | [9-organize.md](spec/9-organize.md) | ✓ 已完成 |
 | 第十階段：設定畫面 | [10-settings.md](spec/10-settings.md) | ✓ 已完成 |
+| 第十一階段：可測試性與單元測試 | [11-testability.md](spec/11-testability.md) | ✓ 已完成 |

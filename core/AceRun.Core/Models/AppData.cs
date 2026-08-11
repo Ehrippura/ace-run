@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace ace_run.Models;
 
@@ -21,4 +23,16 @@ public class AppData
     public List<AppItem> UngroupedItems { get; set; } = new();
     public List<FolderItem> Folders { get; set; } = new();
     public List<RecentLaunch> RecentLaunches { get; set; } = new();
+
+    /// <summary>
+    /// Every item in the workspace, ungrouped and foldered alike. This is the number
+    /// <see cref="WorkspaceInfo.AppCount"/> denormalizes, and it was open-coded at four
+    /// separate call sites before it lived here.
+    /// </summary>
+    /// <remarks>
+    /// Not serialized: it is derived, and persisting it would create a second copy that
+    /// could disagree with the lists it counts.
+    /// </remarks>
+    [JsonIgnore]
+    public int ItemCount => UngroupedItems.Count + Folders.Sum(f => f.Children.Count);
 }

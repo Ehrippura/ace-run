@@ -78,7 +78,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         {
             Name = name,
             ColorTag = colorTag,
-            AppCount = appData.UngroupedItems.Count + appData.Folders.Sum(f => f.Children.Count)
+            AppCount = appData.ItemCount
         };
 
         _config.Workspaces.Add(wsInfo);
@@ -134,7 +134,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
             {
                 Name = export.Name,
                 ColorTag = export.ColorTag,
-                AppCount = export.AppData.UngroupedItems.Count + export.AppData.Folders.Sum(f => f.Children.Count)
+                AppCount = export.AppData.ItemCount
             };
 
             _config.Workspaces.Add(wsInfo);
@@ -239,16 +239,12 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         // still knows those ids — read them out before the delete or the PNGs are orphaned
         // for good. A workspace that fails to load yields nothing here, which leaks rather
         // than deletes: the safe direction to fail in.
-        IconService.InvalidateCache(ItemIdsIn(DataService.LoadWorkspace(vm.Id)));
+        IconService.InvalidateCache(AppDataQuery.ItemIds(DataService.LoadWorkspace(vm.Id)));
 
         DataService.DeleteWorkspace(vm.Id);
         DataService.SaveConfig(_config);
         _workspaceVMs.Remove(vm);
     }
-
-    /// <summary>Every item id in a workspace, ungrouped and foldered alike.</summary>
-    private static IEnumerable<Guid> ItemIdsIn(AppData data) =>
-        data.UngroupedItems.Concat(data.Folders.SelectMany(f => f.Children)).Select(i => i.Id);
 
     // ---- Inline rename ----
 
