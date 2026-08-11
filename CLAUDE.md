@@ -57,7 +57,7 @@ All data lives under `%LOCALAPPDATA%\AceRun\`:
 |---|---|
 | `config.json` | `WorkspaceConfig` — workspace list, active/default workspace ID, window state, `AppSettings` |
 | `workspaces/<guid>.json` | Per-workspace `AppData` — ungrouped items, folders, recent launches |
-| `icons/<guid>.png` | Cached app icons (keyed by `AppItem.Id`) |
+| `icons/<guid>` | Cached app icons (keyed by `AppItem.Id`), extensionless — see "Icon loading" |
 | `apps.json.bak` | Migration backup from pre-workspace format |
 
 On first launch, `DataService.MigrateOrInitialize()` either reads `config.json` or migrates the legacy `apps.json` into the new format.
@@ -141,6 +141,8 @@ Batch helpers (`MoveAppsTo`, `LaunchApps`, `SetTagOnApps`, `ClearTagsOnApps`, `D
 **Item kinds are fixed at construction.** `AppItem.Kind` decides whether `FilePath` is an exe path or a URL; `AppItemViewModel.Kind` is read-only and never switches. Kind-specific behaviour branches on `IsUrl`: launch (URLs get only `FileName` + `UseShellExecute`), the `EditItemDialog` field layout, and "Copy Link" vs "Open File Location". URL parsing lives in `UrlUtil`, which accepts any absolute URI except `file:`.
 
 **Icon loading.** `IconService.GetIconAsync()` checks the disk cache, then extracts via `StorageFile.GetThumbnailAsync()`. A non-file path returns `null` and the templates fall back to a Segoe MDL2 glyph (`FallbackGlyph` / `IconVisibility` / `FallbackIconVisibility`).
+
+**Cache entries carry no extension, and the size request is not arbitrary.** `GetThumbnailAsync` hands back an uncompressed 32bpp BMP, so the `.png` these files used to be named was a format the bytes never had; nothing read it by extension anyway, since `SetSourceAsync` sniffs through WIC. Dropping the suffix also drops the only pattern `ClearCache` could filter on, which is why that sweep is now unfiltered — the directory is ours alone, and taking everything is what collects `.tmp` debris and the pre-rename `.png` entries no lookup can reach. There is no migration beyond that button. The request is `ThumbnailMode.SingleItem, 48, UseCurrentScale`: 48 because it is both the largest place the icon is drawn (the tile; search rows are 20) and a native icon band, so no resampling; `SingleItem` because `ListView` mode is the one scoped to ≤40; `UseCurrentScale` because `requestedSize` is physical pixels. The scale is baked in at extraction and the key does not include it, so changing display scale leaves every entry at the old resolution with nothing to invalidate it — the reset button is the only way out.
 
 **The same icon is routinely asked for twice at once**, so `IconService` keeps a `ConcurrentDictionary` of running extractions and hands every caller the one task. An add loads eagerly *and* the container realizing for that same item loads again; a search row and a grid tile are the same view model. On a cold cache both calls used to reach `ExtractAndCacheIconAsync`, the loser of the write hit a sharing violation, swallowed it and returned null — a freshly dropped app came up iconless about half the time. For the same reason the cache write goes to a `.tmp` and is renamed into place: `File.Exists(cachePath)` *is* the "is it cached?" test, and an in-place write passes that test while the file is still filling.
 

@@ -30,7 +30,14 @@ internal static class IconService
     private static readonly ConcurrentDictionary<string, Task> Extractions =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private static string CachePathFor(Guid itemId) => Path.Combine(CacheDir, $"{itemId:N}.png");
+    /// <summary>
+    /// Cache path for an item. Deliberately **without an extension**: what gets written is
+    /// whatever bytes <c>GetThumbnailAsync</c> handed back, which in practice is an
+    /// uncompressed 32bpp BMP, not a PNG — the old <c>.png</c> suffix named a format the file
+    /// never had. Nothing reads it by extension either; <see cref="BitmapImage.SetSourceAsync"/>
+    /// sniffs the format through WIC, which is the only reason the mislabelled files worked.
+    /// </summary>
+    private static string CachePathFor(Guid itemId) => Path.Combine(CacheDir, $"{itemId:N}");
 
     public static async Task<BitmapImage?> GetIconAsync(string filePath, Guid itemId, string? customIconPath = null)
     {
@@ -89,8 +96,16 @@ internal static class IconService
     /// cannot be extracted again — this is the way out when an item's exe has been updated
     /// with a new icon, or when a cache entry has gone bad.
     /// <para>
-    /// Only <c>*.png</c> is touched, so anything else that ends up in the folder is left
-    /// alone, and a file that refuses to delete is skipped rather than aborting the sweep.
+    /// The sweep is unfiltered. Cache entries carry no extension (see
+    /// <see cref="CachePathFor"/>) so there is no pattern left to match on, and the directory
+    /// is ours alone — nothing but this class ever writes into it. Taking everything also
+    /// collects the two kinds of debris a filter would have stepped over: a <c>.tmp</c> left
+    /// by an extraction that died mid-write, and the <c>&lt;guid&gt;.png</c> entries written
+    /// before the extension was dropped, which no lookup can reach any more. Those are why
+    /// this button is the migration — nothing renames them, the next paint just re-extracts.
+    /// </para>
+    /// <para>
+    /// A file that refuses to delete is skipped rather than aborting the sweep.
     /// </para>
     /// </summary>
     public static int ClearCache()
@@ -102,7 +117,7 @@ internal static class IconService
 
         var cleared = 0;
 
-        foreach (var file in Directory.EnumerateFiles(CacheDir, "*.png"))
+        foreach (var file in Directory.EnumerateFiles(CacheDir))
         {
             try
             {
