@@ -1,6 +1,7 @@
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using WinRT.Interop;
 
 namespace ace_run;
@@ -64,6 +65,36 @@ public sealed partial class MainWindow
     }
 
     public void PersistSettings() => DataService.SaveConfig(_workspaceConfig);
+
+    /// <summary>
+    /// Empties the icon cache and repaints. Returns how many cache files went, for the
+    /// settings window to report.
+    ///
+    /// The disk half alone would not show: every tile on screen is holding a bitmap that was
+    /// decoded before the delete, and a stale icon is the whole reason to reach for this.
+    /// So the in-memory half goes too — <see cref="AppItemViewModel.ReleaseIcon"/> across the
+    /// entire workspace, then a reload for the items that actually have a container. Anything
+    /// off screen reloads on its own when a container realizes for it.
+    /// </summary>
+    public int ResetIconCache()
+    {
+        var cleared = IconService.ClearCache();
+
+        foreach (var app in AllApps())
+            app.ReleaseIcon();
+
+        ReloadRealizedIcons(AppGridView);
+        ReloadRealizedIcons(SearchResultsView);
+
+        return cleared;
+    }
+
+    private static void ReloadRealizedIcons(ListViewBase list)
+    {
+        foreach (var item in list.Items)
+            if (item is AppItemViewModel vm && list.ContainerFromItem(vm) is not null)
+                _ = vm.LoadIconAsync();
+    }
 
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e) =>
         ((App)Application.Current).ShowSettings(this);

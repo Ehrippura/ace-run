@@ -16,7 +16,7 @@ namespace ace_run;
 
 /// <summary>
 /// The settings surface. A window rather than a <see cref="ContentDialog"/> like the two
-/// manage dialogs: six cards is taller than a dialog wants to be, and the interaction is
+/// manage dialogs: seven cards is taller than a dialog wants to be, and the interaction is
 /// apply-on-change, which has no use for the OK/Cancel pair a dialog is built around.
 ///
 /// It never loads its own <see cref="WorkspaceConfig"/>. MainWindow owns the one live copy
@@ -128,6 +128,7 @@ public sealed partial class SettingsWindow : Window
 
         GeneralGroupLabel.Text = Loc.GetString("Settings_Group_General");
         AppearanceGroupLabel.Text = Loc.GetString("Settings_Group_Appearance");
+        StorageGroupLabel.Text = Loc.GetString("Settings_Group_Storage");
 
         HotkeyHeader.Text = Loc.GetString("Settings_Hotkey_Header");
         HotkeyDesc.Text = Loc.GetString("Settings_Hotkey_Desc");
@@ -149,6 +150,10 @@ public sealed partial class SettingsWindow : Window
 
         LanguageHeader.Text = Loc.GetString("Settings_Language_Header");
         LanguageDesc.Text = Loc.GetString("Settings_Language_Desc");
+
+        ResetCacheHeader.Text = Loc.GetString("Settings_ResetCache_Header");
+        ResetCacheDesc.Text = Loc.GetString("Settings_ResetCache_Desc");
+        ResetCacheButton.Content = Loc.GetString("Settings_ResetCache_Button");
 
         RestartInfoBar.Message = Loc.GetString("Settings_Language_RestartRequired");
     }
@@ -381,6 +386,32 @@ public sealed partial class SettingsWindow : Window
         Settings.Language = tag;
         Persist();
         RestartInfoBar.IsOpen = true;
+    }
+
+    #endregion
+
+    #region Storage
+
+    /// <summary>
+    /// Clears the icon cache. Deliberately unconfirmed: nothing is lost that the next paint
+    /// does not extract again, so a confirmation would guard against no consequence. The
+    /// InfoBar reports the count instead, which is the only way the user can tell it ran —
+    /// a cache that was already correct repaints identically.
+    /// </summary>
+    private void ResetCacheButton_Click(object sender, RoutedEventArgs e)
+    {
+        ResetCacheButton.IsEnabled = false;
+        try
+        {
+            var cleared = _owner.ResetIconCache();
+            ResetCacheInfoBar.Message = string.Format(
+                Loc.GetString("Settings_ResetCache_Done"), cleared);
+            ResetCacheInfoBar.IsOpen = true;
+        }
+        finally
+        {
+            ResetCacheButton.IsEnabled = true;
+        }
     }
 
     #endregion

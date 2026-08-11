@@ -18,7 +18,7 @@
     <Grid x:Name="RootGrid" PreviewKeyDown="RootGrid_PreviewKeyDown">
         <Grid.Resources>
             <!--
-                Hand-rolled rather than CommunityToolkit's SettingsCard. Six cards is not
+                Hand-rolled rather than CommunityToolkit's SettingsCard. Seven cards is not
                 worth the project's second third-party dependency, and the shape is three
                 columns and two text styles the design layer already defines.
             -->
@@ -201,6 +201,38 @@
                          IsOpen="False"
                          IsClosable="True"
                          Severity="Informational" />
+
+                <!-- Storage. Its own group because this is neither a preference nor a look:
+                     nothing here is remembered in AppSettings, the card performs an action. -->
+                <TextBlock x:Name="StorageGroupLabel"
+                           Style="{StaticResource AceBodyStrongStyle}"
+                           Margin="0,16,0,4" />
+
+                <!-- Reset icon cache -->
+                <Border Style="{StaticResource SettingsCardStyle}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE72C;" FontSize="16" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="ResetCacheHeader" Style="{StaticResource AceBodyStyle}" />
+                            <TextBlock x:Name="ResetCacheDesc" Style="{StaticResource AceCaptionStyle}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                x:Name="ResetCacheButton"
+                                MinWidth="120"
+                                VerticalAlignment="Center"
+                                Click="ResetCacheButton_Click" />
+                    </Grid>
+                </Border>
+
+                <InfoBar x:Name="ResetCacheInfoBar"
+                         IsOpen="False"
+                         IsClosable="True"
+                         Severity="Success" />
 
             </StackPanel>
         </ScrollViewer>

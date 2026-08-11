@@ -89,15 +89,28 @@ public sealed partial class MainWindow
         }
     }
 
-    private void AddItemDirectly(string filePath) => AddDirectly(CreateAppItemFromPath(filePath));
+    private void AddItemDirectly(string filePath, int? index = null) =>
+        AddDirectly(CreateAppItemFromPath(filePath), index);
 
-    private void AddUrlDirectly(string url) => AddDirectly(CreateUrlItem(url));
+    private void AddUrlDirectly(string url, int? index = null) =>
+        AddDirectly(CreateUrlItem(url), index);
 
-    private void AddDirectly(AppItem item)
+    /// <param name="index">
+    /// Where to insert, for a drop that landed between two tiles — see
+    /// <c>ResolveGridDropIndex</c>. Null appends, which is what every other caller wants.
+    /// Clamped rather than trusted: the collection can have moved on between the drop and
+    /// the file read that follows it.
+    /// </param>
+    private void AddDirectly(AppItem item, int? index = null)
     {
         var vm = new AppItemViewModel(item, _tags);
         var target = _selectedFolder?.Apps ?? _ungroupedApps;
-        target.Add(vm);
+
+        if (index is int at)
+            target.Insert(Math.Clamp(at, 0, target.Count), vm);
+        else
+            target.Add(vm);
+
         _ = vm.LoadIconAsync();
         SaveItems();
     }

@@ -155,4 +155,9 @@
   <data name="Settings_Language_Desc" xml:space="preserve"><value>下次啟動 Ace Run 時生效。</value></data>
   <data name="Settings_Language_System" xml:space="preserve"><value>跟隨系統</value></data>
   <data name="Settings_Language_RestartRequired" xml:space="preserve"><value>請重新啟動 Ace Run 以套用新的語言。</value></data>
+  <data name="Settings_Group_Storage" xml:space="preserve"><value>儲存空間</value></data>
+  <data name="Settings_ResetCache_Header" xml:space="preserve"><value>重設圖示快取</value></data>
+  <data name="Settings_ResetCache_Desc" xml:space="preserve"><value>丟棄所有已快取的圖示，重新從檔案讀取。應用程式更新後磁磚仍顯示舊圖示時可用。</value></data>
+  <data name="Settings_ResetCache_Button" xml:space="preserve"><value>重設</value></data>
+  <data name="Settings_ResetCache_Done" xml:space="preserve"><value>已清除 {0} 個快取圖示。</value></data>
 </root>

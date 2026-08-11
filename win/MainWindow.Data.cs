@@ -1,5 +1,6 @@
 using ace_run.Models;
 using ace_run.Services;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -82,18 +83,60 @@ public sealed partial class MainWindow
                 foreach (var vm in folder.Apps) vm.ReleaseIcon();
     }
 
+    /// <summary>
+    /// Icon teardown for items that are going away for good, as opposed to merely leaving the
+    /// screen: drops the bitmap and the disk cache entry both.
+    ///
+    /// Deletion is the one place the cache file can be orphaned, because it is keyed by
+    /// <see cref="AppItemViewModel.Id"/> and nothing else on disk remembers that id once the
+    /// item is out of the workspace JSON. <see cref="ReleaseHiddenIcons"/> cannot cover the
+    /// memory half either — it walks the collections an item has just been removed from.
+    /// </summary>
+    private static void DiscardIcons(IEnumerable<AppItemViewModel> apps)
+    {
+        foreach (var app in apps)
+        {
+            app.ReleaseIcon();
+            IconService.InvalidateCache(app.Id);
+        }
+    }
+
     private void AppGridView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
         if (args.Item is not AppItemViewModel vm) return;
         if (args.InRecycleQueue)
         {
-            vm.ReleaseIcon();
+            ScheduleIconRelease(vm);
             return;
         }
 
         BindContainerAutomationName(args.ItemContainer, vm, nameof(AppItemViewModel.DisplayName));
         _ = vm.LoadIconAsync();
     }
+
+    /// <summary>
+    /// Releases a recycled tile's icon — but only once nothing is showing that item any more.
+    ///
+    /// The icon lives on the view model, which is shared by every container that ever shows
+    /// it, so a recycle notification is <b>not</b> proof the item left the screen. A drag
+    /// reorder takes the item out of the collection and puts it back at the new index, and
+    /// the realization of the new container and the recycling of the old one land in the same
+    /// layout pass in no fixed order — releasing straight from the recycle branch therefore
+    /// blanked a tile that was on screen. It only misfired sometimes because the new
+    /// container's own LoadIconAsync usually finished after the release and quietly put the
+    /// icon back; when the disk read won that race the tile stayed blank until the next
+    /// folder switch.
+    ///
+    /// Deferring lets the reorder settle, and ContainerFromItem then answers the only
+    /// question that matters. Scrolled-away items still resolve to null and are released as
+    /// before, and a mistimed release is self-correcting: realization reloads the icon.
+    /// </summary>
+    private void ScheduleIconRelease(AppItemViewModel vm) =>
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (AppGridView.ContainerFromItem(vm) is null)
+                vm.ReleaseIcon();
+        });
 
     /// <summary>
     /// Loads on realization like the grid above — a query can match every item in the
@@ -344,6 +387,7 @@ public sealed partial class MainWindow
             _searchResults.Remove(app);
         }
 
+        DiscardIcons(targets);
         PurgeStaleRecentLaunches();
         CommitSave();
         ((App)Application.Current).UpdateTrayContextMenu();
@@ -366,6 +410,10 @@ public sealed partial class MainWindow
 
         foreach (var app in folder.Apps)
             _searchResults.Remove(app);
+
+        // Deleting a folder deletes the items in it — nothing else holds a reference to
+        // folder.Apps — so their icons go the same way an explicit item delete sends them.
+        DiscardIcons(folder.Apps);
 
         _folders.Remove(folder);
         PruneHistory(folder.Id);

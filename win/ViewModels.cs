@@ -25,6 +25,7 @@ public class AppItemViewModel : INotifyPropertyChanged
     private string _customIconPath = string.Empty;
     private string _sortKey = string.Empty;
     private BitmapImage? _iconSource;
+    private int _iconGeneration;
     private readonly ObservableCollection<TagViewModel> _tags = new();
     private string _folderLabel = string.Empty;
 
@@ -225,12 +226,31 @@ public class AppItemViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Loads the icon, discarding the result if anything changed the icon's state while the
+    /// disk read was in flight.
+    /// <para>
+    /// The generation stamp is what makes a release actually stick. Without it a load that
+    /// started before <see cref="ReleaseIcon"/> ran would come back afterwards and put the
+    /// bitmap on a view model that nothing is showing — and, in the other direction, two
+    /// overlapping loads could land out of order. Both counters only ever move on the UI
+    /// thread, so no interlocking is needed.
+    /// </para>
+    /// </summary>
     public async Task LoadIconAsync()
     {
-        IconSource = await IconService.GetIconAsync(FilePath, Id, _customIconPath);
+        var generation = ++_iconGeneration;
+        var icon = await IconService.GetIconAsync(FilePath, Id, _customIconPath);
+        if (generation != _iconGeneration) return;
+
+        IconSource = icon;
     }
 
-    public void ReleaseIcon() => IconSource = null;
+    public void ReleaseIcon()
+    {
+        _iconGeneration++;
+        IconSource = null;
+    }
 
     public AppItem ToModel() => new AppItem
     {

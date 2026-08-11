@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 using Windows.Storage;
 
 namespace ace_run;
@@ -492,6 +493,11 @@ public sealed partial class MainWindow
 
     private void AppGridView_DragOver(object sender, DragEventArgs e)
     {
+        // Our own tiles being reordered. The GridView drives that internally and its package
+        // carries a text representation of the items, which would otherwise read here as an
+        // external text drop and get answered with the "add to Ace Run" caption.
+        if (_draggedApps is { Count: > 0 }) return;
+
         if (e.DataView.Contains(StandardDataFormats.StorageItems)
             || e.DataView.Contains(StandardDataFormats.WebLink)
             || e.DataView.Contains(StandardDataFormats.Text))
@@ -508,17 +514,24 @@ public sealed partial class MainWindow
 
     private async void AppGridView_Drop(object sender, DragEventArgs e)
     {
+        if (_draggedApps is { Count: > 0 }) return; // our own reorder, handled by the GridView
+
+        // Resolved before the first await: the position on the args is only meaningful while
+        // the event is being raised, and reading a dropped file can take long enough for the
+        // collection to be looked at again.
+        var index = ResolveGridDropIndex(e);
+
         var deferral = e.GetDeferral();
         try
         {
             // Browsers offer several formats for the same link, so take the first that works
             // rather than adding the item once per format.
             if (e.DataView.Contains(StandardDataFormats.StorageItems))
-                await DropStorageItemsAsync(e.DataView);
+                await DropStorageItemsAsync(e.DataView, index);
             else if (e.DataView.Contains(StandardDataFormats.WebLink))
-                await DropWebLinkAsync(e.DataView);
+                await DropWebLinkAsync(e.DataView, index);
             else if (e.DataView.Contains(StandardDataFormats.Text))
-                await DropTextAsync(e.DataView);
+                await DropTextAsync(e.DataView, index);
         }
         finally
         {
@@ -526,17 +539,61 @@ public sealed partial class MainWindow
         }
     }
 
-    private async Task DropStorageItemsAsync(DataPackageView dataView)
+    /// <summary>
+    /// Where a drop onto the grid should insert, matching the insertion line the GridView
+    /// draws while the pointer is over it. Dropped items used to be appended regardless, so
+    /// the indicator promised a position the drop did not honour.
+    ///
+    /// Measured against the tiles rather than hit-tested through them, because the two things
+    /// a hit test can land on during a drag are both dead ends: the OriginalSource of a drag
+    /// event is the list itself (see <see cref="TryResolveRailDropTarget"/>), and the grid
+    /// parts its tiles to open the insertion gap — so the one position the user is most
+    /// likely to drop on contains no container at all. Walking the realized containers in
+    /// index order answers "which tile does the pointer come before" in either layout.
+    ///
+    /// Past the last tile, on the empty-state panel, or over a grid whose containers are not
+    /// realized yet, the loop falls through and appends — which is what the indicator shows
+    /// in those places too.
+    /// </summary>
+    private int ResolveGridDropIndex(DragEventArgs e)
+    {
+        var count = (_selectedFolder?.Apps ?? _ungroupedApps).Count;
+        var point = e.GetPosition(AppGridView);
+
+        for (var index = 0; index < count; index++)
+        {
+            // Scrolled-out rows have no container; skipping them is safe because the pointer
+            // can only be over the realized ones.
+            if (AppGridView.ContainerFromIndex(index) is not FrameworkElement container) continue;
+
+            var origin = container.TransformToVisual(AppGridView).TransformPoint(new Point(0, 0));
+
+            // Reading order, so the row is decided before the column. The gap between rows
+            // belongs to the row below: it is past the bottom of one and above the top of
+            // the next, which is exactly where the two branches hand over.
+            if (point.Y > origin.Y + container.ActualHeight) continue;
+            if (point.Y < origin.Y) return index;
+
+            if (point.X > origin.X + container.ActualWidth / 2) continue;
+            return index;
+        }
+
+        return count;
+    }
+
+    private async Task DropStorageItemsAsync(DataPackageView dataView, int index)
     {
         var storageItems = await dataView.GetStorageItemsAsync();
         foreach (var storageItem in storageItems.OfType<StorageFile>())
         {
+            // index++ only where an item is really added, so a skipped file does not leave a
+            // gap in the run — a multi-file drop lands as one block in the order given.
             // .url Internet Shortcut from the desktop
             if (storageItem.FileType.Equals(".url", StringComparison.OrdinalIgnoreCase))
             {
                 var shortcutUrl = UrlUtil.ReadInternetShortcut(storageItem.Path);
                 if (shortcutUrl is not null && UrlUtil.TryNormalize(shortcutUrl, out var normalized))
-                    AddUrlDirectly(normalized);
+                    AddUrlDirectly(normalized, index++);
                 continue;
             }
 
@@ -546,23 +603,23 @@ public sealed partial class MainWindow
                 filePath = ResolveLnkTarget(storageItem.Path) ?? storageItem.Path;
 
             if (filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(filePath))
-                AddItemDirectly(filePath);
+                AddItemDirectly(filePath, index++);
         }
     }
 
-    private async Task DropWebLinkAsync(DataPackageView dataView)
+    private async Task DropWebLinkAsync(DataPackageView dataView, int index)
     {
         var uri = await dataView.GetWebLinkAsync();
         if (UrlUtil.TryNormalize(uri?.AbsoluteUri, out var url))
-            AddUrlDirectly(url);
+            AddUrlDirectly(url, index);
     }
 
     /// <summary>Covers dragging out of the address bar, which offers text but no WebLink.</summary>
-    private async Task DropTextAsync(DataPackageView dataView)
+    private async Task DropTextAsync(DataPackageView dataView, int index)
     {
         var text = await dataView.GetTextAsync();
         if (UrlUtil.TryNormalize(text, out var url))
-            AddUrlDirectly(url);
+            AddUrlDirectly(url, index);
     }
 
     private static string? ResolveLnkTarget(string lnkPath)

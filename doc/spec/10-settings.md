@@ -46,22 +46,29 @@
 
 ## 6. 設定視窗（`SettingsWindow.xaml`）
 
-- [x] 獨立 `Window` 而非 `ContentDialog`：項目分成六組，塞進對話框會過高，且即時套用的互動與另外兩個對話框的確定／取消流程不同調。
+- [x] 獨立 `Window` 而非 `ContentDialog`：項目分成七張卡，塞進對話框會過高，且即時套用的互動與另外兩個對話框的確定／取消流程不同調。
 - [x] `MicaBackdrop` + `ExtendsContentIntoTitleBar`，標題列只有一個靠左的標題文字，`SetTitleBar` 整條。**不需要** `UpdateTitleBarInsets` 那套實體像素÷scale 的算術——標題列右端沒有任何控制項，caption strip 底下是空的。
 - [x] 尺寸於建構子決定（560×680 DIP），沿用 `MainWindow.ApplyInitialWindowSize()` 的 DPI 手法（`GetDpiForWindow`，`AppWindow.Resize` 吃實體像素）；`IsMaximizable = false`。
 - [x] 位置也在建構子決定，於主視窗上置中（`ApplyInitialWindowPlacement` → `CenterOverOwner`）。不指定位置時由 OS 的層疊規則決定，實測會落在離主視窗很遠、甚至另一個螢幕的地方。夾住結果用的是**主視窗所在螢幕**的 `WorkArea`，不是設定視窗自己的——後者反映的正是要取代的那個隨手擺放位置。主視窗最小化時位置回報為離屏值（-32000），該情況改在螢幕工作區置中。
 - [x] 單一實例：`App` 持有欄位，已開啟就 `Activate()` 而非開第二扇。
-- [x] 版面為 `ScrollViewer` + 手刻的設定卡（`Border` 吃 `CardBackgroundFillColorDefaultBrush` 與 `Styles/Tokens.xaml` 的圓角）。不引入 `CommunityToolkit.WinUI.Controls.SettingsControls`：為六張卡片增加專案第二個第三方相依不划算。
+- [x] 版面為 `ScrollViewer` + 手刻的設定卡（`Border` 吃 `CardBackgroundFillColorDefaultBrush` 與 `Styles/Tokens.xaml` 的圓角）。不引入 `CommunityToolkit.WinUI.Controls.SettingsControls`：為七張卡片增加專案第二個第三方相依不划算。
 - [x] **即時套用，沒有確定／取消**，每次變更立刻 `DataService.SaveConfig` 並回呼主視窗重新套用。
 - [x] 快捷鍵錄製欄位：按下按鈕進入錄製，於 `PreviewKeyDown` 收下一個組合鍵。忽略單獨的修飾鍵；**必須至少含一個 Ctrl/Alt/Win**（純字母當全域鍵會吃掉整個系統的輸入）；Esc 取消錄製，Delete/Backspace 清除綁定。
 
-## 7. 觸發點與在地化
+## 7. 儲存空間：重設圖示快取
+
+- [x] 獨立成第三組（一般／外觀／儲存空間）。這張卡不是偏好也不是外觀：它**沒有任何狀態寫進 `AppSettings`**，按下去是執行一個動作。
+- [x] `IconService.ClearCache()` 只刪快取目錄下的 `*.png`（其他檔案不碰），單一檔案刪不掉就跳過而非中止，並回傳實際清除的數量。同時清空進行中的擷取表。
+- [x] **磁碟與記憶體兩邊都要清**。畫面上每個磁磚都還握著刪檔之前解碼好的 bitmap，而「圖示過期」正是使用者按這顆按鈕的理由。因此 `MainWindow.ResetIconCache()` 在清完磁碟後對整個 workspace 呼叫 `ReleaseIcon()`，再對**有容器的**項目重新載入；離開畫面的項目下次容器實體化時自己會載。
+- [x] 不做二次確認：清掉的東西下一次繪製就會重新擷取回來，確認對話框守的是一個不存在的後果。改以 `InfoBar` 回報清除數量——快取本來就正確時重繪的結果一模一樣，數量是使用者唯一能確認它跑過的訊號。
+
+## 8. 觸發點與在地化
 
 - [x] ⚙ 選單加入第三項「設定」（Segoe MDL2 `E713`）。`Ctrl+,` 維持開啟該選單不變——選單本身就是設定的入口集合。
 - [x] 托盤選單也加一項「設定」：視窗隱藏時它是唯一的入口。
 - [x] 三份 `.resw` 同步新增設定視窗所需字串，沿用 `Domain_Thing` 的命名慣例。
 
-## 8. 不在本階段範圍
+## 9. 不在本階段範圍
 
 - [ ] Esc 隱藏視窗。
 - [ ] 語言即時切換。

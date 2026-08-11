@@ -235,10 +235,20 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         if (_config.ActiveWorkspaceId == vm.Id)
             _config.ActiveWorkspaceId = _config.Workspaces[0].Id;
 
+        // Icons are cached per item id, and the workspace file is the last thing on disk that
+        // still knows those ids — read them out before the delete or the PNGs are orphaned
+        // for good. A workspace that fails to load yields nothing here, which leaks rather
+        // than deletes: the safe direction to fail in.
+        IconService.InvalidateCache(ItemIdsIn(DataService.LoadWorkspace(vm.Id)));
+
         DataService.DeleteWorkspace(vm.Id);
         DataService.SaveConfig(_config);
         _workspaceVMs.Remove(vm);
     }
+
+    /// <summary>Every item id in a workspace, ungrouped and foldered alike.</summary>
+    private static IEnumerable<Guid> ItemIdsIn(AppData data) =>
+        data.UngroupedItems.Concat(data.Folders.SelectMany(f => f.Children)).Select(i => i.Id);
 
     // ---- Inline rename ----
 
