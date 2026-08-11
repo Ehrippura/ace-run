@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage;
@@ -38,6 +39,25 @@ internal static class IconService
     /// sniffs the format through WIC, which is the only reason the mislabelled files worked.
     /// </summary>
     private static string CachePathFor(Guid itemId) => Path.Combine(CacheDir, $"{itemId:N}");
+
+    /// <summary>
+    /// <c>E_PENDING</c> — the shell's "the thumbnail is not ready, ask again" signal.
+    /// </summary>
+    private const int EPending = unchecked((int)0x8000000A);
+
+    /// <summary>
+    /// Serializes thumbnail extraction to one at a time.
+    /// <para>
+    /// The shell refuses overlapping extractions rather than queueing them: with a folder's
+    /// worth of tiles realizing at once on a cold cache, the first request wins and every
+    /// other one comes straight back with <see cref="EPending"/> — measured at four tiles,
+    /// three failed before the winner's thumbnail had even arrived. Letting one through at a
+    /// time turns that contention into a short queue. It costs nothing noticeable: extraction
+    /// runs single-digit milliseconds once the shell is warm, and the whole thing is off the
+    /// UI thread's critical path anyway.
+    /// </para>
+    /// </summary>
+    private static readonly SemaphoreSlim ExtractionGate = new(1, 1);
 
     public static async Task<BitmapImage?> GetIconAsync(string filePath, Guid itemId, string? customIconPath = null)
     {
@@ -148,9 +168,44 @@ internal static class IconService
         }
     }
 
+    /// <summary>
+    /// Extracts one icon into the cache, retrying while the shell says it is not ready yet.
+    /// <para>
+    /// <see cref="EPending"/> is a request to come back, not a failure, and treating it as one
+    /// is what left tiles permanently iconless: nothing re-runs an extraction, because
+    /// <c>LoadIconAsync</c> only fires when a container realizes, so an item that lost the
+    /// race stayed blank until the cache was reset by hand. The gate makes this rare and the
+    /// retries cover what is left — a genuinely cold shell can answer <c>E_PENDING</c> even
+    /// with nothing else in flight.
+    /// </para>
+    /// </summary>
     private static async Task ExtractAndCacheIconAsync(string filePath, string cachePath)
     {
+        // Delays between attempts. Extraction itself is single-digit milliseconds, so the
+        // first retry almost always lands; the longer tails exist for a cold shell cache.
+        int[] backoffMs = [30, 80, 200, 500];
+
+        for (var attempt = 0; ; attempt++)
+        {
+            if (await TryExtractAsync(filePath, cachePath))
+                return;
+
+            if (attempt >= backoffMs.Length)
+                return;
+
+            await Task.Delay(backoffMs[attempt]);
+        }
+    }
+
+    /// <returns>
+    /// True when the icon is cached or the failure is permanent; false only when the shell
+    /// answered <see cref="EPending"/> and the call is worth repeating.
+    /// </returns>
+    private static async Task<bool> TryExtractAsync(string filePath, string cachePath)
+    {
         var tempPath = cachePath + ".tmp";
+
+        await ExtractionGate.WaitAsync();
 
         try
         {
@@ -161,7 +216,7 @@ internal static class IconService
                 ThumbnailMode.SingleItem, 48, ThumbnailOptions.UseCurrentScale);
 
             if (thumbnail == null || thumbnail.Size == 0)
-                return;
+                return true;
 
             var size = (uint)thumbnail.Size;
             var dataReader = new DataReader(thumbnail.GetInputStreamAt(0));
@@ -173,15 +228,22 @@ internal static class IconService
             // Written beside the target and renamed into place, because File.Exists(cachePath)
             // is the "is it cached?" test above: writing in place creates the file first and
             // fills it after, leaving a window where that test passes and the read that follows
-            // gets a truncated PNG. A rename has no such window.
+            // gets a truncated file. A rename has no such window.
             await File.WriteAllBytesAsync(tempPath, bytes);
             File.Move(tempPath, cachePath, overwrite: true);
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
             // Silently fail — icon just won't be shown
             try { if (File.Exists(tempPath)) File.Delete(tempPath); }
             catch { }
+
+            return ex.HResult != EPending;
+        }
+        finally
+        {
+            ExtractionGate.Release();
         }
     }
 }
