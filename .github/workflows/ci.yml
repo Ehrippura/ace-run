@@ -26,3 +26,10 @@ jobs:
 
       - name: Build
         run: dotnet build win/ace-run.csproj -c Release -p:Platform=x64 -r win-x64 --no-restore
+
+      # No -p:Platform here, and that is the point: AceRun.Core and its tests build AnyCPU
+      # and reference nothing from the Windows App SDK, so the suite runs on a machine with
+      # no WindowsAppRuntime installed. If this step ever needs the app's platform
+      # incantation, something WinUI-shaped has leaked into the logic layer.
+      - name: Test
+        run: dotnet test test/AceRun.Core.Tests/AceRun.Core.Tests.csproj -c Release

@@ -1,8 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using ace_run.Services;
 using Windows.System;
 
 namespace ace_run;
@@ -24,12 +24,11 @@ namespace ace_run;
 public sealed partial class MainWindow
 {
     /// <summary>
-    /// Visited folders, oldest first; null = ungrouped, matching <c>_selectedFolder</c>'s
-    /// own convention. Ids rather than FolderViewModel references so a deleted folder
-    /// leaves no live object stranded in here — <see cref="GoBack"/> resolves each entry
-    /// against <c>_folders</c> when it pops it.
+    /// The back stack. It holds ids, not FolderViewModel references, so <see cref="GoBack"/>
+    /// resolves each entry against <c>_folders</c> as it pops it — see
+    /// <see cref="FolderHistory"/> for the rules it enforces.
     /// </summary>
-    private readonly List<Guid?> _folderHistory = new();
+    private readonly FolderHistory _folderHistory = new();
 
     /// <summary>
     /// Doubles as "a programmatic selection is in progress" — the same role
@@ -106,6 +105,9 @@ public sealed partial class MainWindow
         TrimHistory();
     }
 
+    /// <summary>Does the workspace still have this folder? The stack's liveness test.</summary>
+    private bool FolderExists(Guid id) => _folders.Any(f => f.Id == id);
+
     /// <summary>Records the folder being left, if this is a genuine move.</summary>
     private void RecordNavigation(FolderViewModel? target)
     {
@@ -114,23 +116,14 @@ public sealed partial class MainWindow
         // first Back appear to do nothing.
         if (ReferenceEquals(target, _selectedFolder)) return;
 
-        _folderHistory.Add(_selectedFolder?.Id);
-        if (_folderHistory.Count > MaxHistoryDepth)
-            _folderHistory.RemoveAt(0);
-
+        _folderHistory.Record(_selectedFolder?.Id);
         UpdateBackButtonState();
     }
 
     private void GoBack()
     {
-        // TrimHistory has already dropped anything on top that Back could not act on, so
-        // the first entry is normally the answer. The loop is the backstop.
-        while (_folderHistory.Count > 0)
+        if (_folderHistory.TryGoBack(_selectedFolder?.Id, FolderExists, out var id))
         {
-            var id = _folderHistory[^1];
-            _folderHistory.RemoveAt(_folderHistory.Count - 1);
-            if (!IsNavigableTarget(id)) continue;
-
             NavigateToFolder(id is Guid folderId ? _folders.First(f => f.Id == folderId) : null,
                              record: false);
             return; // NavigateToFolder trims the new top on the way out
@@ -140,48 +133,26 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Would pressing Back on this entry actually move the user? False for a folder that
-    /// has since been deleted, and false for the place they are already standing.
-    /// </summary>
-    private bool IsNavigableTarget(Guid? id) =>
-        id is Guid folderId
-            ? _selectedFolder?.Id != folderId && _folders.Any(f => f.Id == folderId)
-            : _selectedFolder is not null;
-
-    /// <summary>
-    /// Enforces the one invariant this feature rests on: <b>if the button is enabled, a
-    /// press moves.</b> Anything else means a press that visibly does nothing, which reads
-    /// as the button being broken — and then a second press jumps two folders at once,
-    /// because the first one silently spent an entry.
-    ///
-    /// Two things put a dead entry on top. A folder deleted while it sat in the history
-    /// (handled at the delete, but only for that one id), and a navigation the user did not
-    /// ask for landing on the entry that was already there — being evicted from a deleted
-    /// folder back to ungrouped, when ungrouped is what Back was pointing at.
+    /// Keeps the top of the stack navigable, then syncs the button. See
+    /// <see cref="FolderHistory"/> for why that matters: if the button is enabled, a press
+    /// has to move.
     /// </summary>
     private void TrimHistory()
     {
-        while (_folderHistory.Count > 0 && !IsNavigableTarget(_folderHistory[^1]))
-            _folderHistory.RemoveAt(_folderHistory.Count - 1);
+        _folderHistory.Trim(_selectedFolder?.Id, FolderExists);
+        UpdateBackButtonState();
+    }
 
+    private void PruneHistory(Guid deletedFolderId)
+    {
+        _folderHistory.Prune(deletedFolderId, _selectedFolder?.Id, FolderExists);
         UpdateBackButtonState();
     }
 
     /// <summary>
-    /// Drops a deleted folder from the history, wherever it sits. Entries deeper down are
-    /// not TrimHistory's job — it only guarantees the top — and leaving them would make a
-    /// later press land nowhere.
-    /// </summary>
-    private void PruneHistory(Guid deletedFolderId)
-    {
-        _folderHistory.RemoveAll(id => id == deletedFolderId);
-        TrimHistory();
-    }
-
-    /// <summary>
-    /// Folders belong to a workspace, so the history cannot outlive one. Called from
-    /// ResetContentState, which also covers the reload after workspace management — where
-    /// folders may have been renamed, reordered, imported or removed wholesale.
+    /// Called from ResetContentState, which also covers the reload after workspace
+    /// management — where folders may have been renamed, reordered, imported or removed
+    /// wholesale.
     /// </summary>
     private void ClearHistory()
     {
@@ -192,7 +163,7 @@ public sealed partial class MainWindow
     // Kept enabled/disabled rather than shown/hidden: collapsing the button would shift the
     // pane toggle and the workspace picker sideways every time the history empties.
     private void UpdateBackButtonState() =>
-        BackButton.IsEnabled = _folderHistory.Count > 0;
+        BackButton.IsEnabled = _folderHistory.CanGoBack;
 
     #endregion
 

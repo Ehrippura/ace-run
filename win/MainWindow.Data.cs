@@ -202,7 +202,7 @@ public sealed partial class MainWindow
         var info = _workspaceConfig.Workspaces.FirstOrDefault(w => w.Id == _currentWorkspace.Id);
         if (info is not null)
         {
-            info.AppCount = _appData.UngroupedItems.Count + _appData.Folders.Sum(f => f.Children.Count);
+            info.AppCount = _appData.ItemCount;
             info.LastModifiedAt = DateTime.UtcNow;
             info.SelectedFolderId = _selectedFolder?.Id;
             DataService.SaveConfig(_workspaceConfig);
@@ -233,16 +233,11 @@ public sealed partial class MainWindow
 
     private bool PurgeStaleRecentLaunches()
     {
-        var allIds = new HashSet<Guid>();
-        foreach (var app in _ungroupedApps)
-            allIds.Add(app.Id);
-        foreach (var folder in _folders)
-            foreach (var app in folder.Apps)
-                allIds.Add(app.Id);
+        var liveIds = new HashSet<Guid>();
+        foreach (var app in AllApps())
+            liveIds.Add(app.Id);
 
-        int before = _appData.RecentLaunches.Count;
-        _appData.RecentLaunches.RemoveAll(r => !allIds.Contains(r.AppId));
-        return _appData.RecentLaunches.Count < before;
+        return RecentLaunchList.Purge(_appData.RecentLaunches, liveIds);
     }
 
     private FolderViewModel? FindFolderOfApp(AppItemViewModel app)
@@ -285,22 +280,14 @@ public sealed partial class MainWindow
     {
         foreach (var app in AllApps())
         {
-            if (app.Tags.Count == 0) continue;
-
-            var assigned = new HashSet<Guid>(app.Tags.Select(t => t.Id));
-            var ordered = _tags.Where(t => assigned.Contains(t.Id)).ToList();
-
-            if (!ordered.SequenceEqual(app.Tags))
+            var ordered = TagOrdering.Normalize(_tags, app.Tags);
+            if (ordered is not null)
                 app.SetTags(ordered);
         }
     }
 
     /// <summary>
     /// Adds or removes one tag across a batch, then persists once.
-    ///
-    /// The rebuild goes through <c>_tags.Where(...)</c> rather than appending to the item's
-    /// own list: that is what keeps each item in workspace tag order for free, which is the
-    /// invariant <see cref="NormalizeAppTags"/> exists to defend.
     /// </summary>
     private void SetTagOnApps(IList<AppItemViewModel> apps, TagViewModel tag, bool assign)
     {
@@ -308,11 +295,10 @@ public sealed partial class MainWindow
 
         foreach (var app in apps)
         {
-            var assigned = new HashSet<Guid>(app.Tags.Select(t => t.Id));
-            if (assign ? !assigned.Add(tag.Id) : !assigned.Remove(tag.Id))
-                continue; // already in the requested state
+            var ordered = TagOrdering.WithTagToggled(_tags, app.Tags, tag.Id, assign);
+            if (ordered is null) continue; // already in the requested state
 
-            app.SetTags(_tags.Where(t => assigned.Contains(t.Id)));
+            app.SetTags(ordered);
             changed = true;
         }
 

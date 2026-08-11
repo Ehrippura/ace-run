@@ -130,13 +130,11 @@ public sealed partial class MainWindow
         if (scale <= 0) return;
 
         var bar = AppWindow.TitleBar;
-        SetColumnWidth(TitleBarLeftInsetColumn, bar.LeftInset / scale);
-        SetColumnWidth(TitleBarRightInsetColumn, bar.RightInset / scale);
+        var insets = TitleBarMetrics.ComputeInsets(bar.LeftInset, bar.RightInset, bar.Height, scale);
 
-        // 0 would collapse the whole row; the SDK's tall title bar is 48 DIP, which is
-        // what PreferredHeightOption.Tall asks for in MainWindow's constructor.
-        var height = bar.Height > 0 ? bar.Height / scale : 48;
-        if (AppTitleBar.Height != height) AppTitleBar.Height = height;
+        SetColumnWidth(TitleBarLeftInsetColumn, insets.Left);
+        SetColumnWidth(TitleBarRightInsetColumn, insets.Right);
+        if (AppTitleBar.Height != insets.Height) AppTitleBar.Height = insets.Height;
     }
 
     private static void SetColumnWidth(ColumnDefinition column, double dips)

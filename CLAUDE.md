@@ -27,6 +27,9 @@ Ace Run is a lightweight Windows launcher built with WinUI 3 and C#. Users manag
 # Build
 dotnet build win/ace-run.csproj
 
+# Test — no -p:Platform, and that is the point (see "Testability" below)
+dotnet test test/AceRun.Core.Tests/AceRun.Core.Tests.csproj
+
 # Run (unpackaged mode)
 dotnet run --project win/ace-run.csproj
 
@@ -64,26 +67,45 @@ On first launch, `DataService.MigrateOrInitialize()` either reads `config.json` 
 
 Version numbers are stamped **on write** (`AppData` v6, `WorkspaceConfig` v2). New fields need no migration code: an older file simply lacks the key and `System.Text.Json` leaves the property initializer in place.
 
-Every file goes through the one shared `DataService.JsonOptions`, including the `.acerun` import/export — that is what keeps them from drifting, and its `JsonStringEnumConverter` is why enums (`ItemKind`, `AppTheme`, the hotkey's `VirtualKey` / `VirtualKeyModifiers`) persist as readable names rather than numbers.
+Every file goes through the one shared `AceRunJson.Options` (reachable as `DataService.JsonOptions`), including the `.acerun` import/export — that is what keeps them from drifting, and its `JsonStringEnumConverter` is why enums (`ItemKind`, `AppTheme`, the hotkey's `VirtualKey` / `VirtualKeyModifiers`) persist as readable names rather than numbers.
+
+**`DataService` is a facade, not the implementation.** `DataStore` does the work and takes an `AceRunPaths` whose root is a constructor argument, which is how a test runs the whole layer — migration included — in a temp directory. The options object lives apart from both so that reading it cannot trigger path resolution: the old static class resolved `%LOCALAPPDATA%` and created the data directory in its type initializer, so merely touching it wrote to the profile.
 
 ## Architecture
 
 ### Layers
 
+Three projects. `core/AceRun.Core` holds everything that does not need WinUI, `win/` is the app, `test/AceRun.Core.Tests` covers the first and never sees the second.
+
 ```
-Models/                  # Plain data classes
-  AppData                # v6: Tags + UngroupedItems + Folders + RecentLaunches
-  AppItem / FolderItem   # Leaf and group nodes (AppItem.SortKey = user-defined Organize key)
-  TagItem                # User-defined tag (id, name, color key)
-  ItemKind               # App | Url — what AppItem.FilePath points at
-  WorkspaceConfig        # v2: Top-level config (workspaces list + window state + Settings)
-  WorkspaceInfo          # Workspace metadata (id, name, color tag, app count)
-  WorkspaceExport        # Import/export container
-  AppSettings            # App-level prefs; AppTheme + HotkeyBinding live in the same file
-Services/                # Static service classes
-  DataService            # JSON persistence, workspace CRUD, migration, shared JsonOptions
+core/AceRun.Core/        # No WinUI. Namespaces stay ace_run.Models / ace_run.Services
+  Models/                # Plain data classes
+    AppData              # v6: Tags + UngroupedItems + Folders + RecentLaunches; ItemCount
+    AppItem / FolderItem # Leaf and group nodes (AppItem.SortKey = user-defined Organize key)
+    TagItem              # User-defined tag (id, name, color key)
+    ItemKind             # App | Url — what AppItem.FilePath points at
+    WorkspaceConfig      # v2: Top-level config (workspaces list + window state + Settings)
+    WorkspaceInfo        # Workspace metadata (id, name, color tag, app count)
+    WorkspaceExport      # Import/export container
+    AppSettings          # App-level prefs; AppTheme + HotkeyBinding live in the same file
+    IAppItemView         # + ITagRef — the seam that keeps WinUI out of the logic below
+  Services/
+    AceRunJson           # The one shared JsonSerializerOptions
+    AceRunPaths          # Where the data lives, rooted at a constructor argument
+    DataStore            # JSON persistence, workspace CRUD, migration
+    DataService          # Static facade over DataStore.Default — what the app calls
+    UrlUtil              # URL normalization / display name / .url shortcut parsing
+    SearchRanking        # MatchRank + result ordering
+    ItemOrdering         # OrganizeBy + the four sorts + ApplyOrder
+    FolderHistory        # The back stack
+    TagOrdering          # Tag id set -> workspace-ordered tags; normalization
+    RecentLaunchList     # Track / Purge, capped at MaxRecent
+    WindowGeometry.cs    # WindowPlacement, TitleBarMetrics, DropGeometry + pixel records
+    ItemFactory          # AppItem from a path or a URL; AppDataQuery walks a workspace
+test/AceRun.Core.Tests/  # xUnit. References Core only — never win/ace-run.csproj
+win/
+Services/                # Static service classes — the ones that need WinUI or the OS
   IconService            # Icon cache (disk) + extraction via StorageFile thumbnail
-  UrlUtil                # URL normalization / display name / .url shortcut parsing
   Loc                    # Localization (ResourceLoader with embedded .resw fallback)
   ColorTags              # Color-key list + resolution to the shared theme brushes
   HotkeyService          # RegisterHotKey + WM_HOTKEY via SetWindowSubclass on the main HWND
@@ -101,6 +123,18 @@ SettingsWindow.xaml/.cs  # Standalone window (not a dialog) for the app-level se
 App.xaml.cs              # App lifecycle, single-instance, tray icon, theme fan-out
 Program.cs               # Entry point — single-instance via AppInstance.FindOrRegisterForKey
 ```
+
+### Testability — two rules hold the split open
+
+**The test project references `AceRun.Core` and nothing else.** Never `win/ace-run.csproj`. That is what lets `dotnet test` run with no `-p:Platform` and no WindowsAppRuntime installed, and it is the only thing stopping logic from staying in `MainWindow` while looking tested. If a test step ever needs the app's platform incantation, something WinUI-shaped has leaked into the logic layer.
+
+**`AceRun.Core` has no `PackageReference` at all.** Its Windows TFM is there for exactly one reason: `HotkeyBinding` stores `Windows.System.VirtualKey` / `VirtualKeyModifiers`, which are metadata-only WinRT enums supplied by the projection the TFM implies. No COM activation, no UI thread, no Windows App SDK.
+
+`core/` and `test/` sit beside `win/`, not inside it, because `ace-run.csproj` has no `<Compile>` items and relies on default globbing — anything under `win/` would be compiled into the app as well.
+
+`IAppItemView` / `ITagRef` (`Models/IAppItemView.cs`) are what let search and Organize run over the live view models without dragging `Visibility`, `Brush` and `BitmapImage` across the boundary. `Tags` is `IEnumerable<ITagRef>` so `ObservableCollection<TagViewModel>` satisfies it by covariance — no projection, no per-call allocation.
+
+What stays in `MainWindow` is what it genuinely owns: UI state, event wiring, and *when* to save. `ItemOrdering.ApplyOrder` returns whether anything moved and lets the caller decide about `CommitSave()`; `SearchRanking.Rank` returns `(item, folderLabel)` pairs rather than writing `FolderLabel` during the ranking pass.
 
 ### Data flow
 

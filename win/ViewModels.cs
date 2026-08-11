@@ -15,8 +15,16 @@ using ace_run.Services;
 
 namespace ace_run;
 
-public class AppItemViewModel : INotifyPropertyChanged
+public class AppItemViewModel : INotifyPropertyChanged, IAppItemView
 {
+    /// <summary>
+    /// Satisfies <see cref="IAppItemView.Tags"/> without a projection: <see cref="Tags"/> is an
+    /// <c>ObservableCollection&lt;TagViewModel&gt;</c> and <see cref="IEnumerable{T}"/> is
+    /// covariant, so the same instance answers both. Explicit because the property types
+    /// differ; the app keeps using the concrete <see cref="Tags"/>.
+    /// </summary>
+    IEnumerable<ITagRef> IAppItemView.Tags => Tags;
+
     private string _displayName = string.Empty;
     private string _filePath = string.Empty;
     private string _arguments = string.Empty;
@@ -220,10 +228,7 @@ public class AppItemViewModel : INotifyPropertyChanged
         _sortKey = model.SortKey;
 
         if (model.TagIds is { Count: > 0 })
-        {
-            var assigned = new HashSet<Guid>(model.TagIds);
-            SetTags(tags.Where(t => assigned.Contains(t.Id)));
-        }
+            SetTags(TagOrdering.InWorkspaceOrder(tags, new HashSet<Guid>(model.TagIds)));
     }
 
     /// <summary>
@@ -433,7 +438,7 @@ public class WorkspaceViewModel : INotifyPropertyChanged
     }
 }
 
-public class TagViewModel : INotifyPropertyChanged
+public class TagViewModel : INotifyPropertyChanged, ITagRef
 {
     private string _name = string.Empty;
     private string _colorKey = "Blue";

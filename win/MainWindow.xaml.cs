@@ -170,24 +170,20 @@ public sealed partial class MainWindow : Window
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
-            presenter.PreferredMinimumWidth = (int)(MinWidthDip * scale);
-            presenter.PreferredMinimumHeight = (int)(MinHeightDip * scale);
+            var minimum = WindowPlacement.MinimumSize(scale);
+            presenter.PreferredMinimumWidth = minimum.Width;
+            presenter.PreferredMinimumHeight = minimum.Height;
         }
 
         // Read config directly rather than waiting for InitializeWorkspacesAsync; this is
         // a small synchronous file read and it has to happen before the window is shown.
         var saved = DataService.LoadConfig().WindowState;
 
-        var width = saved is { Width: > 0 } ? saved.Width : (int)(DefaultWidthDip * scale);
-        var height = saved is { Height: > 0 } ? saved.Height : (int)(DefaultHeightDip * scale);
-
-        // Clamp to the current monitor: a size saved on a 4K display would otherwise
-        // restore larger than a 1080p screen and put the controls out of reach.
         var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-        width = Math.Min(width, workArea.Width);
-        height = Math.Min(height, workArea.Height);
+        var size = WindowPlacement.ResolveStartupSize(
+            saved, scale, new PixelSize(workArea.Width, workArea.Height));
 
-        AppWindow.Resize(new SizeInt32(width, height));
+        AppWindow.Resize(new SizeInt32(size.Width, size.Height));
     }
 
     #endregion

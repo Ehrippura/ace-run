@@ -63,6 +63,15 @@
   </ItemGroup>
 
   <!--
+    The logic layer. It lives outside win/ on purpose: this project has no <Compile> items
+    at all and relies entirely on the SDK's default globbing, so anything placed under win/
+    would be compiled into the app as well as into its own assembly.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\core\AceRun.Core\AceRun.Core.csproj" />
+  </ItemGroup>
+
+  <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if
     the Windows App SDK Nuget package has not yet been restored.

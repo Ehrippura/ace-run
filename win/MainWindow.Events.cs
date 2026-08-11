@@ -227,40 +227,19 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// How well an item answers the query, best first. Doubles as the "no match" test:
-    /// <see cref="MatchRank.None"/> means the item is filtered out.
+    /// Every item in the workspace, each paired with the folder label a search result would
+    /// show. Traversal order is the arrangement the user dragged into place, and
+    /// <see cref="SearchRanking.Rank"/> uses it as its last tiebreak.
     /// </summary>
-    private enum MatchRank
+    private IEnumerable<SearchCandidate<AppItemViewModel>> SearchCandidates()
     {
-        NamePrefix = 0,
-        NameSubstring = 1,
-        Tag = 2,
-        Path = 3,
-        None = 4
-    }
+        var ungroupedLabel = Loc.GetString("UngroupedFolderName");
+        foreach (var app in _ungroupedApps)
+            yield return new SearchCandidate<AppItemViewModel>(app, ungroupedLabel);
 
-    /// <summary>
-    /// Name, path, launch arguments and tag names, all case-insensitive substring. Path is
-    /// matched so a URL item is findable by its domain; arguments so two entries pointing at
-    /// the same exe can be told apart; tag names so a tag doubles as a query.
-    /// Tags are matched one by one rather than against <c>TagsSummary</c> — that string is
-    /// joined with a separator, so a query could otherwise match across two tag names.
-    /// The checks run in rank order and return on the first hit, so a name match never pays
-    /// for scanning the path — the short-circuit the old <c>||</c> chain gave for free.
-    /// Path and arguments share one rank: neither is how a user identifies an item by eye.
-    /// </summary>
-    private static MatchRank RankOf(AppItemViewModel app, string query)
-    {
-        if (app.DisplayName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
-            return MatchRank.NamePrefix;
-        if (app.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase))
-            return MatchRank.NameSubstring;
-        if (app.Tags.Any(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
-            return MatchRank.Tag;
-        if (app.FilePath.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || app.Arguments.Contains(query, StringComparison.OrdinalIgnoreCase))
-            return MatchRank.Path;
-        return MatchRank.None;
+        foreach (var folder in _folders)
+            foreach (var app in folder.Apps)
+                yield return new SearchCandidate<AppItemViewModel>(app, folder.DisplayName);
     }
 
     private void RunSearch()
@@ -273,44 +252,15 @@ public sealed partial class MainWindow
 
         _searchResults.Clear();
 
-        // Position in the recent list, not just membership: it is already ordered most
-        // recent first, so the index doubles as the sort key within the recent bucket.
-        // Capped at 10 entries by TrackRecentLaunch, and an app id appears at most once.
-        var recentRank = new Dictionary<Guid, int>();
-        var recents = _appData?.RecentLaunches;
-        if (recents is not null)
-            for (int i = 0; i < recents.Count; i++)
-                recentRank[recents[i].AppId] = i;
-
-        // Collected before sorting rather than added straight to _searchResults: the
-        // collection is bound to SearchResultsView, so filling it in the wrong order and
-        // then reordering would churn containers for no reason.
-        var hits = new List<(AppItemViewModel App, int Recent, MatchRank Rank, int Order)>();
-        var order = 0;
-
-        void Collect(AppItemViewModel app, string folderLabel)
+        // Ranked before anything is added rather than added and reordered: the collection is
+        // bound to SearchResultsView, so filling it in the wrong order would churn containers
+        // for no reason. FolderLabel is assigned from the result rather than during ranking,
+        // which keeps the ranking pass free of side effects on the items it is ranking.
+        foreach (var hit in SearchRanking.Rank(query, SearchCandidates(), _appData?.RecentLaunches))
         {
-            var rank = RankOf(app, query);
-            if (rank == MatchRank.None) return;
-
-            app.FolderLabel = folderLabel;
-            hits.Add((app, recentRank.TryGetValue(app.Id, out var r) ? r : int.MaxValue, rank, order++));
+            hit.Item.FolderLabel = hit.FolderLabel;
+            _searchResults.Add(hit.Item);
         }
-
-        var ungroupedLabel = Loc.GetString("UngroupedFolderName");
-        foreach (var app in _ungroupedApps)
-            Collect(app, ungroupedLabel);
-        foreach (var folder in _folders)
-            foreach (var app in folder.Apps)
-                Collect(app, folder.DisplayName);
-
-        // Recency wins outright: anything the user launched lately sits on top in launch
-        // order, and match quality only sorts the rest. Order is the traversal index — the
-        // arrangement the user dragged into place — so equally good hits keep their
-        // familiar sequence. OrderBy is a stable sort; List.Sort is not, and would shuffle
-        // ties. Recent ids are unique, so the later keys only ever apply to non-recent hits.
-        foreach (var hit in hits.OrderBy(h => h.Recent).ThenBy(h => h.Rank).ThenBy(h => h.Order))
-            _searchResults.Add(hit.App);
 
         // Icons are not loaded here — SearchResultsView_ContainerContentChanging loads them
         // per realized row, so a query matching 200 items does not start 200 disk reads for
@@ -560,25 +510,20 @@ public sealed partial class MainWindow
         var count = (_selectedFolder?.Apps ?? _ungroupedApps).Count;
         var point = e.GetPosition(AppGridView);
 
-        for (var index = 0; index < count; index++)
-        {
-            // Scrolled-out rows have no container; skipping them is safe because the pointer
-            // can only be over the realized ones.
-            if (AppGridView.ContainerFromIndex(index) is not FrameworkElement container) continue;
+        return DropGeometry.ResolveInsertIndex(point.X, point.Y, count, TileBoundsAt);
+    }
 
-            var origin = container.TransformToVisual(AppGridView).TransformPoint(new Point(0, 0));
+    /// <summary>
+    /// Bounds of a realized tile relative to the grid, or null when it is scrolled out and
+    /// has no container.
+    /// </summary>
+    private TileBounds? TileBoundsAt(int index)
+    {
+        if (AppGridView.ContainerFromIndex(index) is not FrameworkElement container)
+            return null;
 
-            // Reading order, so the row is decided before the column. The gap between rows
-            // belongs to the row below: it is past the bottom of one and above the top of
-            // the next, which is exactly where the two branches hand over.
-            if (point.Y > origin.Y + container.ActualHeight) continue;
-            if (point.Y < origin.Y) return index;
-
-            if (point.X > origin.X + container.ActualWidth / 2) continue;
-            return index;
-        }
-
-        return count;
+        var origin = container.TransformToVisual(AppGridView).TransformPoint(new Point(0, 0));
+        return new TileBounds(origin.X, origin.Y, container.ActualWidth, container.ActualHeight);
     }
 
     private async Task DropStorageItemsAsync(DataPackageView dataView, int index)
