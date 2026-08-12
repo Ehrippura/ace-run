@@ -64,6 +64,151 @@ public sealed class DataStoreTests : IDisposable
         Assert.Equal(first.Workspaces[0].Id, Assert.Single(second.Workspaces).Id);
     }
 
+    // --- The usable-config floor ---
+    //
+    // Every consumer of the returned config assumes at least one workspace exists and that
+    // ActiveWorkspaceId names one of them. LoadConfig cannot promise that — an unreadable file
+    // yields a WorkspaceConfig with an empty list — and the failure was silent, because startup
+    // runs on a fire-and-forget task: the user got a window with an empty workspace picker, no
+    // error, and no way back.
+
+    [Fact]
+    public void A_corrupt_config_is_repaired_rather_than_handed_over_empty()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(_store.Paths.ConfigFile, "}}not json{{");
+
+        var config = _store.MigrateOrInitialize();
+
+        var ws = Assert.Single(config.Workspaces);
+        Assert.Equal(ws.Id, config.ActiveWorkspaceId);
+    }
+
+    [Fact]
+    public void The_repair_is_written_back_to_disk()
+    {
+        // Otherwise everything else that calls LoadConfig — the language read at startup, the
+        // manage-workspaces dialog — would keep seeing the broken file.
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(_store.Paths.ConfigFile, "not json");
+
+        var repaired = _store.MigrateOrInitialize();
+        var reloaded = _store.LoadConfig();
+
+        Assert.Equal(repaired.Workspaces[0].Id, Assert.Single(reloaded.Workspaces).Id);
+    }
+
+    [Fact]
+    public void A_config_whose_workspace_list_is_empty_is_repaired()
+    {
+        // Valid JSON, valid shape, unusable content — the case a parse check cannot catch.
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(_store.Paths.ConfigFile, """{ "Version": 2, "Workspaces": [] }""");
+
+        Assert.Single(_store.MigrateOrInitialize().Workspaces);
+    }
+
+    [Fact]
+    public void A_repair_keeps_the_existing_workspaces()
+    {
+        // Only the active pointer is wrong here. Minting a new workspace would orphan the two
+        // that are already there.
+        var config = new WorkspaceConfig
+        {
+            Workspaces = { new WorkspaceInfo { Name = "One" }, new WorkspaceInfo { Name = "Two" } },
+            ActiveWorkspaceId = Guid.NewGuid() // points at nothing
+        };
+        _store.SaveConfig(config);
+
+        var loaded = _store.MigrateOrInitialize();
+
+        Assert.Equal(2, loaded.Workspaces.Count);
+        Assert.Equal(loaded.Workspaces[0].Id, loaded.ActiveWorkspaceId);
+    }
+
+    [Fact]
+    public void Migration_leaves_existing_workspace_files_alone()
+    {
+        // The safe direction to fail in: a user whose config was damaged gets a working app and
+        // can import their data back, because nothing deleted it.
+        var orphanId = Guid.NewGuid();
+        _store.SaveWorkspace(orphanId, new AppData { UngroupedItems = { new AppItem { DisplayName = "Kept" } } });
+        File.WriteAllText(_store.Paths.ConfigFile, "corrupt");
+
+        _store.MigrateOrInitialize();
+
+        Assert.Equal("Kept", Assert.Single(_store.LoadWorkspace(orphanId).UngroupedItems).DisplayName);
+    }
+
+    // --- EnsureUsable, directly ---
+
+    [Fact]
+    public void EnsureUsable_reports_no_change_for_a_healthy_config()
+    {
+        var config = new WorkspaceConfig { Workspaces = { new WorkspaceInfo { Name = "One" } } };
+        config.ActiveWorkspaceId = config.Workspaces[0].Id;
+
+        Assert.False(DataStore.EnsureUsable(config));
+    }
+
+    [Fact]
+    public void EnsureUsable_adds_a_workspace_when_there_are_none()
+    {
+        var config = new WorkspaceConfig();
+
+        Assert.True(DataStore.EnsureUsable(config));
+        Assert.Equal(Assert.Single(config.Workspaces).Id, config.ActiveWorkspaceId);
+    }
+
+    [Fact]
+    public void EnsureUsable_repoints_a_dangling_active_id()
+    {
+        var config = new WorkspaceConfig
+        {
+            Workspaces = { new WorkspaceInfo { Name = "One" } },
+            ActiveWorkspaceId = Guid.NewGuid()
+        };
+
+        Assert.True(DataStore.EnsureUsable(config));
+        Assert.Equal(config.Workspaces[0].Id, config.ActiveWorkspaceId);
+    }
+
+    [Fact]
+    public void EnsureUsable_is_idempotent()
+    {
+        var config = new WorkspaceConfig();
+
+        DataStore.EnsureUsable(config);
+
+        Assert.False(DataStore.EnsureUsable(config));
+    }
+
+    // --- Atomic writes ---
+
+    [Fact]
+    public void A_save_leaves_no_temp_file_behind()
+    {
+        // Writes go beside the target and are renamed into place: File.WriteAllText truncates
+        // first and fills after, and a crash in that window would leave config.json truncated —
+        // the index to every workspace gone while the workspace files themselves survive.
+        _store.SaveConfig(new WorkspaceConfig());
+        _store.SaveWorkspace(Guid.NewGuid(), new AppData());
+
+        Assert.Empty(Directory.EnumerateFiles(_root, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void Overwriting_an_existing_file_works()
+    {
+        // File.Move needs overwrite:true for the second save onwards; without it every save
+        // after the first would throw.
+        var id = Guid.NewGuid();
+        _store.SaveWorkspace(id, new AppData { UngroupedItems = { new AppItem { DisplayName = "First" } } });
+        _store.SaveWorkspace(id, new AppData { UngroupedItems = { new AppItem { DisplayName = "Second" } } });
+
+        Assert.Equal("Second", Assert.Single(_store.LoadWorkspace(id).UngroupedItems).DisplayName);
+    }
+
     // --- Migration from the pre-workspace format ---
 
     [Fact]

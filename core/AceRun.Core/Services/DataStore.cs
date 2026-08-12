@@ -67,16 +67,78 @@ public sealed class DataStore
 
     // --- Workspace config ---
 
+    /// <summary>
+    /// The config the app starts on. Guarantees a usable one: at least one workspace, with
+    /// <see cref="WorkspaceConfig.ActiveWorkspaceId"/> naming one of them.
+    /// </summary>
+    /// <remarks>
+    /// The repair pass is not belt-and-braces. <see cref="LoadConfig"/> answers an unreadable
+    /// file with a fresh <see cref="WorkspaceConfig"/>, whose workspace list is <em>empty</em>,
+    /// and every consumer of the result assumes at least one exists. Worse, the failure was
+    /// silent: startup runs on a fire-and-forget task, so the exception went unobserved and the
+    /// user got a window with an empty workspace picker, no error, and no way back — the
+    /// workspace files were all still on disk, just unreachable, and migration never re-ran
+    /// because config.json did exist.
+    /// </remarks>
     public WorkspaceConfig MigrateOrInitialize()
     {
         Directory.CreateDirectory(Paths.WorkspacesDir);
 
-        return File.Exists(Paths.ConfigFile) ? LoadConfig() : MigrateFromAppsJson();
+        if (!File.Exists(Paths.ConfigFile))
+            return MigrateFromAppsJson();
+
+        var config = LoadConfig();
+
+        // Written back, not just patched in memory: everything else that calls LoadConfig
+        // (the settings language read, the manage-workspaces dialog) would otherwise keep
+        // seeing the broken file.
+        if (EnsureUsable(config))
+            SaveConfig(config);
+
+        return config;
     }
+
+    /// <summary>
+    /// Brings a config up to the minimum every consumer assumes.
+    /// </summary>
+    /// <returns>True when something had to be repaired, so the caller can save.</returns>
+    /// <remarks>
+    /// Repairing rather than refusing to start: the workspace files are untouched, so a user
+    /// whose config was damaged gets a working app and can import their data back. Deleting
+    /// nothing is the safe direction to fail in.
+    /// </remarks>
+    public static bool EnsureUsable(WorkspaceConfig config)
+    {
+        var repaired = false;
+
+        if (config.Workspaces.Count == 0)
+        {
+            config.Workspaces.Add(NewDefaultWorkspace());
+            repaired = true;
+        }
+
+        if (!config.Workspaces.Exists(w => w.Id == config.ActiveWorkspaceId))
+        {
+            config.ActiveWorkspaceId = config.Workspaces[0].Id;
+            repaired = true;
+        }
+
+        return repaired;
+    }
+
+    /// <summary>
+    /// The workspace a fresh install starts with, and what a repair falls back to.
+    /// </summary>
+    /// <remarks>
+    /// The name is not localized. This layer has no access to the resource loader, and the
+    /// workspace is renameable — unlike the defaults the dialogs apply, which the user never
+    /// gets a chance to see before they are committed.
+    /// </remarks>
+    private static WorkspaceInfo NewDefaultWorkspace() => new() { Name = "Default" };
 
     private WorkspaceConfig MigrateFromAppsJson()
     {
-        var ws = new WorkspaceInfo { Name = "Default" };
+        var ws = NewDefaultWorkspace();
         var config = new WorkspaceConfig
         {
             Workspaces = { ws },
@@ -101,7 +163,7 @@ public sealed class DataStore
     {
         config.Version = WorkspaceConfig.CurrentVersion;
         Directory.CreateDirectory(Paths.Root);
-        File.WriteAllText(Paths.ConfigFile, JsonSerializer.Serialize(config, AceRunJson.Options));
+        WriteAtomic(Paths.ConfigFile, JsonSerializer.Serialize(config, AceRunJson.Options));
     }
 
     public AppData LoadWorkspace(Guid id) => ReadOrDefault(Paths.WorkspaceFile(id), ParseAppData);
@@ -110,7 +172,7 @@ public sealed class DataStore
     {
         data.Version = AppData.CurrentVersion;
         Directory.CreateDirectory(Paths.WorkspacesDir);
-        File.WriteAllText(Paths.WorkspaceFile(id), JsonSerializer.Serialize(data, AceRunJson.Options));
+        WriteAtomic(Paths.WorkspaceFile(id), JsonSerializer.Serialize(data, AceRunJson.Options));
     }
 
     public void DeleteWorkspace(Guid id)
@@ -131,6 +193,37 @@ public sealed class DataStore
         export.AceRunVersion = WorkspaceExport.CurrentVersion;
         export.AppData.Version = AppData.CurrentVersion;
         return JsonSerializer.Serialize(export, AceRunJson.Options);
+    }
+
+    /// <summary>
+    /// Writes beside the target and renames into place, so a reader never sees a half-written
+    /// file.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="File.WriteAllText(string,string)"/> truncates first and fills after: a crash,
+    /// a full disk or a power cut in that window leaves a truncated file, and for
+    /// <c>config.json</c> that means the index to every workspace is gone while the workspace
+    /// files themselves are still on disk. The icon cache — data that can always be extracted
+    /// again — has had this protection since it was written; the files that cannot be
+    /// regenerated did not.
+    ///
+    /// A leftover <c>.tmp</c> is inert: nothing enumerates the data directories, and every
+    /// lookup here is by exact path.
+    /// </remarks>
+    private static void WriteAtomic(string path, string json)
+    {
+        var temp = path + ".tmp";
+
+        try
+        {
+            File.WriteAllText(temp, json);
+            File.Move(temp, path, overwrite: true);
+        }
+        catch
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+            throw;
+        }
     }
 
     /// <summary>
