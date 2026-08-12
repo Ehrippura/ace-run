@@ -171,6 +171,14 @@ public sealed partial class EditItemDialog : ContentDialog
 
     public void ApplyTo(AppItemViewModel viewModel)
     {
+        // The cached icon is keyed by item id and was extracted from one of these two paths,
+        // so it outlives a change to either. Captured here and compared at the end rather than
+        // invalidated from the property setters: a string assignment that deletes a file is a
+        // side effect nobody reading the call site would expect, and it made the view model
+        // untestable without a disk.
+        var previousFilePath = viewModel.FilePath;
+        var previousIconPath = viewModel.CustomIconPath;
+
         if (viewModel.IsUrl)
         {
             // PrimaryButtonClick already rejected anything TryNormalize can't handle.
@@ -197,6 +205,13 @@ public sealed partial class EditItemDialog : ContentDialog
         viewModel.SortKey = SortKeyBox.Text.Trim();
 
         viewModel.SetTags(SelectedTags());
+
+        // One call for both paths, and only when something actually moved. The old setters
+        // invalidated per-property, and CustomIconPath did so without the "was there anything
+        // there before" guard FilePath had — so setting a custom icon on a brand-new item sent
+        // a delete for an id that had never been cached.
+        if (viewModel.FilePath != previousFilePath || viewModel.CustomIconPath != previousIconPath)
+            IconService.InvalidateCache(viewModel.Id);
     }
 
     private async void BrowseFile_Click(object sender, RoutedEventArgs e)

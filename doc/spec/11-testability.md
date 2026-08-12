@@ -87,13 +87,57 @@
 
 刻意不帶 `-p:Platform`：Core 與測試專案都是 AnyCPU。哪天這一步需要 app 那套平台參數，就代表有 WinUI 的東西漏進邏輯層了。
 
-## 8. 不在本階段範圍
+## 8. 第二輪：拆解 WinUI 耦合服務
 
-以下已確認可行，留待日後：
+第一輪刻意把與 WinUI 焊在一起的服務留到後面。這一輪處理其中三個。
 
-- **`ColorTags` 的型別初始化毒化** — `SolidColorBrush` 靜態欄位使純資料的 `Keys` 也無法在沒有 XAML runtime 時讀取。拆出 `Keys` 即可解毒
-- **`IconService`** — 退避重試狀態機與 `E_PENDING` 判別值得測試，但與 WinRT 縮圖擷取焊在一起；`ClearCache` 是無過濾的整目錄掃除，尤其該有測試
-- **`AppItemViewModel` 的 setter 會動磁碟** — `FilePath` 與 `CustomIconPath` 的 setter 呼叫 `IconService.InvalidateCache`，設一個字串屬性就會嘗試刪檔。需要 `IIconCache` 接縫
+### 8.1 `IconService` 拆成快取層與擷取策略
+
+| 型別 | 位置 | 內容 |
+|---|---|---|
+| `IconCache` | Core | `PathFor` / `Invalidate` / `ClearAll` / `ChooseSource`，純 `System.IO` |
+| `IconExtractionPolicy` | Core | `BackoffMs` / `DelayForAttempt` / `IsRetryable`，純判斷 |
+| `IconService` | win | `BitmapImage`、`StorageFile` 縮圖擷取、`SemaphoreSlim` 閘門、in-flight 字典 |
+
+路徑改由 `AceRunPaths.IconsDir` 提供，磁碟配置回到單一型別描述。
+
+兩個最該有測試的：`IsRetryable` 是曾經寫錯的判斷（把「稍後再試」當永久失敗，代價是圖示永久空白）；`ClearAll` 是**無過濾的整目錄刪除**，也是 `.tmp` 殘骸與改名前 `.png` 的唯一遷移路徑。
+
+### 8.2 `AppItemViewModel` 的 setter 不再動磁碟
+
+`FilePath` 與 `CustomIconPath` 的 setter 原本呼叫 `IconService.InvalidateCache` —— 設一個字串屬性就會刪檔。`EditItemDialog.ApplyTo` 是唯一寫入者，因此失效動作移到那裡，比較新舊值後呼叫一次；不需要任何依賴注入。
+
+### 8.3 `ColorTags` 拆出 `ColorKeys`
+
+顏色鍵清單移進 Core，`ColorTags` 只留 `GetBrush`。價值在於**顏色鍵會寫進 JSON、永遠不得重新命名**，測試把這個資料格式不變量釘死。`Default`（`"Blue"`）取代兩處寫死值。
+
+## 9. 已修正的缺陷
+
+| 缺陷 | 修正 |
+|---|---|
+| 新建工作區的預設名稱寫死英文 `"New Workspace"` | 新增 `Workspace_DefaultName`（三語言）。標籤同理新增 `Tag_DefaultName`，不再沿用按鈕標題當預設名 |
+| 工作區重命名遇空白名稱留下不一致畫面 | 比照 `ManageTagsDialog` 還原輸入框 |
+| 導軌閾值文件寫 900、實際是 800 | 以程式碼為準修正兩處文件 |
+| `.acerun` 匯入驗證形同虛設 | 改為 `WorkspaceImport.TryParse`，見下 |
+
+### 匯入驗證：原本的檢查幾乎是死碼
+
+原本唯一的檢查是 `export?.AppData is null`。但 `WorkspaceExport.AppData` 帶有屬性初始值 `= new()`，`System.Text.Json` 對沒提到該鍵的檔案會保留那個空實例 —— **只有 JSON 明寫 `"AppData": null` 才會命中**。任何語法正確的 JSON 改名成 `.acerun` 都會匯入成一個空白工作區。
+
+現在改為驗證原始 JSON document 確實有 `AppData` 物件鍵，並拒絕 `AceRunVersion` 高於本版的檔案（先前這種檔案會靜默匯入，較新版本新增的欄位被丟棄而使用者毫無所覺）。名稱空白仍不視為拒絕，由呼叫端套用預設名。
+
+## 10. 已排除的誤判
+
+探索階段曾回報下列三項，實際查證後不成立，記錄於此以免日後重複調查：
+
+- **`TrackAsModal` 的 handler 洩漏** — 兩個持久 flyout 只在建構式經 `InstallCodeAccelerators()` 訂閱一次；`ShowTrackedFlyout` 的呼叫端每次都傳入新建的 flyout，handler 隨物件消滅。無累積
+- **`PerformDelete` 刪除最後一個工作區會爆** — `DeleteWorkspace_Click` 的 `Count <= 1` 守衛在對話框內成立，期間集合不會變動。是脆弱寫法而非現行缺陷
+- **「空白名稱在 6 個呼叫點有 4 種行為」** — 過度概括。實際只有兩個是缺陷（見第 9 節），`RenameFolderAsync` 空白時靜默關閉對話框不會留下不一致狀態
+
+## 11. 仍不在範圍
+
 - **`Loc`** — 可抽出語言標籤解析與 `.resw` 解析；它會改寫行程層級的 `CultureInfo`
-- **`StartupService`** — HKCU 讀寫無注入接縫
-- 空白名稱處理的行為統一、確認 flyout 的重複、`GetDpiForWindow` 的 P/Invoke 重複宣告
+- **`StartupService`** — HKCU 讀寫無注入接縫。可抽的只有 `FormatRunValue` 一行，為它新增 Core 型別不划算
+- **`ThemeService.ToElementTheme`** — 是純的三分支 switch，但 `ElementTheme` 來自 `Microsoft.UI.Xaml`，無法移出
+- **名稱重複檢查** — 工作區、資料夾、標籤名稱皆可重複。這是產品決策而非缺陷：一切以 Guid 識別，重複不會損壞資料，只是視覺上容易混淆。標籤名稱會被搜尋比對，同名標籤會讓一個查詢同時命中兩者
+- **標籤溢位「顯示 3 個 + N more」** — 兩份實作、兩個獨立 `= 3` 常數（`ViewModels.cs` 與 `EditItemDialog.xaml.cs`）

@@ -39,7 +39,7 @@ public sealed partial class ManageTagsDialog : ContentDialog
     {
         if (combo.Items.Count > 0) return;
 
-        foreach (var key in ColorTags.Keys)
+        foreach (var key in ColorKeys.All)
         {
             var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             panel.Children.Add(new Ellipse
@@ -99,10 +99,12 @@ public sealed partial class ManageTagsDialog : ContentDialog
 
     private void ConfirmNewTag_Click(object sender, RoutedEventArgs e)
     {
+        // Tag_DefaultName and not Tag_New: the latter is the button that opens this form, so
+        // an unnamed tag used to end up called "New Tag" / 「新增標籤」 — a label, not a name.
         var name = string.IsNullOrWhiteSpace(NewNameBox.Text)
-            ? Loc.GetString("Tag_New")
+            ? Loc.GetString("Tag_DefaultName")
             : NewNameBox.Text.Trim();
-        var colorKey = (NewColorCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "Blue";
+        var colorKey = (NewColorCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? ColorKeys.Default;
 
         _tags.Add(new TagViewModel(name, colorKey));
         NewTagForm.Visibility = Visibility.Collapsed;
@@ -136,35 +138,15 @@ public sealed partial class ManageTagsDialog : ContentDialog
     {
         if (sender is not Button deleteBtn || deleteBtn.Tag is not TagViewModel vm) return;
 
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = string.Format(Loc.GetString("Tag_DeleteConfirm"), vm.Name),
-            TextWrapping = TextWrapping.Wrap,
-            MaxWidth = 220
-        });
-
-        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-
-        Flyout? flyout = null;
-
-        var confirmBtn = new Button { Content = Loc.GetString("DeleteButton") };
-        confirmBtn.Click += (_, _) =>
-        {
-            flyout?.Hide();
-            _tags.Remove(vm);
-            UpdateEmptyState();
-        };
-
-        var cancelBtn = new Button { Content = Loc.GetString("CancelButton") };
-        cancelBtn.Click += (_, _) => flyout?.Hide();
-
-        btnRow.Children.Add(confirmBtn);
-        btnRow.Children.Add(cancelBtn);
-        panel.Children.Add(btnRow);
-
-        flyout = new Flyout { Content = panel };
-        flyout.ShowAt(deleteBtn);
+        ConfirmFlyout.Show(
+            deleteBtn,
+            string.Format(Loc.GetString("Tag_DeleteConfirm"), vm.Name),
+            Loc.GetString("DeleteButton"),
+            () =>
+            {
+                _tags.Remove(vm);
+                UpdateEmptyState();
+            });
     }
 
     private void UpdateEmptyState()

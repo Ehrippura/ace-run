@@ -22,7 +22,7 @@ namespace ace_run;
 /// RootGrid hosts the accelerators because it is an ancestor of every focusable element in
 /// the window, so invocation resolves along the focus chain rather than relying on the
 /// framework's whole-tree fallback. It is also never collapsed or disabled, unlike the
-/// rail's contents (which close below 900 DIP) or flyout items (whose visual tree does not
+/// rail's contents (which close below 800 DIP) or flyout items (whose visual tree does not
 /// exist until the flyout has been opened once).
 /// </summary>
 public sealed partial class MainWindow

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Text.Json;
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI.Xaml;
@@ -65,9 +64,20 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         ErrorBar.IsOpen = false;
     }
 
+    /// <summary>
+    /// A trimmed name, or the localized default when the user left the box empty.
+    /// </summary>
+    /// <remarks>
+    /// <c>Workspace_DefaultName</c> and not <c>Workspace_New</c>: the latter is the button
+    /// that opens this form. This used to be a hardcoded English literal, so a Chinese or
+    /// Japanese user who skipped the name got an English workspace.
+    /// </remarks>
+    private static string DefaultedName(string? input) =>
+        string.IsNullOrWhiteSpace(input) ? Loc.GetString("Workspace_DefaultName") : input.Trim();
+
     private void ConfirmNewWorkspace_Click(object sender, RoutedEventArgs e)
     {
-        var name = string.IsNullOrWhiteSpace(NewNameBox.Text) ? "New Workspace" : NewNameBox.Text.Trim();
+        var name = DefaultedName(NewNameBox.Text);
         var colorTag = ColorTagFromCombo();
 
         AppData appData = CopyRadio.IsChecked == true
@@ -122,17 +132,21 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         try
         {
             var json = await FileIO.ReadTextAsync(file);
-            var export = JsonSerializer.Deserialize<WorkspaceExport>(json, DataService.JsonOptions);
-
-            if (export?.AppData is null)
+            switch (WorkspaceImport.TryParse(json, out var export))
             {
-                ShowError(Loc.GetString("Workspace_InvalidFile"));
-                return;
+                case ImportRejection.NotAnAceRunFile:
+                    ShowError(Loc.GetString("Workspace_InvalidFile"));
+                    return;
+                case ImportRejection.NewerVersion:
+                    ShowError(Loc.GetString("Workspace_ImportTooNew"));
+                    return;
             }
 
             var wsInfo = new WorkspaceInfo
             {
-                Name = export.Name,
+                // An export written without a name gets the same default a workspace created
+                // by hand would, rather than appearing in the picker as a blank row.
+                Name = DefaultedName(export!.Name),
                 ColorTag = export.ColorTag,
                 AppCount = export.AppData.ItemCount
             };
@@ -198,34 +212,11 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
             return;
         }
 
-        var panel = new StackPanel { Spacing = 8, Padding = new Thickness(4) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = string.Format(Loc.GetString("Workspace_DeleteConfirm"), vm.Name),
-            TextWrapping = TextWrapping.Wrap,
-            MaxWidth = 220
-        });
-
-        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-
-        Flyout? flyout = null;
-
-        var confirmBtn = new Button { Content = Loc.GetString("DeleteButton") };
-        confirmBtn.Click += (_, _) =>
-        {
-            flyout?.Hide();
-            PerformDelete(vm);
-        };
-
-        var cancelBtn = new Button { Content = Loc.GetString("CancelButton") };
-        cancelBtn.Click += (_, _) => flyout?.Hide();
-
-        btnRow.Children.Add(confirmBtn);
-        btnRow.Children.Add(cancelBtn);
-        panel.Children.Add(btnRow);
-
-        flyout = new Flyout { Content = panel };
-        flyout.ShowAt(deleteBtn);
+        ConfirmFlyout.Show(
+            deleteBtn,
+            string.Format(Loc.GetString("Workspace_DeleteConfirm"), vm.Name),
+            Loc.GetString("DeleteButton"),
+            () => PerformDelete(vm));
     }
 
     private void PerformDelete(WorkspaceViewModel vm)
@@ -256,7 +247,17 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         if (vm is null) return;
 
         var newName = tb.Text.Trim();
-        if (string.IsNullOrEmpty(newName) || newName == vm.Name) return;
+        if (string.IsNullOrEmpty(newName))
+        {
+            // Put the old name back rather than just declining the edit. Returning here left
+            // the box showing blank while the workspace kept its name — the two disagreed
+            // until something else happened to redraw the row. ManageTagsDialog has always
+            // done it this way.
+            tb.Text = vm.Name;
+            return;
+        }
+
+        if (newName == vm.Name) return;
 
         vm.Name = newName;
 

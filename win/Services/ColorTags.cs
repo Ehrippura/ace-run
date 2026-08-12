@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -6,18 +5,13 @@ using Microsoft.UI.Xaml.Media;
 namespace ace_run.Services;
 
 /// <summary>
-/// Shared color palette for workspace color tags and app tags.
-/// Keys are stable strings persisted to JSON; brushes resolve to theme-aware
-/// resources declared in <c>Styles/Brushes.xaml</c>.
+/// Resolves a colour key to the theme-aware brush declared in <c>Styles/Brushes.xaml</c>.
+/// The keys themselves are <see cref="ColorKeys"/>' — they are persisted to JSON and have no
+/// business sitting next to a <see cref="SolidColorBrush"/>, whose static initializer used to
+/// make the whole class unreachable without a running XAML application.
 /// </summary>
 internal static class ColorTags
 {
-    /// <summary>Selectable color keys, in display order.</summary>
-    public static readonly IReadOnlyList<string> Keys = new[]
-    {
-        "Blue", "Green", "Red", "Yellow", "Purple", "Gray"
-    };
-
     private static readonly SolidColorBrush NoColorBrush = new(Colors.Transparent);
 
     /// <summary>

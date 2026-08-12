@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI;
@@ -36,9 +35,6 @@ public sealed partial class SettingsWindow : Window
     private const int WidthDip = 560;
     private const int HeightDip = 680;
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hWnd);
-
     public SettingsWindow(MainWindow owner)
     {
         _owner = owner;
@@ -72,8 +68,7 @@ public sealed partial class SettingsWindow : Window
 
     private void ApplyInitialWindowPlacement()
     {
-        var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
-        var scale = GetDpiForWindow(hwnd) / 96.0;
+        var scale = DisplayScale.ForWindow(AppWindow);
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
