@@ -29,6 +29,7 @@ public sealed class AceRunPaths
         LegacyAppsFile = Path.Combine(root, "apps.json");
         ConfigFile = Path.Combine(root, "config.json");
         WorkspacesDir = Path.Combine(root, "workspaces");
+        IconsDir = Path.Combine(root, "icons");
     }
 
     public string Root { get; }
@@ -38,6 +39,12 @@ public sealed class AceRunPaths
 
     public string ConfigFile { get; }
     public string WorkspacesDir { get; }
+
+    /// <summary>
+    /// Cached icons, keyed by <c>AppItem.Id</c> and written without an extension. Ours alone —
+    /// nothing but the icon cache writes here, which is what lets a reset sweep it unfiltered.
+    /// </summary>
+    public string IconsDir { get; }
 
     public string WorkspaceFile(Guid id) => Path.Combine(WorkspacesDir, $"{id}.json");
 

@@ -87,6 +87,9 @@
   <data name="Tag_Manage" xml:space="preserve"><value>Manage Tags</value></data>
   <data name="Tag_ManageTitle" xml:space="preserve"><value>Manage Tags</value></data>
   <data name="Tag_New" xml:space="preserve"><value>New Tag</value></data>
+  <!-- The name a tag gets when the user leaves the box empty. Separate from Tag_New, which
+       is the button that opens the form — an unnamed tag used to be named after it. -->
+  <data name="Tag_DefaultName" xml:space="preserve"><value>Untitled Tag</value></data>
   <data name="Tag_NewTitle" xml:space="preserve"><value>New Tag</value></data>
   <data name="Tag_Name" xml:space="preserve"><value>Tag name</value></data>
   <data name="Tag_Delete" xml:space="preserve"><value>Delete</value></data>
@@ -123,6 +126,10 @@
   <data name="Workspace_CopyCurrent" xml:space="preserve"><value>Copy current workspace</value></data>
   <data name="Workspace_CreateBlank" xml:space="preserve"><value>Create blank workspace</value></data>
   <data name="Workspace_InvalidFile" xml:space="preserve"><value>Invalid .acerun file format.</value></data>
+  <data name="Workspace_ImportTooNew" xml:space="preserve"><value>This file was exported by a newer version of Ace Run.</value></data>
+  <!-- The name a workspace gets when the user leaves the box empty. Separate from
+       Workspace_New, which is the button that opens the form. -->
+  <data name="Workspace_DefaultName" xml:space="preserve"><value>New Workspace</value></data>
   <data name="Workspace_NameLabel" xml:space="preserve"><value>Name</value></data>
   <data name="Workspace_ColorLabel" xml:space="preserve"><value>Color</value></data>
   <data name="Workspace_AppCount" xml:space="preserve"><value>{0} apps</value></data>

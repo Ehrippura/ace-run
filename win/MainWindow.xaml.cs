@@ -9,7 +9,6 @@ using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Windows.Graphics;
 
@@ -155,9 +154,6 @@ public sealed partial class MainWindow : Window
     private const int MinWidthDip = 720;
     private const int MinHeightDip = 480;
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hWnd);
-
     /// <summary>
     /// Sizes the window in the constructor, before it is shown. The persisted size used
     /// to be applied only after the first workspace finished loading, which produced a
@@ -165,8 +161,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void ApplyInitialWindowSize()
     {
-        var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
-        var scale = GetDpiForWindow(hwnd) / 96.0;
+        var scale = DisplayScale.ForWindow(AppWindow);
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {

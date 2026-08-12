@@ -11,11 +11,19 @@ using Windows.Storage.Streams;
 
 namespace ace_run.Services;
 
+/// <summary>
+/// Turns an item into a bitmap, going through the disk cache first.
+/// </summary>
+/// <remarks>
+/// What lives here is what genuinely needs WinUI or the shell: <see cref="BitmapImage"/>,
+/// <see cref="StorageFile"/> thumbnail extraction, and the two pieces of concurrency control
+/// around them. The cache's own rules — where a file goes, what a sweep takes, which source an
+/// icon comes from — are in <see cref="IconCache"/>, and when to retry is in
+/// <see cref="IconExtractionPolicy"/>; both are testable without a XAML runtime.
+/// </remarks>
 internal static class IconService
 {
-    private static readonly string CacheDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                     "AceRun", "icons");
+    private static string CacheDir => AceRunPaths.Default.IconsDir;
 
     /// <summary>
     /// Extractions currently running, keyed by cache path.
@@ -32,44 +40,29 @@ internal static class IconService
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Cache path for an item. Deliberately **without an extension**: what gets written is
-    /// whatever bytes <c>GetThumbnailAsync</c> handed back, which in practice is an
-    /// uncompressed 32bpp BMP, not a PNG — the old <c>.png</c> suffix named a format the file
-    /// never had. Nothing reads it by extension either; <see cref="BitmapImage.SetSourceAsync"/>
-    /// sniffs the format through WIC, which is the only reason the mislabelled files worked.
-    /// </summary>
-    private static string CachePathFor(Guid itemId) => Path.Combine(CacheDir, $"{itemId:N}");
-
-    /// <summary>
-    /// <c>E_PENDING</c> — the shell's "the thumbnail is not ready, ask again" signal.
-    /// </summary>
-    private const int EPending = unchecked((int)0x8000000A);
-
-    /// <summary>
     /// Serializes thumbnail extraction to one at a time.
     /// <para>
     /// The shell refuses overlapping extractions rather than queueing them: with a folder's
     /// worth of tiles realizing at once on a cold cache, the first request wins and every
-    /// other one comes straight back with <see cref="EPending"/> — measured at four tiles,
-    /// three failed before the winner's thumbnail had even arrived. Letting one through at a
-    /// time turns that contention into a short queue. It costs nothing noticeable: extraction
-    /// runs single-digit milliseconds once the shell is warm, and the whole thing is off the
-    /// UI thread's critical path anyway.
+    /// other one comes straight back with <see cref="IconExtractionPolicy.EPending"/> —
+    /// measured at four tiles, three failed before the winner's thumbnail had even arrived.
+    /// Letting one through at a time turns that contention into a short queue. It costs
+    /// nothing noticeable: extraction runs single-digit milliseconds once the shell is warm,
+    /// and the whole thing is off the UI thread's critical path anyway.
     /// </para>
     /// </summary>
     private static readonly SemaphoreSlim ExtractionGate = new(1, 1);
 
     public static async Task<BitmapImage?> GetIconAsync(string filePath, Guid itemId, string? customIconPath = null)
     {
-        var iconSource = !string.IsNullOrEmpty(customIconPath) && File.Exists(customIconPath)
-            ? customIconPath
-            : filePath;
-
-        if (!File.Exists(iconSource))
+        var iconSource = IconCache.ChooseSource(filePath, customIconPath, File.Exists);
+        if (iconSource is null)
             return null;
 
-        var cachePath = CachePathFor(itemId);
+        var cachePath = IconCache.PathFor(CacheDir, itemId);
 
+        // The gate never touches the warm path: extraction only happens when the cache file
+        // is absent.
         if (!File.Exists(cachePath))
             await EnsureCachedAsync(iconSource, cachePath);
 
@@ -98,10 +91,8 @@ internal static class IconService
     /// </summary>
     public static void InvalidateCache(Guid itemId)
     {
-        var cachePath = CachePathFor(itemId);
-        Extractions.TryRemove(cachePath, out _);
-        try { if (File.Exists(cachePath)) File.Delete(cachePath); }
-        catch { }
+        Extractions.TryRemove(IconCache.PathFor(CacheDir, itemId), out _);
+        IconCache.Invalidate(CacheDir, itemId);
     }
 
     /// <inheritdoc cref="InvalidateCache(Guid)"/>
@@ -114,40 +105,13 @@ internal static class IconService
     /// <summary>
     /// Empties the whole icon cache and reports how many files went. Nothing is lost that
     /// cannot be extracted again — this is the way out when an item's exe has been updated
-    /// with a new icon, or when a cache entry has gone bad.
-    /// <para>
-    /// The sweep is unfiltered. Cache entries carry no extension (see
-    /// <see cref="CachePathFor"/>) so there is no pattern left to match on, and the directory
-    /// is ours alone — nothing but this class ever writes into it. Taking everything also
-    /// collects the two kinds of debris a filter would have stepped over: a <c>.tmp</c> left
-    /// by an extraction that died mid-write, and the <c>&lt;guid&gt;.png</c> entries written
-    /// before the extension was dropped, which no lookup can reach any more. Those are why
-    /// this button is the migration — nothing renames them, the next paint just re-extracts.
-    /// </para>
-    /// <para>
-    /// A file that refuses to delete is skipped rather than aborting the sweep.
-    /// </para>
+    /// with a new icon, or when a cache entry has gone bad. See
+    /// <see cref="IconCache.ClearAll"/> for why the sweep is unfiltered.
     /// </summary>
     public static int ClearCache()
     {
         Extractions.Clear();
-
-        if (!Directory.Exists(CacheDir))
-            return 0;
-
-        var cleared = 0;
-
-        foreach (var file in Directory.EnumerateFiles(CacheDir))
-        {
-            try
-            {
-                File.Delete(file);
-                cleared++;
-            }
-            catch { }
-        }
-
-        return cleared;
+        return IconCache.ClearAll(CacheDir);
     }
 
     private static async Task EnsureCachedAsync(string iconSource, string cachePath)
@@ -170,36 +134,25 @@ internal static class IconService
 
     /// <summary>
     /// Extracts one icon into the cache, retrying while the shell says it is not ready yet.
-    /// <para>
-    /// <see cref="EPending"/> is a request to come back, not a failure, and treating it as one
-    /// is what left tiles permanently iconless: nothing re-runs an extraction, because
-    /// <c>LoadIconAsync</c> only fires when a container realizes, so an item that lost the
-    /// race stayed blank until the cache was reset by hand. The gate makes this rare and the
-    /// retries cover what is left — a genuinely cold shell can answer <c>E_PENDING</c> even
-    /// with nothing else in flight.
-    /// </para>
+    /// The schedule and the give-up point are <see cref="IconExtractionPolicy"/>'s.
     /// </summary>
     private static async Task ExtractAndCacheIconAsync(string filePath, string cachePath)
     {
-        // Delays between attempts. Extraction itself is single-digit milliseconds, so the
-        // first retry almost always lands; the longer tails exist for a cold shell cache.
-        int[] backoffMs = [30, 80, 200, 500];
-
         for (var attempt = 0; ; attempt++)
         {
             if (await TryExtractAsync(filePath, cachePath))
                 return;
 
-            if (attempt >= backoffMs.Length)
+            if (IconExtractionPolicy.DelayForAttempt(attempt) is not int delay)
                 return;
 
-            await Task.Delay(backoffMs[attempt]);
+            await Task.Delay(delay);
         }
     }
 
     /// <returns>
     /// True when the icon is cached or the failure is permanent; false only when the shell
-    /// answered <see cref="EPending"/> and the call is worth repeating.
+    /// answered <see cref="IconExtractionPolicy.EPending"/> and the call is worth repeating.
     /// </returns>
     private static async Task<bool> TryExtractAsync(string filePath, string cachePath)
     {
@@ -212,6 +165,11 @@ internal static class IconService
             Directory.CreateDirectory(CacheDir);
 
             var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
+
+            // ThumbnailMode.SingleItem, 48, UseCurrentScale: 48 because it is both the largest
+            // place the icon is drawn (the tile; search rows are 20) and a native icon band, so
+            // nothing resamples; SingleItem because ListView mode is the one scoped to <= 40;
+            // UseCurrentScale because requestedSize is physical pixels.
             using var thumbnail = await storageFile.GetThumbnailAsync(
                 ThumbnailMode.SingleItem, 48, ThumbnailOptions.UseCurrentScale);
 
@@ -239,7 +197,7 @@ internal static class IconService
             try { if (File.Exists(tempPath)) File.Delete(tempPath); }
             catch { }
 
-            return ex.HResult != EPending;
+            return !IconExtractionPolicy.IsRetryable(ex.HResult);
         }
         finally
         {

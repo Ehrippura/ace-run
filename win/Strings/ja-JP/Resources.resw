@@ -87,6 +87,9 @@
   <data name="Tag_Manage" xml:space="preserve"><value>タグの管理</value></data>
   <data name="Tag_ManageTitle" xml:space="preserve"><value>タグの管理</value></data>
   <data name="Tag_New" xml:space="preserve"><value>新規タグ</value></data>
+  <!-- The name a tag gets when the user leaves the box empty. Separate from Tag_New, which
+       is the button that opens the form — an unnamed tag used to be named after it. -->
+  <data name="Tag_DefaultName" xml:space="preserve"><value>名称未設定のタグ</value></data>
   <data name="Tag_NewTitle" xml:space="preserve"><value>新規タグ</value></data>
   <data name="Tag_Name" xml:space="preserve"><value>タグ名</value></data>
   <data name="Tag_Delete" xml:space="preserve"><value>削除</value></data>
@@ -123,6 +126,10 @@
   <data name="Workspace_CopyCurrent" xml:space="preserve"><value>現在のワークスペースをコピー</value></data>
   <data name="Workspace_CreateBlank" xml:space="preserve"><value>空のワークスペースを作成</value></data>
   <data name="Workspace_InvalidFile" xml:space="preserve"><value>.acerun ファイルの形式が無効です。</value></data>
+  <data name="Workspace_ImportTooNew" xml:space="preserve"><value>このファイルは新しいバージョンの Ace Run でエクスポートされました。</value></data>
+  <!-- The name a workspace gets when the user leaves the box empty. Separate from
+       Workspace_New, which is the button that opens the form. -->
+  <data name="Workspace_DefaultName" xml:space="preserve"><value>新しいワークスペース</value></data>
   <data name="Workspace_NameLabel" xml:space="preserve"><value>名前</value></data>
   <data name="Workspace_ColorLabel" xml:space="preserve"><value>色</value></data>
   <data name="Workspace_AppCount" xml:space="preserve"><value>{0} 個のアプリ</value></data>

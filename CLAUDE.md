@@ -102,15 +102,21 @@ core/AceRun.Core/        # No WinUI. Namespaces stay ace_run.Models / ace_run.Se
     RecentLaunchList     # Track / Purge, capped at MaxRecent
     WindowGeometry.cs    # WindowPlacement, TitleBarMetrics, DropGeometry + pixel records
     ItemFactory          # AppItem from a path or a URL; AppDataQuery walks a workspace
+    IconCache            # Cache paths, the unfiltered sweep, icon-source selection
+    IconExtractionPolicy # Backoff schedule + the E_PENDING retry test
+    ColorKeys            # The persisted colour keys and the default
+    WorkspaceImport      # Vets an .acerun file: TryParse -> ImportRejection
 test/AceRun.Core.Tests/  # xUnit. References Core only — never win/ace-run.csproj
 win/
 Services/                # Static service classes — the ones that need WinUI or the OS
-  IconService            # Icon cache (disk) + extraction via StorageFile thumbnail
+  IconService            # BitmapImage + StorageFile thumbnail extraction, and its two gates
   Loc                    # Localization (ResourceLoader with embedded .resw fallback)
-  ColorTags              # Color-key list + resolution to the shared theme brushes
+  ColorTags              # Colour key -> the shared theme brush (the keys are ColorKeys')
   HotkeyService          # RegisterHotKey + WM_HOTKEY via SetWindowSubclass on the main HWND
   StartupService         # "Start with Windows" via the HKCU Run key
   ThemeService           # AppTheme -> ElementTheme, applied per root element
+  DisplayScale           # GetDpiForWindow, for the two constructors with no XamlRoot yet
+  ConfirmFlyout          # The shared yes/no popup both manage dialogs use
 Styles/                  # Design layer, merged in App.xaml
   Tokens.xaml            # Spacing scale, corner radii, type ramp (no colors)
   Brushes.xaml           # ThemeDictionaries: Light / Dark / HighContrast
@@ -174,7 +180,11 @@ Batch helpers (`MoveAppsTo`, `LaunchApps`, `SetTagOnApps`, `ClearTagsOnApps`, `D
 
 **Item kinds are fixed at construction.** `AppItem.Kind` decides whether `FilePath` is an exe path or a URL; `AppItemViewModel.Kind` is read-only and never switches. Kind-specific behaviour branches on `IsUrl`: launch (URLs get only `FileName` + `UseShellExecute`), the `EditItemDialog` field layout, and "Copy Link" vs "Open File Location". URL parsing lives in `UrlUtil`, which accepts any absolute URI except `file:`.
 
-**Icon loading.** `IconService.GetIconAsync()` checks the disk cache, then extracts via `StorageFile.GetThumbnailAsync()`. A non-file path returns `null` and the templates fall back to a Segoe MDL2 glyph (`FallbackGlyph` / `IconVisibility` / `FallbackIconVisibility`).
+**Icon loading, and where it is split.** `IconService.GetIconAsync()` checks the disk cache, then extracts via `StorageFile.GetThumbnailAsync()`. A non-file path returns `null` and the templates fall back to a Segoe MDL2 glyph (`FallbackGlyph` / `IconVisibility` / `FallbackIconVisibility`).
+
+The cache's *rules* are not in `IconService`: `IconCache` owns where an entry goes, what the sweep takes and which source an icon comes from; `IconExtractionPolicy` owns the backoff schedule and the `E_PENDING` test. Both are in Core and tested. What stays in `IconService` is what genuinely needs the framework — `BitmapImage`, `StorageFile`, the `SemaphoreSlim` gate and the in-flight dictionary. The `IsRetryable` half is the piece that shipped wrong once; `ClearAll` deletes every file in the directory, which is worth a test before it is trusted.
+
+**A property setter must not touch the disk.** `AppItemViewModel.FilePath` / `CustomIconPath` used to call `IconService.InvalidateCache` from their setters, so assigning a string deleted a file — invisible at the call site, and enough to make the view model unusable in a test. `EditItemDialog.ApplyTo` is the only writer of either; it captures both, applies the edit, and invalidates once if either moved.
 
 **`E_PENDING` from the shell is a retry request, not a failure.** `GetThumbnailAsync` does not queue overlapping extractions — it serves the first and answers `0x8000000A` to everything else, and on a cold cache a folder's worth of tiles realize together. Measured at four tiles: three were refused before the winner's thumbnail even arrived. Swallowing it left those tiles on the fallback glyph *permanently*, because `LoadIconAsync` only runs on container realization and nothing re-runs an extraction — the icons came back only after a manual cache reset. `ExtractionGate` (a `SemaphoreSlim(1)`) removes the contention at the source and a bounded backoff covers a genuinely cold shell, which can answer `E_PENDING` with nothing else in flight. The gate never touches the warm path: `GetIconAsync` only extracts when the cache file is absent.
 
@@ -253,7 +263,7 @@ All three of `win/Strings/{en-US,zh-TW,ja-JP}/Resources.resw` must be updated to
 - `runFullTrust` — required for launching external processes
 - `ExtendsContentIntoTitleBar = true` + `TitleBarHeightOption.Tall` — seamless Mica backdrop into the title bar
 - Chrome is a single row with seven columns: `LeftInset → Back → PaneToggle → WorkspacePicker → Search(*) → Add/⚙ → RightInset`. Search is the one star column, which is what centres it in the *window*; it has a `MaxWidth` (720) and deliberately **no** `MinWidth`, which would beat the column and push the field under the workspace picker at the 720 DIP minimum window size.
-- Rail is a `SplitView` (not `NavigationView` — reordering needs `CanReorderItems`), switched Inline↔Overlay from `RootGrid.SizeChanged` at 900 DIP. Overlay needs an opaque `PaneBackground`; Inline lets the Mica through. A `VisualStateManager` on the root of a bare `Window` is unreliable, hence the code-behind.
+- Rail is a `SplitView` (not `NavigationView` — reordering needs `CanReorderItems`), switched Inline↔Overlay from `RootGrid.SizeChanged` at 800 DIP (`RailCollapseWidthDip`). Overlay needs an opaque `PaneBackground`; Inline lets the Mica through. A `VisualStateManager` on the root of a bare `Window` is unreliable, hence the code-behind.
 - Window is sized in the constructor before it is shown (1120×760 DIP default, 720×480 minimum), clamped to the current monitor's work area
 - `.lnk` resolution on drag-and-drop via `WScript.Shell` COM; `.url` Internet Shortcuts via `UrlUtil.ReadInternetShortcut`
 - Drag-and-drop accepts `StorageItems`, `WebLink`, and `Text` — in that priority order, so a browser offering several formats adds the link once

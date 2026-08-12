@@ -53,19 +53,16 @@ public class AppItemViewModel : INotifyPropertyChanged, IAppItemView
         set { if (_displayName != value) { _displayName = value; OnPropertyChanged(); } }
     }
 
+    /// <summary>
+    /// Changing this invalidates the item's cached icon, but the setter does not do it —
+    /// <see cref="EditItemDialog.ApplyTo"/> is the only writer and owns that call. A property
+    /// assignment that quietly deleted a file made the view model impossible to construct in a
+    /// test without touching the disk, and made the side effect invisible at the call site.
+    /// </summary>
     public string FilePath
     {
         get => _filePath;
-        set
-        {
-            if (_filePath != value)
-            {
-                if (_filePath.Length > 0)
-                    IconService.InvalidateCache(Id);
-                _filePath = value;
-                OnPropertyChanged();
-            }
-        }
+        set { if (_filePath != value) { _filePath = value; OnPropertyChanged(); } }
     }
 
     public string Arguments
@@ -86,18 +83,11 @@ public class AppItemViewModel : INotifyPropertyChanged, IAppItemView
         set { if (_runAsAdmin != value) { _runAsAdmin = value; OnPropertyChanged(); } }
     }
 
+    /// <inheritdoc cref="FilePath"/>
     public string CustomIconPath
     {
         get => _customIconPath;
-        set
-        {
-            if (_customIconPath != value)
-            {
-                IconService.InvalidateCache(Id);
-                _customIconPath = value;
-                OnPropertyChanged();
-            }
-        }
+        set { if (_customIconPath != value) { _customIconPath = value; OnPropertyChanged(); } }
     }
 
     /// <summary>
@@ -441,7 +431,7 @@ public class WorkspaceViewModel : INotifyPropertyChanged
 public class TagViewModel : INotifyPropertyChanged, ITagRef
 {
     private string _name = string.Empty;
-    private string _colorKey = "Blue";
+    private string _colorKey = ColorKeys.Default;
 
     public Guid Id { get; }
 
@@ -473,7 +463,7 @@ public class TagViewModel : INotifyPropertyChanged, ITagRef
     {
         Id = model.Id;
         _name = model.Name;
-        _colorKey = string.IsNullOrEmpty(model.ColorKey) ? "Blue" : model.ColorKey;
+        _colorKey = string.IsNullOrEmpty(model.ColorKey) ? ColorKeys.Default : model.ColorKey;
     }
 
     public TagViewModel(string name, string colorKey)
