@@ -61,6 +61,7 @@
 - [x] 建立 App / URL 項目（2 處）→ `ItemFactory`。
 - [x] 手刻確認 flyout（2 份，各約 28 行，除訊息與確認動作外完全相同）→ `ConfirmFlyout.Show`。留在 `win/`：這是 UI 結構，不是邏輯。
 - [x] `GetDpiForWindow` 的 `DllImport` 宣告（2 份）→ `DisplayScale.ForWindow`。同樣留在 `win/`：這是 OS 呼叫。
+- [x] 標籤溢位「顯示 3 個 + N more」（2 份實作、2 個獨立的 `= 3` 常數）→ `TagDisplay`。磁磚上的圓點與編輯對話框按鈕面上的圓點是同一條規則，各自有一份常數與算術。`Visible` 在未溢位時回傳原集合而非複本——那是捲動時每個綁定項目都會讀的屬性。畫圓點的程式碼仍各自留在自己的地方，只有「幾個」這個版面決定被集中。
 
 ## 7. 修正的缺陷
 
@@ -91,4 +92,3 @@
 - [ ] `StartupService`：HKCU 讀寫無注入接縫。可抽的只有 `FormatRunValue` 一行，為它新增 Core 型別不划算；登錄檔注入接縫對 70 行的類別是過度設計。
 - [ ] `ThemeService.ToElementTheme`：是純的三分支 switch，但 `ElementTheme` 來自 `Microsoft.UI.Xaml`，無法移出。
 - [ ] 名稱重複檢查：工作區、資料夾、標籤名稱皆可重複。這是產品決策而非缺陷——一切以 Guid 識別，重複不會損壞資料，只是視覺上容易混淆。標籤名稱會被搜尋比對，同名標籤會讓一個查詢同時命中兩者。
-- [ ] 標籤溢位「顯示 3 個 + N more」的兩份實作與兩個獨立的 `= 3` 常數（`ViewModels.cs` 的 `MaxVisibleTags` 與 `EditItemDialog.xaml.cs` 的 `MaxSummaryDots`）。行為相同，屬可合併的重複。

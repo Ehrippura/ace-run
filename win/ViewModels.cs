@@ -125,9 +125,6 @@ public class AppItemViewModel : INotifyPropertyChanged, IAppItemView
     public Visibility FallbackIconVisibility =>
         _iconSource is null ? Visibility.Visible : Visibility.Collapsed;
 
-    /// <summary>Dots that fit on a tile before the overflow counter takes over.</summary>
-    private const int MaxVisibleTags = 3;
-
     /// <summary>
     /// Assigned tags, holding the same <see cref="TagViewModel"/> instances as the
     /// workspace tag list. Sharing instances (rather than caching name/color here) is
@@ -169,16 +166,15 @@ public class AppItemViewModel : INotifyPropertyChanged, IAppItemView
     }
 
     /// <summary>The tags that get a dot; the rest are folded into <see cref="OverflowLabel"/>.</summary>
-    public IReadOnlyList<TagViewModel> VisibleTags =>
-        _tags.Count <= MaxVisibleTags ? _tags : _tags.Take(MaxVisibleTags).ToList();
+    public IReadOnlyList<TagViewModel> VisibleTags => TagDisplay.Visible(_tags);
 
     public string OverflowLabel =>
-        _tags.Count > MaxVisibleTags
-            ? string.Format(Loc.GetString("Tag_Overflow"), _tags.Count - MaxVisibleTags)
+        TagDisplay.OverflowCount(_tags) is var hidden && hidden > 0
+            ? string.Format(Loc.GetString("Tag_Overflow"), hidden)
             : string.Empty;
 
     public Visibility OverflowVisibility =>
-        _tags.Count > MaxVisibleTags ? Visibility.Visible : Visibility.Collapsed;
+        TagDisplay.OverflowCount(_tags) > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility TagsVisibility =>
         _tags.Count > 0 ? Visibility.Visible : Visibility.Collapsed;

@@ -63,6 +63,7 @@
 - 手刻確認 flyout（2 份，各約 28 行）→ `ConfirmFlyout.Show`
 - `GetDpiForWindow` 的 `DllImport` 宣告（2 份）→ `DisplayScale.ForWindow`
 - 寫死的 `"Blue"`（2 處）→ `ColorKeys.Default`
+- 標籤溢位「顯示 3 個 + N more」（2 份實作、2 個獨立的 `= 3` 常數）→ `TagDisplay`
 
 ### 兩處刻意的等價改寫
 

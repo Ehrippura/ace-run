@@ -11,9 +11,6 @@ namespace ace_run;
 
 public sealed partial class EditItemDialog : ContentDialog
 {
-    /// <summary>Dots shown on the button face before the rest fold into a counter.</summary>
-    private const int MaxSummaryDots = 3;
-
     private readonly AppItemViewModel _viewModel;
     private readonly IntPtr _hwnd;
     private readonly IReadOnlyList<TagViewModel> _tags;
@@ -142,7 +139,7 @@ public sealed partial class EditItemDialog : ContentDialog
             return;
         }
 
-        foreach (var tag in selected.Take(MaxSummaryDots))
+        foreach (var tag in TagDisplay.Visible(selected))
         {
             TagSummaryDots.Children.Add(new Ellipse
             {
@@ -153,11 +150,12 @@ public sealed partial class EditItemDialog : ContentDialog
             });
         }
 
-        if (selected.Count > MaxSummaryDots)
+        var hidden = TagDisplay.OverflowCount(selected);
+        if (hidden > 0)
         {
             TagSummaryDots.Children.Add(new TextBlock
             {
-                Text = string.Format(Loc.GetString("Tag_Overflow"), selected.Count - MaxSummaryDots),
+                Text = string.Format(Loc.GetString("Tag_Overflow"), hidden),
                 VerticalAlignment = VerticalAlignment.Center
             });
         }
