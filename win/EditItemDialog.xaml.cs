@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Shapes;
-using Windows.Storage.Pickers;
 using ace_run.Services;
-using WinRT.Interop;
 
 namespace ace_run;
 
@@ -214,45 +213,62 @@ public sealed partial class EditItemDialog : ContentDialog
             IconService.InvalidateCache(viewModel.Id);
     }
 
-    private async void BrowseFile_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new FileOpenPicker();
-        InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.FileTypeFilter.Add(".exe");
-        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-        picker.SettingsIdentifier = "AceRunOpenFilePicker";
+    // Stable per-call-site keys for the shell's "last folder used here" memory — what the old
+    // pickers' SettingsIdentifier strings did. They only decide where the dialog opens when
+    // there is no value in the box to open next to, so they must never be reused between the
+    // three buttons.
+    private static readonly Guid FilePickerClientId = new("6C0D8F2A-4E1B-4C67-9A2E-2F4B5A7C1D30");
+    private static readonly Guid IconPickerClientId = new("6C0D8F2A-4E1B-4C67-9A2E-2F4B5A7C1D31");
+    private static readonly Guid FolderPickerClientId = new("6C0D8F2A-4E1B-4C67-9A2E-2F4B5A7C1D32");
 
-        var file = await picker.PickSingleFileAsync();
-        if (file is not null)
+    private void BrowseFile_Click(object sender, RoutedEventArgs e)
+    {
+        var path = ShellFileDialog.PickFile(
+            _hwnd,
+            FilePickerClientId,
+            PickerStart.FirstExisting(Directory.Exists, PickerStart.DirectoryOf(FilePathBox.Text)),
+            ("*.exe", "*.exe"));
+
+        if (path is not null)
         {
-            FilePathBox.Text = file.Path;
+            FilePathBox.Text = path;
         }
     }
 
-    private async void BrowseIcon_Click(object sender, RoutedEventArgs e)
+    private void BrowseIcon_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new FileOpenPicker();
-        InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.FileTypeFilter.Add(".ico");
-        picker.FileTypeFilter.Add(".exe");
-        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-        picker.SettingsIdentifier = "AceRunIconPicker";
+        // Where the current icon lives, then the working directory, then where the app lives —
+        // a first custom icon usually comes out of the program's own folder, and the working
+        // directory is the user's own answer to "where this app's files are" when it differs
+        // from the exe's folder. For a URL item that last candidate is an address, which
+        // PickerStart drops.
+        var start = PickerStart.FirstExisting(
+            Directory.Exists,
+            PickerStart.DirectoryOf(CustomIconPathBox.Text),
+            WorkingDirectoryBox.Text,
+            PickerStart.DirectoryOf(FilePathBox.Text));
 
-        var file = await picker.PickSingleFileAsync();
-        if (file is not null)
-            CustomIconPathBox.Text = file.Path;
+        var path = ShellFileDialog.PickFile(
+            _hwnd, IconPickerClientId, start, ("*.ico;*.exe", "*.ico;*.exe"));
+
+        if (path is not null)
+            CustomIconPathBox.Text = path;
     }
 
-    private async void BrowseFolder_Click(object sender, RoutedEventArgs e)
+    private void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new FolderPicker();
-        InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.FileTypeFilter.Add("*");
+        // The box already holds a directory, so it is the candidate as-is. The exe's own folder
+        // is the fallback because that is effectively what an empty working directory means for
+        // the process being launched.
+        var start = PickerStart.FirstExisting(
+            Directory.Exists,
+            WorkingDirectoryBox.Text,
+            PickerStart.DirectoryOf(FilePathBox.Text));
 
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is not null)
+        var path = ShellFileDialog.PickFolder(_hwnd, FolderPickerClientId, start);
+        if (path is not null)
         {
-            WorkingDirectoryBox.Text = folder.Path;
+            WorkingDirectoryBox.Text = path;
         }
     }
 }

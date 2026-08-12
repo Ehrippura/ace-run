@@ -106,6 +106,7 @@ core/AceRun.Core/        # No WinUI. Namespaces stay ace_run.Models / ace_run.Se
     RecentLaunchList     # Track / Purge, capped at MaxRecent
     WindowGeometry.cs    # WindowPlacement, TitleBarMetrics, DropGeometry + pixel records
     ItemFactory          # AppItem from a path or a URL; AppDataQuery walks a workspace
+    PickerStart          # Which folder a browse dialog should open at, from the field's own value
     IconCache            # Cache paths, the unfiltered sweep, icon-source selection
     IconExtractionPolicy # Backoff schedule + the E_PENDING retry test
     ColorKeys            # The persisted colour keys and the default
@@ -121,6 +122,7 @@ Services/                # Static service classes — the ones that need WinUI o
   ThemeService           # AppTheme -> ElementTheme, applied per root element
   DisplayScale           # GetDpiForWindow, for the two constructors with no XamlRoot yet
   ConfirmFlyout          # The shared yes/no popup both manage dialogs use
+  ShellFileDialog        # IFileDialog interop — the only picker that can be told where to open
 Styles/                  # Design layer, merged in App.xaml
   Tokens.xaml            # Spacing scale, corner radii, type ramp (no colors)
   Brushes.xaml           # ThemeDictionaries: Light / Dark / HighContrast
@@ -183,6 +185,8 @@ Batch helpers (`MoveAppsTo`, `LaunchApps`, `SetTagOnApps`, `ClearTagsOnApps`, `D
 **Tags are shared instances.** `TagIds` is the only persisted state; `AppItemViewModel.Tags` holds the **same `TagViewModel` objects** as `MainWindow._tags`, so a rename or recolor propagates through their own `INotifyPropertyChanged`. Do not reintroduce denormalized `TagColorKey` / `TagName` on the item view model — that was the old single-tag design and it needed a manual refresh pass after every tag mutation. Deleting a tag still needs `NormalizeAppTags()`, which drops stale ids, dedupes, and re-sorts each item into workspace tag order so the dots line up between items.
 
 **Item kinds are fixed at construction.** `AppItem.Kind` decides whether `FilePath` is an exe path or a URL; `AppItemViewModel.Kind` is read-only and never switches. Kind-specific behaviour branches on `IsUrl`: launch (URLs get only `FileName` + `UseShellExecute`), the `EditItemDialog` field layout, and "Copy Link" vs "Open File Location". URL parsing lives in `UrlUtil`, which accepts any absolute URI except `file:`.
+
+**No picker projection can be told which folder to open at**, which is why `EditItemDialog`'s three Browse buttons go through hand-written `IFileDialog` interop (`ShellFileDialog`) instead. `Windows.Storage.Pickers` and the Windows App SDK's `Microsoft.Windows.Storage.Pickers` both give the open and folder pickers only `SuggestedStartLocation`, a closed enum of known folders; `SuggestedFolder` exists on `FileSavePicker` **alone**. The interface declarations there are a vtable contract — a reordered, removed or wrongly-signed member silently calls the wrong slot, so members nothing calls are still declared. `SetFolder`, not `SetDefaultFolder`: the latter only applies on first use and yields to the remembered folder afterwards, which is the behaviour being overridden. The old `SettingsIdentifier` strings became `SetClientGuid` values, and they still decide where the dialog opens whenever `PickerStart` finds no candidate.
 
 **Icon loading, and where it is split.** `IconService.GetIconAsync()` checks the disk cache, then extracts via `StorageFile.GetThumbnailAsync()`. A non-file path returns `null` and the templates fall back to a Segoe MDL2 glyph (`FallbackGlyph` / `IconVisibility` / `FallbackIconVisibility`).
 

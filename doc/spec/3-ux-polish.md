@@ -7,6 +7,8 @@
 - [x] 從 .exe 檔案中動態讀取圖示 (Icon)。
 - [x] 圖示必須使用磁碟快取，避免每次開啟 app 都需要從檔案中重新讀取圖示
 - [x] 取不到圖示時（URL 項目、或 exe 路徑失效）顯示 Segoe MDL2 fallback 字符，另可由使用者指定自訂圖示（第七階段）。
+- [x] 「自訂圖示」的選擇對話框以**目前自訂圖示所在資料夾**為起始位置；未設定時依序退回工作目錄、執行檔所在資料夾（第一次指定圖示通常就在程式自己的目錄裡，而工作目錄是使用者自己給出的「這支程式的檔案在哪」）。URL 項目的路徑不是檔案路徑，會被跳過。
+  - 兩種 picker 投影都做不到這件事：`Windows.Storage.Pickers` 與 WinAppSDK 的 `Microsoft.Windows.Storage.Pickers` 對開檔／選資料夾都只給 `SuggestedStartLocation`（已知資料夾的封閉列舉），`SuggestedFolder` 只存在於 `FileSavePicker`。兩者底層都是 `IFileDialog`，故直接改用它（`win/Services/ShellFileDialog.cs`）。
 - [x] 同一項目同時被要求載入時共用同一次擷取（`IconService` 以快取路徑為鍵保存進行中的工作）：新增時的即時載入與容器實體化的載入本來就會同時發生，冷快取下兩者都去擷取，寫檔輸的一方吃到共用違規並靜默回傳 null，剛拖入的項目因此約有一半機率沒有圖示。
 - [x] 快取寫入採「先寫 `.tmp` 再更名」：`File.Exists(快取路徑)` 就是「是否已快取」的判斷，就地寫入會先建檔再填內容，中間那段空窗期該判斷會通過而讀到截斷的檔案。
 - [x] 擷取尺寸為 `ThumbnailMode.SingleItem, 48, UseCurrentScale`。48 同時是圖示顯示的最大尺寸（磁磚 48 DIP，搜尋列 20 DIP，兩者共用同一份快取故取最大值）與 Windows 原生的圖示尺寸帶，帶外的值只會讓 shell 重新取樣；`SingleItem` 是配合這個尺寸選的（`ListView` 模式的設計範圍是 40 以下）；`UseCurrentScale` 則因為 `requestedSize` 吃的是實體像素，高 DPI 下需要按縮放放大。不取 256 是記憶體考量：常駐的是解碼後的 bitmap，48×48 BGRA 為 9 KB，256×256 為 256 KB，而畫面上可能有數百個項目。
