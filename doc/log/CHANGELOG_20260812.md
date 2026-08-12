@@ -42,6 +42,8 @@
 
 ## Bug 修正
 
+- **`config.json` 損毀會讓 app 靜默失效。** `LoadConfig` 對讀不出來的檔案回傳一個 `Workspaces` 為空的 `WorkspaceConfig`，而每個消費端都對它 `.First()`。`config.json` 存在但壞掉時不會走遷移，也就無從自癒。失敗形態尤其糟：啟動跑在 fire-and-forget 的 task 上，例外未被觀察，行程不會崩潰——使用者拿到的是一個開得起來、工作區選單全空、沒有任何錯誤訊息的視窗，而磁碟上的 workspace 檔案全在、只是索引不到了。`MigrateOrInitialize` 現在保證回傳可用的 config（至少一個工作區、`ActiveWorkspaceId` 指向其中之一），並把修復結果寫回磁碟，讓其他 `LoadConfig` 呼叫端也看得到。修復而非拒絕啟動，且不刪任何東西：既有的 workspace 檔案原封不動，使用者可以再匯入回來。
+- **資料檔沒有原子寫入。** `SaveConfig` 與 `SaveWorkspace` 直接 `File.WriteAllText`——先截斷再填入，該窗口內崩潰、斷電或磁碟滿就留下截斷檔，對 `config.json` 而言就是上一條的成因。改為寫 `.tmp` 再 rename，與 `IconService` 同一手法。諷刺的是圖示快取這種隨時可重新擷取的拋棄式資料一直有這層保護，真正無法重建的資料檔反而沒有。
 - **新建工作區的預設名稱未本地化。** `ConfirmNewWorkspace_Click` 寫死英文字面值 `"New Workspace"`，中文與日文使用者不命名就得到英文名稱。新增專用的 `Workspace_DefaultName`（比照 `DefaultFolderName`，與按鈕標題分開）。標籤同理新增 `Tag_DefaultName`——先前用的 `Tag_New` 是「新增標籤」按鈕的標題，未命名的標籤會被叫做一個按鈕。
 - **工作區重命名遇空白名稱留下不一致畫面。** `WorkspaceName_LostFocus` 直接 `return`，輸入框仍顯示空白而模型維持舊名，兩者不一致直到某個東西觸發重繪。比照 `ManageTagsDialog` 還原輸入框。
 - **`.acerun` 匯入驗證形同虛設。** 原本唯一的檢查是 `export?.AppData is null`，但 `WorkspaceExport.AppData` 帶有屬性初始值 `= new()`，`System.Text.Json` 對沒提到該鍵的檔案會保留那個空實例——**只有 JSON 明寫 `"AppData": null` 才會命中**，任何語法正確的 JSON 改名成 `.acerun` 都會匯入成一個空白工作區。改為 `WorkspaceImport.TryParse`：驗證原始 JSON document 確實有 `AppData` 物件鍵，並拒絕 `AceRunVersion` 高於本版的檔案（先前這種檔案靜默匯入，較新版本新增的欄位被丟棄而使用者毫無所覺）。

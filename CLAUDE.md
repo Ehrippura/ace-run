@@ -71,6 +71,10 @@ Every file goes through the one shared `AceRunJson.Options` (reachable as `DataS
 
 **`DataService` is a facade, not the implementation.** `DataStore` does the work and takes an `AceRunPaths` whose root is a constructor argument, which is how a test runs the whole layer — migration included — in a temp directory. The options object lives apart from both so that reading it cannot trigger path resolution: the old static class resolved `%LOCALAPPDATA%` and created the data directory in its type initializer, so merely touching it wrote to the profile.
 
+**`MigrateOrInitialize` promises a *usable* config; `LoadConfig` does not.** An unreadable file gives `LoadConfig` nothing to return but a fresh `WorkspaceConfig`, whose workspace list is empty — and every consumer does `.First()` on it. Startup runs on a fire-and-forget task, so that exception went unobserved: the user got a window with an empty workspace picker, no error, and no way back, because `config.json` existed and migration never re-ran. `EnsureUsable` is the floor (≥1 workspace, `ActiveWorkspaceId` names one of them) and the repair is written back so later `LoadConfig` callers see it. It repairs rather than refuses, and deletes nothing: the workspace files survive a damaged config, so the user can import them back.
+
+**Writes go through `WriteAtomic` — temp file, then rename.** `File.WriteAllText` truncates before it fills, and a crash in that window leaves `config.json` truncated, which is the index to every workspace. The icon cache has had this since it was written; the data that cannot be regenerated did not. A stray `.tmp` is inert — only `icons/` is ever enumerated (by `IconCache.ClearAll`), and every other lookup is by exact path.
+
 ## Architecture
 
 ### Layers

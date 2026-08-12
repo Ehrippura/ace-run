@@ -21,6 +21,8 @@
 - [x] 另提供 `DataStore.ParseAppData` / `ParseConfig` 兩個純解析進入點，讓「檔案損毀就回預設值」這條重複三次的 try/catch 行為可以脫離檔案系統測試。catch 維持不過濾，與被取代的程式碼一致：app 得在任何檔案狀態下啟動，把它收窄會讓一個讀不出來的檔案變成啟動時崩潰。
 - [x] 測試因此能在暫存目錄跑完整的 `apps.json` → workspaces + `.bak` 遷移流程。那段程式碼每個使用者一生只跑一次且不可逆，先前零覆蓋。
 - [x] 順帶統一 `DataStore.Load()` 的例外處理。它原本把 `ReadAllText` 放在 try 之外（其餘兩個載入方法則有），遷移路徑會因檔案被鎖而讓啟動失敗。
+- [x] **`MigrateOrInitialize` 保證回傳可用的 config**：至少一個工作區，且 `ActiveWorkspaceId` 指向其中之一，修復結果寫回磁碟。純函式 `EnsureUsable` 承載規則。先前 `LoadConfig` 對損毀檔案回傳的 `Workspaces` 是空清單，而每個消費端都 `.First()`——`config.json` 存在但壞掉時不會走遷移，也就無從自癒。失敗形態尤其糟：啟動跑在 fire-and-forget 的 task 上，例外未被觀察，使用者拿到的是一個工作區選單全空、沒有任何錯誤訊息的視窗，而磁碟上的 workspace 檔案全在、只是索引不到。修復而非拒絕啟動：不刪任何東西是安全的失敗方向。
+- [x] **`SaveConfig` / `SaveWorkspace` 改為原子寫入**（寫 `.tmp` 再 rename）。`File.WriteAllText` 先截斷再填入，該窗口內崩潰或斷電就留下截斷檔。圖示快取這種隨時可重新擷取的拋棄式資料從一開始就有這層保護，真正無法重建的資料檔反而沒有。殘留的 `.tmp` 無害：沒有任何東西列舉資料目錄，此處每次查詢都是精確路徑。
 
 ## 3. 邏輯層抽象
 
