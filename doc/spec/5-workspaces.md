@@ -8,6 +8,7 @@
     - 應用程式列表（含資料夾分組結構）
     - 最近啟動記錄
 - [x] 視窗大小設計為全域共用，儲存於 WorkspaceConfig（非各 Workspace 獨立）
+- [x] `WindowState` 存的是 **DIP**（`WidthDip` / `HeightDip`），不是實體像素。原本直接存 `AppWindow.Size`，而檔案裡沒有任何欄位記得那是在哪個縮放下量到的——在 100% 螢幕調好的大小，下次於 150% 螢幕啟動就還原成 2/3 的邏輯尺寸。單位改變靠**鍵名**而非 `WorkspaceConfig.Version` 區分：`SaveConfig` 每次寫入都會蓋上當前版本號，而啟動修復（`MigrateOrInitialize` → `EnsureUsable`）可能在視窗尺寸重存之前就觸發它，版本閘門會把還是像素的值標記成 DIP。舊檔的 `Width` / `Height` 只作為遷移輸入讀取，用當前 scale 換算一次（在使用者用同一台螢幕啟動時正確，否則也不比舊行為差），之後只寫 DIP 那組。
 - [x] Workspace 屬性：
     - Id (GUID)
     - 名稱 (Name)

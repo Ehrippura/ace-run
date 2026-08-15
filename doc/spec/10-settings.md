@@ -50,6 +50,11 @@
 - [x] `MicaBackdrop` + `ExtendsContentIntoTitleBar`，標題列只有一個靠左的標題文字，`SetTitleBar` 整條。**不需要** `UpdateTitleBarInsets` 那套實體像素÷scale 的算術——標題列右端沒有任何控制項，caption strip 底下是空的。
 - [x] 尺寸於建構子決定（560×680 DIP），沿用 `MainWindow.ApplyInitialWindowSize()` 的 DPI 手法（`GetDpiForWindow`，`AppWindow.Resize` 吃實體像素）；`IsMaximizable = false`。
 - [x] 位置也在建構子決定，於主視窗上置中（`ApplyInitialWindowPlacement` → `CenterOverOwner`）。不指定位置時由 OS 的層疊規則決定，實測會落在離主視窗很遠、甚至另一個螢幕的地方。夾住結果用的是**主視窗所在螢幕**的 `WorkArea`，不是設定視窗自己的——後者反映的正是要取代的那個隨手擺放位置。主視窗最小化時位置回報為離屏值（-32000），該情況改在螢幕工作區置中。
+- [x] **建構期的兩個 scale 不是同一個，而且各有各的用途。** 這扇窗由 OS 生在它挑的螢幕上，再被移到擁有者那台，所以「建立處」與「目的地」可能是兩種縮放。實測（主視窗在 100%、設定視窗生在 150% 主螢幕）：
+    - **尺寸**用**自己當下**的 scale 算。跨 DPI 的 `Move` 會讓 Windows 按比例重算視窗，`560×1.5=840` 到站後乘 `2/3` 正好落回 560。改用擁有者的 scale 反而會把比例套兩次。
+    - **最小尺寸**用**擁有者**的 scale 算。`PreferredMinimum*` 是實體像素且系統永不重算，留著建立處的值會把上面那個到站尺寸夾住——修正前實測為 840×630 DIP 的下限壓在一扇只該 560 寬的窗上，開啟時就寬了一半。
+    - **置中**用**擁有者**的 scale 換算「到站後的尺寸」。拿搬移前的尺寸去算，偏移量正好是兩台螢幕的縮放比。
+    - 後續的螢幕變更（使用者自己把視窗拖走）由 `DpiChangeWatcher` 的 `WM_DPICHANGED` 負責，不是 `XamlRoot.Changed`——理由見第十一階段與 CLAUDE.md：後者跑在 dispatcher 上，在 OS 縮放**之後**才到，會讓縮小方向的跨螢幕被舊下限夾住。`WM_DPICHANGED` 由 `AppWindow.Move` 內部同步送出，所以連建構期那次搬移也涵蓋得到；上面用擁有者 scale 預設一次仍然保留，因為它讓「目的地」這件事寫在程式碼裡而不是靠讀者推論，而且兩台螢幕同縮放、根本不送訊息時它就是唯一正確的來源。
 - [x] 單一實例：`App` 持有欄位，已開啟就 `Activate()` 而非開第二扇。
 - [x] 版面為 `ScrollViewer` + 手刻的設定卡（`Border` 吃 `CardBackgroundFillColorDefaultBrush` 與 `Styles/Tokens.xaml` 的圓角）。不引入 `CommunityToolkit.WinUI.Controls.SettingsControls`：為七張卡片增加專案第二個第三方相依不划算。
 - [x] **即時套用，沒有確定／取消**，每次變更立刻 `DataService.SaveConfig` 並回呼主視窗重新套用。

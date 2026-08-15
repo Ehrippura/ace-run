@@ -34,8 +34,29 @@ public static class WindowPlacement
     public const int MinWidthDip = 720;
     public const int MinHeightDip = 480;
 
+    /// <summary>
+    /// The two halves of every DIP/pixel conversion the app performs.
+    /// </summary>
+    /// <remarks>
+    /// Hand-written because Windows ships no converter for this. The Win32 DPI surface is all
+    /// queries (<c>GetDpiForWindow</c>, <c>GetSystemMetricsForDpi</c>) and per-struct
+    /// adjustments; its only conversion entry points, <c>LogicalToPhysicalPointForPerMonitorDPI</c>
+    /// and its inverse, take a <c>POINT</c> — a position anchored at a monitor origin, which is
+    /// the wrong transform for a width. WinUI exposes the factor (<c>XamlRoot.RasterizationScale</c>)
+    /// and nothing that applies it.
+    ///
+    /// Both directions live here rather than at the call sites so the rounding is defined once:
+    /// a window size is converted to DIPs on save and back to pixels on restore, and two
+    /// independently-written truncations would lose a pixel per cycle. Rounding round-trips
+    /// exactly at every scale Windows offers.
+    /// </remarks>
+    public static int ToPixels(int dip, double scale) => (int)Math.Round(dip * scale);
+
+    /// <inheritdoc cref="ToPixels"/>
+    public static int ToDip(int pixels, double scale) => (int)Math.Round(pixels / scale);
+
     public static PixelSize MinimumSize(double scale)
-        => new((int)(MinWidthDip * scale), (int)(MinHeightDip * scale));
+        => new(ToPixels(MinWidthDip, scale), ToPixels(MinHeightDip, scale));
 
     /// <summary>
     /// The size to open at: what was saved if it is usable, otherwise the default, clamped so
@@ -45,13 +66,27 @@ public static class WindowPlacement
     /// The clamp is not defensive tidiness. A size saved on a 4K display would otherwise
     /// restore larger than a 1080p screen and put the controls out of reach, with no way back
     /// short of editing the config by hand.
+    ///
+    /// Both branches resolve to DIPs before the single conversion at the end, which is what
+    /// makes the saved size mean the same thing on every display. A file written before the
+    /// unit change carries physical pixels under <see cref="WindowState.Width"/> instead; it is
+    /// converted with the *current* scale, which is right whenever the user is launching on the
+    /// display they last used and no worse than the old behaviour when they are not. It happens
+    /// once — the next save writes only the DIP pair.
     /// </remarks>
     public static PixelSize ResolveStartupSize(WindowState? saved, double scale, PixelSize workArea)
     {
-        var width = saved is { Width: > 0 } ? saved.Width : (int)(DefaultWidthDip * scale);
-        var height = saved is { Height: > 0 } ? saved.Height : (int)(DefaultHeightDip * scale);
+        var widthDip = PickDip(saved?.WidthDip ?? 0, saved?.Width ?? 0, DefaultWidthDip, scale);
+        var heightDip = PickDip(saved?.HeightDip ?? 0, saved?.Height ?? 0, DefaultHeightDip, scale);
 
-        return new PixelSize(Math.Min(width, workArea.Width), Math.Min(height, workArea.Height));
+        return new PixelSize(
+            Math.Min(ToPixels(widthDip, scale), workArea.Width),
+            Math.Min(ToPixels(heightDip, scale), workArea.Height));
+
+        static int PickDip(int dip, int legacyPixels, int fallbackDip, double scale)
+            => dip > 0 ? dip
+             : legacyPixels > 0 ? ToDip(legacyPixels, scale)
+             : fallbackDip;
     }
 
     /// <summary>

@@ -38,6 +38,7 @@
 - [x] `TagOrdering`：標籤依 workspace 順序投影與正規化。
 - [x] `RecentLaunchList`：最近啟動清單的記錄與清理，`MaxRecent` 取代原本出現兩次的無名魔術數字 10。
 - [x] `WindowPlacement` / `TitleBarMetrics` / `DropGeometry`：DPI 換算、視窗夾制與置中、拖放落點判定。Core 內定義最小的像素值型別（`PixelRect` / `PixelSize` / `PixelPoint`），避免把 `Windows.Graphics.*` 拖進來；呼叫端做轉接。
+- [x] `WindowPlacement.ToPixels` / `ToDip` 是全 app 唯一的 DIP↔像素換算入口。Windows 沒有內建的換算 API 可用（Win32 的 DPI 函式全是查詢與 per-struct 調整，唯二的 `LogicalToPhysicalPointForPerMonitorDPI` 系列吃的是 `POINT`——錨在螢幕原點的座標，換寬高在數學上就不對；WinUI 只給 `RasterizationScale` 這個係數，不給套用它的方法），所以只能自己寫。兩個方向放在同一處是為了讓**取整規則只定義一次**：視窗尺寸存檔時轉 DIP、還原時轉回像素，兩邊各自截斷會每輪掉一個像素。測試以 320–1400 DIP × 五種縮放窮舉 round-trip。
 - [x] `ItemFactory` / `AppDataQuery`：建立 App / URL 項目、走訪整個 workspace。
 - [x] 留在 `MainWindow` 的是它真正擁有的：UI 狀態、事件接線、**儲存時機**。`ItemOrdering.ApplyOrder` 回傳「是否真的移動過」，由呼叫端決定要不要 `CommitSave()`。
 - [x] **排名不再有副作用**：`RunSearch` 原本在排名過程中就把 `FolderLabel` 寫回項目。改為 `SearchRanking.Rank` 回傳 `(項目, 資料夾名稱)` 配對、由呼叫端指派，排名本身成為純函式。

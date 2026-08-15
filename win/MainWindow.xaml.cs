@@ -11,6 +11,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Windows.Graphics;
+using WinRT.Interop;
 
 namespace ace_run;
 
@@ -38,6 +39,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ApplyInitialWindowSize();
+        InitializeMinimumSizeTracking();
 
         // Alt+Tab and the taskbar read the window's own icon, which WinUI never sets.
         WindowIconService.Apply(this);
@@ -139,20 +141,71 @@ public sealed partial class MainWindow : Window
             ((App)Application.Current).ExitApp(closeWindow: false);
     }
 
+    /// <summary>
+    /// Persists the size in DIPs, converted from the physical pixels <c>AppWindow</c> reports.
+    /// The scale is read live rather than reused from startup: the window may have been dragged
+    /// to a display at another DPI since, and storing raw pixels is what used to make a size
+    /// saved on one monitor restore wrong on the other.
+    /// </summary>
     private void SaveWindowSize()
     {
         var size = AppWindow.Size;
         if (size.Width <= 0 || size.Height <= 0) return;
-        _workspaceConfig.WindowState = new Models.WindowState { Width = size.Width, Height = size.Height };
+
+        var scale = CurrentScale;
+        if (scale <= 0) return;
+
+        _workspaceConfig.WindowState = new Models.WindowState
+        {
+            WidthDip = WindowPlacement.ToDip(size.Width, scale),
+            HeightDip = WindowPlacement.ToDip(size.Height, scale),
+        };
         DataService.SaveConfig(_workspaceConfig);
     }
 
-    // Default window size, in DIPs. A nav-pane + content silhouette; wide enough for
-    // the rail plus a comfortable multi-column tile grid.
-    private const int DefaultWidthDip = 1120;
-    private const int DefaultHeightDip = 760;
-    private const int MinWidthDip = 720;
-    private const int MinHeightDip = 480;
+    /// <summary>
+    /// This window's DIP-to-pixel factor, for the display it is on right now.
+    /// </summary>
+    /// <remarks>
+    /// <c>XamlRoot</c> does not exist until the content loads — measured: it is still null
+    /// immediately after <c>InitializeComponent</c>, which is where the constructor's sizing
+    /// runs — so those calls fall through to the OS. Everything after load gets the live value,
+    /// which follows the window across displays.
+    /// </remarks>
+    private double CurrentScale =>
+        RootGrid.XamlRoot?.RasterizationScale ?? DisplayScale.ForWindow(AppWindow);
+
+    /// <summary>
+    /// Re-derives the resize floor for the display the window is on.
+    /// </summary>
+    /// <remarks>
+    /// Re-derived rather than set once, because <c>PreferredMinimum*</c> is stored in physical
+    /// pixels and Windows never rescales it. Measured: a window opened at 150% keeps a
+    /// 1080×720px floor, and on a 100% display that reads as 1080×720 DIP — half again the
+    /// intended 720×480, on a screen where it is over half the work area. The reverse direction
+    /// drops the floor to 480×320 DIP, under the width the title bar row is laid out for.
+    ///
+    /// No explicit resize follows. The floor is a constraint, not a size, and pulling a window
+    /// to a new size under the user is worse than leaving it where they put it — the window is
+    /// already being rescaled by the DPI ratio around this call, which keeps the two in step.
+    /// </remarks>
+    private void ApplyMinimumSize(double scale)
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter presenter || scale <= 0) return;
+
+        var minimum = WindowPlacement.MinimumSize(scale);
+        presenter.PreferredMinimumWidth = minimum.Width;
+        presenter.PreferredMinimumHeight = minimum.Height;
+    }
+
+    /// <summary>
+    /// Keeps the floor in step with the display, via <c>WM_DPICHANGED</c> rather than
+    /// <c>XamlRoot.Changed</c> — see <see cref="DpiChangeWatcher"/> for why the obvious one is
+    /// too late. Never detached: the main HWND outlives every close, since closing to the tray
+    /// hides rather than destroys.
+    /// </summary>
+    private void InitializeMinimumSizeTracking() =>
+        DpiChangeWatcher.Attach(WindowNative.GetWindowHandle(this), ApplyMinimumSize);
 
     /// <summary>
     /// Sizes the window in the constructor, before it is shown. The persisted size used
@@ -161,14 +214,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void ApplyInitialWindowSize()
     {
-        var scale = DisplayScale.ForWindow(AppWindow);
-
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
-        {
-            var minimum = WindowPlacement.MinimumSize(scale);
-            presenter.PreferredMinimumWidth = minimum.Width;
-            presenter.PreferredMinimumHeight = minimum.Height;
-        }
+        ApplyMinimumSize(CurrentScale);
 
         // Read config directly rather than waiting for InitializeWorkspacesAsync; this is
         // a small synchronous file read and it has to happen before the window is shown.
@@ -176,7 +222,7 @@ public sealed partial class MainWindow : Window
 
         var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         var size = WindowPlacement.ResolveStartupSize(
-            saved, scale, new PixelSize(workArea.Width, workArea.Height));
+            saved, CurrentScale, new PixelSize(workArea.Width, workArea.Height));
 
         AppWindow.Resize(new SizeInt32(size.Width, size.Height));
     }

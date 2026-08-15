@@ -51,23 +51,82 @@ public class TitleBarMetricsTests
 
 public class WindowPlacementTests
 {
+    // --- ToPixels / ToDip ---
+
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(1.25)]
+    [InlineData(1.5)]
+    [InlineData(1.75)]
+    [InlineData(2.0)]
+    public void A_dip_value_survives_a_round_trip_through_pixels(double scale)
+    {
+        // What lets the window size be stored in DIPs and restored in pixels without drifting.
+        // Two independently written truncations would shed a pixel per save/restore cycle,
+        // which is the reason both directions live on one type instead of at the call sites.
+        for (var dip = 320; dip <= 1400; dip++)
+            Assert.Equal(dip, WindowPlacement.ToDip(WindowPlacement.ToPixels(dip, scale), scale));
+    }
+
+    [Fact]
+    public void Conversion_rounds_rather_than_truncates()
+    {
+        Assert.Equal(904, WindowPlacement.ToPixels(723, 1.25)); // 903.75
+        Assert.Equal(721, WindowPlacement.ToDip(1081, 1.5));    // 720.67
+    }
+
+    // --- ResolveStartupSize ---
+
     [Fact]
     public void With_nothing_saved_the_default_size_is_scaled()
     {
         var size = WindowPlacement.ResolveStartupSize(null, 1.5, new PixelSize(10000, 10000));
 
-        Assert.Equal((int)(WindowPlacement.DefaultWidthDip * 1.5), size.Width);
-        Assert.Equal((int)(WindowPlacement.DefaultHeightDip * 1.5), size.Height);
+        Assert.Equal(WindowPlacement.ToPixels(WindowPlacement.DefaultWidthDip, 1.5), size.Width);
+        Assert.Equal(WindowPlacement.ToPixels(WindowPlacement.DefaultHeightDip, 1.5), size.Height);
     }
 
     [Fact]
-    public void A_saved_size_is_used_as_is()
+    public void A_saved_size_is_stored_in_dips_and_scaled_back_on_restore()
     {
-        // Already in physical pixels — it was written by AppWindow, not by XAML.
         var size = WindowPlacement.ResolveStartupSize(
-            new WindowState { Width = 1600, Height = 900 }, 1.5, new PixelSize(10000, 10000));
+            new WindowState { WidthDip = 800, HeightDip = 600 }, 1.5, new PixelSize(10000, 10000));
 
-        Assert.Equal(new PixelSize(1600, 900), size);
+        Assert.Equal(new PixelSize(1200, 900), size);
+    }
+
+    [Fact]
+    public void The_same_saved_size_keeps_its_logical_size_across_displays()
+    {
+        // The whole point of storing DIPs. Stored as pixels, this window came back a third
+        // smaller when the user launched on a display at another scale than the one they had
+        // sized it on.
+        var saved = new WindowState { WidthDip = 800, HeightDip = 600 };
+        var work = new PixelSize(10000, 10000);
+
+        Assert.Equal(new PixelSize(800, 600), WindowPlacement.ResolveStartupSize(saved, 1.0, work));
+        Assert.Equal(new PixelSize(1200, 900), WindowPlacement.ResolveStartupSize(saved, 1.5, work));
+    }
+
+    [Fact]
+    public void A_pre_dip_file_opens_at_the_size_it_was_left_at()
+    {
+        // The migration guarantee: on the display it was saved on, the upgrade is invisible.
+        // 1080x720px is what a 150% display wrote for a window sitting at the minimum.
+        var size = WindowPlacement.ResolveStartupSize(
+            new WindowState { Width = 1080, Height = 720 }, 1.5, new PixelSize(10000, 10000));
+
+        Assert.Equal(new PixelSize(1080, 720), size);
+    }
+
+    [Fact]
+    public void The_dip_pair_wins_over_a_pre_dip_one_left_in_the_file()
+    {
+        var size = WindowPlacement.ResolveStartupSize(
+            new WindowState { WidthDip = 800, HeightDip = 600, Width = 9999, Height = 9999 },
+            1.0, new PixelSize(10000, 10000));
+
+        Assert.Equal(new PixelSize(800, 600), size);
     }
 
     [Fact]
@@ -76,7 +135,7 @@ public class WindowPlacementTests
         // Without this the window restores larger than the screen and puts its own controls
         // out of reach, with no way back short of editing the config by hand.
         var size = WindowPlacement.ResolveStartupSize(
-            new WindowState { Width = 3840, Height = 2160 }, 1.0, new PixelSize(1920, 1040));
+            new WindowState { WidthDip = 3840, HeightDip = 2160 }, 1.0, new PixelSize(1920, 1040));
 
         Assert.Equal(new PixelSize(1920, 1040), size);
     }
@@ -88,11 +147,13 @@ public class WindowPlacementTests
     public void A_saved_size_with_a_non_positive_dimension_falls_back_to_the_default(int w, int h)
     {
         var size = WindowPlacement.ResolveStartupSize(
-            new WindowState { Width = w, Height = h }, 1.0, new PixelSize(10000, 10000));
+            new WindowState { WidthDip = w, HeightDip = h }, 1.0, new PixelSize(10000, 10000));
 
         if (w <= 0) Assert.Equal(WindowPlacement.DefaultWidthDip, size.Width);
         if (h <= 0) Assert.Equal(WindowPlacement.DefaultHeightDip, size.Height);
     }
+
+    // --- MinimumSize ---
 
     [Fact]
     public void The_minimum_size_scales()
@@ -101,6 +162,16 @@ public class WindowPlacementTests
 
         Assert.Equal(WindowPlacement.MinWidthDip * 2, minimum.Width);
         Assert.Equal(WindowPlacement.MinHeightDip * 2, minimum.Height);
+    }
+
+    [Fact]
+    public void The_minimum_size_differs_per_display_which_is_why_it_is_re_derived()
+    {
+        // PreferredMinimum* is physical pixels and Windows never rescales it when the window
+        // crosses to another DPI — measured. Left frozen at the 150% value, the floor reads as
+        // 1080x720 DIP on a 100% display, half again the intended 720x480.
+        Assert.Equal(new PixelSize(1080, 720), WindowPlacement.MinimumSize(1.5));
+        Assert.Equal(new PixelSize(720, 480), WindowPlacement.MinimumSize(1.0));
     }
 
     // --- CenterIn ---

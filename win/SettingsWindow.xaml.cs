@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Input;
 using Windows.Graphics;
 using Windows.System;
 using Windows.UI.Core;
+using WinRT.Interop;
 
 namespace ace_run;
 
@@ -34,6 +35,12 @@ public sealed partial class SettingsWindow : Window
 
     private const int WidthDip = 560;
     private const int HeightDip = 680;
+
+    /// <summary>
+    /// The window may be shortened but not narrowed: the width is what the widest setting row
+    /// needs, so the floor and the opening width are the same number.
+    /// </summary>
+    private const int MinHeightDip = 420;
 
     public SettingsWindow(MainWindow owner)
     {
@@ -67,21 +74,68 @@ public sealed partial class SettingsWindow : Window
         _loading = false;
     }
 
+    /// <summary>
+    /// This window's DIP-to-pixel factor, for the display it is on right now. Null XamlRoot in
+    /// the constructor — measured on MainWindow, same lifecycle here — so that one call falls
+    /// through to the OS.
+    /// </summary>
+    private double CurrentScale =>
+        RootGrid.XamlRoot?.RasterizationScale ?? DisplayScale.ForWindow(AppWindow);
+
+    /// <summary>
+    /// Sets the resize floor for a given display scale.
+    /// </summary>
+    /// <remarks>
+    /// Re-derivable rather than set once, for the same reason as <c>MainWindow</c>'s:
+    /// <c>PreferredMinimum*</c> is physical pixels and Windows never rescales it. This window
+    /// reaches the broken state without being dragged anywhere, though. The OS creates it on
+    /// whichever display it likes and the constructor moves it onto the owner's, so the floor
+    /// has to be computed for the *destination* up front — measured, an owner on a 100% display
+    /// used to get a 840×630 DIP floor left over from a 150% creation display, against a window
+    /// that wants to be 560 wide, and the width clamped half again too large on open.
+    ///
+    /// The <see cref="DpiChangeWatcher"/> subscription below does in fact cover the constructor's
+    /// own move — <c>WM_DPICHANGED</c> is sent synchronously from inside <c>AppWindow.Move</c>,
+    /// message loop or no. Setting it from the owner's scale up front is still worth the line: it
+    /// is what makes the destination explicit rather than something the reader has to infer from
+    /// a message arriving mid-constructor, and it is already correct when both displays share a
+    /// scale and no message is sent at all.
+    /// </remarks>
+    private void ApplyMinimumSize(double scale)
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter presenter || scale <= 0) return;
+
+        presenter.PreferredMinimumWidth = WindowPlacement.ToPixels(WidthDip, scale);
+        presenter.PreferredMinimumHeight = WindowPlacement.ToPixels(MinHeightDip, scale);
+    }
+
     private void ApplyInitialWindowPlacement()
     {
-        var scale = DisplayScale.ForWindow(AppWindow);
+        // The display this window belongs on is the owner's, which is not necessarily the one
+        // the OS created it on. Everything describing the destination is derived from this.
+        var ownerScale = DisplayScale.ForWindow(_owner.AppWindow);
 
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
-        {
-            presenter.PreferredMinimumWidth = (int)(WidthDip * scale);
-            presenter.PreferredMinimumHeight = (int)(420 * scale);
-        }
+        ApplyMinimumSize(ownerScale);
 
-        // AppWindow.Resize takes physical pixels; XamlRoot.RasterizationScale is not
-        // available this early, hence the P/Invoke — same as MainWindow.
-        var size = new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale));
-        AppWindow.Resize(size);
-        CenterOverOwner(size);
+        // Detached on Closed, unlike MainWindow's: this window really is destroyed, and HWNDs
+        // are recycled.
+        var hwnd = WindowNative.GetWindowHandle(this);
+        DpiChangeWatcher.Attach(hwnd, ApplyMinimumSize);
+        Closed += (_, _) => DpiChangeWatcher.Detach(hwnd);
+
+        // The size, by contrast, is computed in *this* window's current scale, deliberately not
+        // the owner's. When the two differ the Move below crosses a DPI boundary and Windows
+        // rescales the window by the ratio on arrival, landing it at exactly WidthDip ×
+        // HeightDip there. Converting to the owner's scale here would apply that ratio twice.
+        //
+        // AppWindow.Resize takes physical pixels; XamlRoot.RasterizationScale is not available
+        // this early, hence the P/Invoke behind CurrentScale — same as MainWindow.
+        var scale = CurrentScale;
+        AppWindow.Resize(new SizeInt32(
+            WindowPlacement.ToPixels(WidthDip, scale),
+            WindowPlacement.ToPixels(HeightDip, scale)));
+
+        CenterOverOwner(ownerScale);
     }
 
     /// <summary>
@@ -94,7 +148,7 @@ public sealed partial class SettingsWindow : Window
     /// placement being replaced. A minimised owner reports a position off-screen
     /// (-32000), so that case centres on the monitor instead.
     /// </summary>
-    private void CenterOverOwner(SizeInt32 size)
+    private void CenterOverOwner(double ownerScale)
     {
         var owner = _owner.AppWindow;
         var work = DisplayArea.GetFromWindowId(owner.Id, DisplayAreaFallback.Primary).WorkArea;
@@ -106,10 +160,16 @@ public sealed partial class SettingsWindow : Window
             ? new PixelRect(work.X, work.Y, work.Width, work.Height)
             : new PixelRect(owner.Position.X, owner.Position.Y, owner.Size.Width, owner.Size.Height);
 
+        // The size this window will *land* at, which is not the size it has while this runs.
+        // The Move can cross a DPI boundary, and Windows rescales the window on arrival; the
+        // owner's scale is therefore the one the arithmetic has to be done in. Centring on the
+        // pre-move size leaves the window off by the ratio between the two displays.
+        var landed = new PixelSize(
+            WindowPlacement.ToPixels(WidthDip, ownerScale),
+            WindowPlacement.ToPixels(HeightDip, ownerScale));
+
         var position = WindowPlacement.CenterIn(
-            anchor,
-            new PixelSize(size.Width, size.Height),
-            new PixelRect(work.X, work.Y, work.Width, work.Height));
+            anchor, landed, new PixelRect(work.X, work.Y, work.Width, work.Height));
 
         AppWindow.Move(new PointInt32(position.X, position.Y));
     }
