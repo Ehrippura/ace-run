@@ -130,6 +130,9 @@
   <data name="Workspace_CreateBlank" xml:space="preserve"><value>Create blank workspace</value></data>
   <data name="Workspace_InvalidFile" xml:space="preserve"><value>Invalid .acerun file format.</value></data>
   <data name="Workspace_ImportTooNew" xml:space="preserve"><value>This file was exported by a newer version of Ace Run.</value></data>
+  <!-- Shown after a merge, because a merge leaves no other visible trace in this dialog: the
+       items land in the workspace behind it. {0} is the number of items, {1} the workspace. -->
+  <data name="Workspace_MergeDone" xml:space="preserve"><value>Merged {0} items into "{1}".</value></data>
   <!-- The name a new row starts with. Separate from Workspace_New, which is the button that
        creates it. A numeric suffix is appended when the name is already taken. -->
   <data name="Workspace_DefaultName" xml:space="preserve"><value>New Workspace</value></data>

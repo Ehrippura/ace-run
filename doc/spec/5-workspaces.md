@@ -84,17 +84,27 @@
     - 管理對話框中每列的 ⋯ 選單提供「匯出」
     - 匯出為 .acerun 檔案（JSON 格式，含完整結構，不含圖示快取）
     - FileSavePicker 讓使用者選擇儲存位置
-- [x] 匯入 Workspace（匯入為新 Workspace）：
+- [x] 匯入 Workspace：「匯入」改為 `DropDownButton`，兩個選項「匯入為新工作區」/「合併到目前工作區」。目的地在開檔案挑選器**之前**就選定，不是選完檔案再問——合併會寫進一個已經有內容的工作區，該考慮的時間點是在選檔案之前，而不是在一個本來就是 modal 的對話框上再疊一層確認。
     - FileOpenPicker 選擇 .acerun 檔案
     - 驗證檔案格式，格式錯誤時以 InfoBar 提示
-    - 匯入後作為新 Workspace 加入列表；名稱比照手動新增去重，兩個同名項目在切換器裡無從分辨
-- [ ] 「合併到當前 Workspace」選項（未實作。`Workspace_ImportAsNew` / `Workspace_ImportMerge` 兩個字串為此保留，目前無引用）
-- [ ] 同名資料夾衝突處理（未實作）
+    - 匯入為新工作區：作為新 Workspace 加入列表；名稱比照手動新增去重，兩個同名項目在切換器裡無從分辨
+- [x] 「合併到目前工作區」：把 `.acerun` 折進對話框背後那個工作區（`WorkspaceMerge.Merge`，core 層純函式）。
+    - **合併只增不改**：目的地既有的任何東西都不會被改名、改色、重排或刪除。
+    - **每個匯入的項目與資料夾都重新配一個新 Id，來源的 Id 一律丟棄。** Id 在跨檔案時並不唯一：匯出後再合併回同一個工作區、或合併一份「複製目前工作區」建立出來的匯出檔，拿到的就是目的地已經在用的 Id。圖示快取以 `AppItem.Id` 為鍵、而磁碟上沒有任何東西記得某個 Id 屬於哪個工作區，撞號會讓兩個項目共用一份快取，刪掉其中一個另一個的圖示就跟著空掉。代價是匯入的項目沒有現成快取，於載入時重新擷取。
+    - **同名資料夾合併，不重複建立**：名稱去空白、忽略大小寫比對，命中就把子項目接到既有資料夾後面，資料夾本身保留原 Id（側邊欄、返回堆疊與 `SelectedFolderId` 指的都是它）。比對對象是**合併後的結果清單**，所以兩個同名的來源資料夾也會落進同一個——它們對使用者本來就無從分辨，另一種做法反而會留下正要避免的重複。
+    - **同名標籤沿用既有的，顏色不動**：目的地的調色盤是使用者自己的，匯入不構成重新上色的理由。新標籤帶著自己的顏色進來，但同樣不留 Id。項目的 `TagIds` 經 `TagOrdering.InWorkspaceOrder` 重新對應，順帶落回工作區順序、丟掉對應不到的 Id——磚上標籤點對齊靠的就是這個不變條件。（`TagItem` 為此實作 `ITagRef`：合併時還沒有 view model。）
+    - **項目一律不比對**：兩個指向同一個 .exe 的項目是合理的（不同參數、不同工作目錄），合併掉會毀掉使用者刻意留下的資料。
+    - 最近啟動記錄接在目的地自己的後面再截到上限。目的地那幾筆是這台機器上真實的啟動歷史，匯入的則是別處發生的事。項目沒跟著過來的那幾筆直接丟棄——這份清單以項目 Id 為鍵、搜尋把位置當排名讀，懸空的一筆什麼也排不到。
+    - 寫入使用中工作區的檔案之所以安全，靠的是 `_config` 註解描述的那組括號：`CommitSave()` 已把 MainWindow 的副本刷到磁碟，`ReloadAfterWorkspaceManagement()` 在對話框關閉時把檔案（含合併進來的項目）重新讀回來。
+    - 項目數經 view model 的 setter 寫回，直接改 `WorkspaceInfo.AppCount` 會讓那一列的數字停在舊值直到重開對話框。
+    - `InfoBar` 從只報錯改為 `MessageBar`，成功時以 `Severity="Success"` 顯示 `Workspace_MergeDone`：合併落在對話框**背後**的工作區，畫面上唯一的痕跡只有某一列的項目數，不說就等於沒有回饋。
+- [x] 兩顆 `DropDownButton` 在 XAML 宣告的 `MenuFlyout` 也走 `ThemeService.ApplyTo`。Flyout 掛在 popup root 上，不在承載對話框 `RequestedTheme` 的元素樹裡——和色票面板、⋯ 選單是同一個問題。
 - [ ] 匯入後重新提取圖示快取（未實作，圖示於首次啟動時自動重建）
 
 ## 6. 在地化
 
-- [x] 三份 `.resw` 同步新增：`Workspace_InUse`、`Workspace_DuplicateName`、`Workspace_DeleteTitle`、`Color_Choose`、`Color_None`、`Color_{Blue,Green,Red,Yellow,Purple,Gray}`、`Row_More`、`Row_MoveUp`、`Row_MoveDown`、`Row_Reorder`。
+- [x] 三份 `.resw` 同步新增：`Workspace_InUse`、`Workspace_DuplicateName`、`Workspace_DeleteTitle`、`Color_Choose`、`Color_None`、`Color_{Blue,Green,Red,Yellow,Purple,Gray}`、`Row_More`、`Row_MoveUp`、`Row_MoveDown`、`Row_Reorder`、`Workspace_MergeDone`。
+- [x] `Workspace_ImportAsNew` / `Workspace_ImportMerge` 原本是為了未實作的合併功能保留、全專案無引用的兩個字串，現在是匯入下拉選單的兩個項目。
 - [x] `Color_*` 的鍵名後綴就是持久化的 `ColorKeys` 值，兩者必須同進退。
 - [x] 刪除：`Workspace_Default`（功能不做，見 §1）、`Workspace_NewTitle`（表單移除）、`Workspace_ColorLabel`（由 `Color_Choose` 取代）、`Workspace_Rename` 與 `Workspace_Delete`（重新命名是列內行為、刪除改用通用的 `DeleteButton`）。
 - [x] 對話框內的字串一律 `Loc.GetString`，不用 `x:Uid`——不是因為 `x:Uid` 在此不可用（見第九階段 §4 的更正），而是 ⋯ 選單項與色票全是程式碼建構的元素，那裡沒有 `x:Uid` 可用，混用兩套沒有好處。

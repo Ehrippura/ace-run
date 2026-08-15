@@ -27,22 +27,36 @@
                     </StackPanel>
                 </DropDownButton.Content>
                 <DropDownButton.Flyout>
-                    <MenuFlyout>
+                    <MenuFlyout x:Name="NewWorkspaceFlyout">
                         <MenuFlyoutItem x:Name="CreateBlankItem" Click="CreateBlank_Click" />
                         <MenuFlyoutItem x:Name="CopyCurrentItem" Click="CopyCurrent_Click" />
                     </MenuFlyout>
                 </DropDownButton.Flyout>
             </DropDownButton>
 
-            <Button x:Name="ImportButton" Click="ImportButton_Click">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE8B5;" FontSize="14" />
-                    <TextBlock x:Name="ImportLabel" />
-                </StackPanel>
-            </Button>
+            <!-- Split for the same reason as the one above: the destination is the choice, and
+                 a file picker has to open either way. Importing as a new workspace and merging
+                 into the open one are different enough that a modifier or a follow-up prompt
+                 would be guesswork. -->
+            <DropDownButton x:Name="ImportButton">
+                <DropDownButton.Content>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8B5;" FontSize="14" />
+                        <TextBlock x:Name="ImportLabel" />
+                    </StackPanel>
+                </DropDownButton.Content>
+                <DropDownButton.Flyout>
+                    <MenuFlyout x:Name="ImportFlyout">
+                        <MenuFlyoutItem x:Name="ImportAsNewItem" Click="ImportAsNew_Click" />
+                        <MenuFlyoutItem x:Name="ImportMergeItem" Click="ImportMerge_Click" />
+                    </MenuFlyout>
+                </DropDownButton.Flyout>
+            </DropDownButton>
         </StackPanel>
 
-        <InfoBar x:Name="ErrorBar"
+        <!-- Not an error bar any more: a merge lands in the workspace behind the dialog, where
+             the only visible trace is the item count on one row, so it has to say so here. -->
+        <InfoBar x:Name="MessageBar"
                  IsOpen="False"
                  Severity="Error"
                  IsClosable="True" />

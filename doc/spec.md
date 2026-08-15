@@ -38,7 +38,7 @@
 | 第二階段：進階設定 (Advanced Config) | [2-advanced-config.md](spec/2-advanced-config.md) | ✓ 已完成 |
 | 第三階段：使用者體驗優化 (UX Polish) | [3-ux-polish.md](spec/3-ux-polish.md) | ✓ 已完成 |
 | 第四階段：額外功能實作（System Tray、資料夾分組） | [4-tray-and-folders.md](spec/4-tray-and-folders.md) | ✓ 已完成 |
-| 第五階段：Workspace 多工作區管理 | [5-workspaces.md](spec/5-workspaces.md) | 已實作（匯入的合併選項、同名資料夾衝突處理未實作） |
+| 第五階段：Workspace 多工作區管理 | [5-workspaces.md](spec/5-workspaces.md) | 已實作（匯入後重新提取圖示快取未實作） |
 | 第六階段：Tag 標籤管理（含多標籤支援，原獨立為第九階段） | [6-tags.md](spec/6-tags.md) | ✓ 已完成 |
 | 第七階段：URL 項目支援 | [7-url-items.md](spec/7-url-items.md) | 已實作（favicon 未實作） |
 | 第八階段：鍵盤快捷鍵 | [8-keyboard-shortcuts.md](spec/8-keyboard-shortcuts.md) | ✓ 已完成 |

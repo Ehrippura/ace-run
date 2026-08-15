@@ -60,6 +60,14 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         CreateBlankItem.Text = Loc.GetString("Workspace_CreateBlank");
         CopyCurrentItem.Text = Loc.GetString("Workspace_CopyCurrent");
         ImportLabel.Text = Loc.GetString("Workspace_Import");
+        ImportAsNewItem.Text = Loc.GetString("Workspace_ImportAsNew");
+        ImportMergeItem.Text = Loc.GetString("Workspace_ImportMerge");
+
+        // Declared in XAML, but a flyout is hosted on the popup root rather than inside the
+        // element tree carrying the dialog's RequestedTheme — the same reason the code-built
+        // swatch panel and row menu go through here.
+        ThemeService.ApplyTo(NewWorkspaceFlyout);
+        ThemeService.ApplyTo(ImportFlyout);
 
         BuildWorkspaceList();
         WorkspaceListView.ItemsSource = _workspaceVMs;
@@ -89,7 +97,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     /// </remarks>
     private void CreateWorkspace(bool copyCurrent)
     {
-        ErrorBar.IsOpen = false;
+        MessageBar.IsOpen = false;
 
         var appData = copyCurrent ? DataService.LoadWorkspace(_activeWorkspaceId) : new AppData();
 
@@ -220,7 +228,23 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
 
     // ---- Import ----
 
-    private async void ImportButton_Click(object sender, RoutedEventArgs e)
+    private async void ImportAsNew_Click(object sender, RoutedEventArgs e) =>
+        await ImportAsync(merge: false);
+
+    private async void ImportMerge_Click(object sender, RoutedEventArgs e) =>
+        await ImportAsync(merge: true);
+
+    /// <summary>
+    /// Picks an <c>.acerun</c> file and either adds it as a workspace or folds it into the
+    /// active one.
+    /// </summary>
+    /// <remarks>
+    /// The destination is chosen before the picker opens rather than asked for afterwards: a
+    /// merge writes into a workspace that already has contents, and the point to think about
+    /// it is before a file has been chosen, not while a confirmation sits on top of a dialog
+    /// that is already modal.
+    /// </remarks>
+    private async System.Threading.Tasks.Task ImportAsync(bool merge)
     {
         var picker = new FileOpenPicker();
         InitializeWithWindow.Initialize(picker, _hwnd);
@@ -245,29 +269,84 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
                     return;
             }
 
-            var info = new WorkspaceInfo
-            {
-                // An export written without a name gets the same default a workspace created by
-                // hand would, rather than appearing in the picker as a blank row. Deduped for
-                // the same reason a new row is: two identical names in the picker are unusable.
-                Name = UniqueName(string.IsNullOrWhiteSpace(export!.Name)
-                    ? Loc.GetString("Workspace_DefaultName")
-                    : export.Name.Trim()),
-                ColorTag = export.ColorTag,
-                AppCount = export.AppData.ItemCount
-            };
-
-            _config.Workspaces.Add(info);
-            DataService.SaveWorkspace(info.Id, export.AppData);
-            DataService.SaveConfig(_config);
-
-            _workspaceVMs.Add(new WorkspaceViewModel(info));
+            if (merge)
+                MergeIntoActive(export!);
+            else
+                AddAsNewWorkspace(export!);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Import failed: {ex.Message}");
             ShowError(Loc.GetString("Workspace_InvalidFile"));
         }
+    }
+
+    private void AddAsNewWorkspace(WorkspaceExport export)
+    {
+        var info = new WorkspaceInfo
+        {
+            // An export written without a name gets the same default a workspace created by
+            // hand would, rather than appearing in the picker as a blank row. Deduped for
+            // the same reason a new row is: two identical names in the picker are unusable.
+            Name = UniqueName(string.IsNullOrWhiteSpace(export.Name)
+                ? Loc.GetString("Workspace_DefaultName")
+                : export.Name.Trim()),
+            ColorTag = export.ColorTag,
+            AppCount = export.AppData.ItemCount
+        };
+
+        _config.Workspaces.Add(info);
+        DataService.SaveWorkspace(info.Id, export.AppData);
+        DataService.SaveConfig(_config);
+
+        _workspaceVMs.Add(new WorkspaceViewModel(info));
+    }
+
+    /// <summary>
+    /// Folds an export into the workspace open behind this dialog.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Writing the active workspace's file from here is safe only because of the bracket
+    /// described on <see cref="_config"/>: <c>CommitSave()</c> has already flushed MainWindow's
+    /// copy, and <c>ReloadAfterWorkspaceManagement()</c> reads the file back — merged items
+    /// included — when the dialog closes. Nothing in this dialog may touch a workspace file
+    /// without both halves.
+    /// </para>
+    /// <para>
+    /// The count is written through the view model so the row redraws; it holds the very
+    /// <see cref="WorkspaceInfo"/> that <c>_config</c> is about to be saved from.
+    /// </para>
+    /// </remarks>
+    private void MergeIntoActive(WorkspaceExport export)
+    {
+        var target = DataService.LoadWorkspace(_activeWorkspaceId);
+        var result = WorkspaceMerge.Merge(target, export.AppData);
+        DataService.SaveWorkspace(_activeWorkspaceId, target);
+
+        var info = _config.Workspaces.FirstOrDefault(w => w.Id == _activeWorkspaceId);
+        var vm = _workspaceVMs.FirstOrDefault(w => w.Id == _activeWorkspaceId);
+
+        // Through the view model, whose setter writes into that same WorkspaceInfo and raises
+        // the change the row's count is bound to. Writing info.AppCount directly would leave
+        // the row showing the old number until the dialog was reopened.
+        if (vm is not null)
+            vm.AppCount = target.ItemCount;
+        else if (info is not null)
+            info.AppCount = target.ItemCount;
+
+        if (info is not null)
+        {
+            info.LastModifiedAt = DateTime.UtcNow;
+            DataService.SaveConfig(_config);
+        }
+
+        // Merging is invisible from here — the workspace it lands in is the one behind the
+        // dialog — so the count that changed is the only thing to point at.
+        ShowInfo(string.Format(
+            Loc.GetString("Workspace_MergeDone"),
+            result.ItemsAdded,
+            vm?.Name ?? info?.Name ?? string.Empty));
     }
 
     // ---- Export ----
@@ -408,7 +487,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
             return;
         }
 
-        ErrorBar.IsOpen = false;
+        MessageBar.IsOpen = false;
         vm.Name = newName;
         _editingOriginal = newName;
 
@@ -422,9 +501,18 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
 
     // ---- Helper ----
 
-    private void ShowError(string message)
+    private void ShowError(string message) => ShowMessage(message, InfoBarSeverity.Error);
+
+    private void ShowInfo(string message) => ShowMessage(message, InfoBarSeverity.Success);
+
+    /// <remarks>
+    /// Severity is set per message rather than fixed on the bar: one bar that changes colour
+    /// keeps the dialog's layout from shifting, and there is never more than one thing to say.
+    /// </remarks>
+    private void ShowMessage(string message, InfoBarSeverity severity)
     {
-        ErrorBar.Message = message;
-        ErrorBar.IsOpen = true;
+        MessageBar.Severity = severity;
+        MessageBar.Message = message;
+        MessageBar.IsOpen = true;
     }
 }

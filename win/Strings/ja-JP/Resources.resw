@@ -130,6 +130,9 @@
   <data name="Workspace_CreateBlank" xml:space="preserve"><value>空のワークスペースを作成</value></data>
   <data name="Workspace_InvalidFile" xml:space="preserve"><value>.acerun ファイルの形式が無効です。</value></data>
   <data name="Workspace_ImportTooNew" xml:space="preserve"><value>このファイルは新しいバージョンの Ace Run でエクスポートされました。</value></data>
+  <!-- Shown after a merge, because a merge leaves no other visible trace in this dialog: the
+       items land in the workspace behind it. {0} is the number of items, {1} the workspace. -->
+  <data name="Workspace_MergeDone" xml:space="preserve"><value>{0} 個の項目を「{1}」に統合しました。</value></data>
   <!-- The name a new row starts with. Separate from Workspace_New, which is the button that
        creates it. A numeric suffix is appended when the name is already taken. -->
   <data name="Workspace_DefaultName" xml:space="preserve"><value>新しいワークスペース</value></data>
