@@ -51,6 +51,7 @@ public sealed partial class SettingsWindow : Window
             presenter.IsMaximizable = false;
 
         ThemeService.Apply(RootGrid, Settings.Theme);
+        ThemeService.Attach(this);
 
         // Arming the recorder and then alt-tabbing away should not leave it waiting to
         // swallow the next keystroke. This replaces the button's LostFocus cancel, which

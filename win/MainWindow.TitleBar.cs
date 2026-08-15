@@ -55,6 +55,12 @@ public sealed partial class MainWindow
         Activated += (_, e) => AppTitleBar.Opacity =
             e.WindowActivationState == WindowActivationState.Deactivated ? TitleBarInactiveOpacity : 1.0;
 
+        // The caption buttons at the other end of the row are AppWindow's, not ours, and
+        // WinUI colours them from the app theme rather than this window's. Runs before the
+        // config is loaded, so the first pass paints for the system theme and the
+        // ActualThemeChanged subscription it leaves behind catches ApplySettings.
+        ThemeService.Attach(this);
+
         // Insets are not known until the window has a XamlRoot to give us a scale.
         AppTitleBar.Loaded += (_, _) =>
         {

@@ -119,7 +119,7 @@ Services/                # Static service classes — the ones that need WinUI o
   ColorTags              # Colour key -> the shared theme brush (the keys are ColorKeys')
   HotkeyService          # RegisterHotKey + WM_HOTKEY via SetWindowSubclass on the main HWND
   StartupService         # "Start with Windows" via the HKCU Run key
-  ThemeService           # AppTheme -> ElementTheme, applied per root element
+  ThemeService           # AppTheme -> ElementTheme per root element, + the caption buttons
   DisplayScale           # GetDpiForWindow, for the two constructors with no XamlRoot yet
   ConfirmFlyout          # The shared yes/no popup both manage dialogs use
   ShellFileDialog        # IFileDialog interop — the only picker that can be told where to open
@@ -224,7 +224,13 @@ These are not in the documentation, and each one on its own is enough to break t
 
 **`ContentDialog` does not inherit the element theme.** It is hosted on the popup layer, outside the tree carrying `RequestedTheme`, so `ShowModalAsync` sets it explicitly — which is why every dialog routes through there rather than calling `ShowAsync()` directly.
 
-**`Application.RequestedTheme` can only be set before the first window exists**, so it cannot serve a toggle. `ThemeService.Apply` writes `FrameworkElement.RequestedTheme` per root and `App.ApplyTheme` fans it out. `MicaBackdrop` and the system caption buttons both follow the root's actual theme, so neither needs its own pass.
+**`Application.RequestedTheme` can only be set before the first window exists**, so it cannot serve a toggle. `ThemeService.Apply` writes `FrameworkElement.RequestedTheme` per root and `App.ApplyTheme` fans it out. `MicaBackdrop` follows the root's actual theme and needs no pass of its own.
+
+**The system caption buttons do not.** They are `AppWindow.TitleBar`'s, not ours; `ExtendsContentIntoTitleBar` makes WinUI colour them from its `WindowCaption*` resources, and that lookup resolves against the **app** theme — fixed at the system theme for the life of the process — and never re-reads the root's `RequestedTheme`. OS dark + app set to Light therefore shipped a #FFFFFF glyph on a #F2F2F9 title bar (1.06:1, invisible), while the *inactive* glyph looked fine, because dark's disabled caption colour (#666666) happens to read on a light background too — which is what made it look like a focus bug rather than a theme bug. `ThemeService.Attach(window)` takes the colouring over: it writes the eight `AppWindow.TitleBar.Button*` colours from the root's `ActualTheme` and re-runs on `ActualThemeChanged`, one subscription covering both the app setting moving and — while the setting is System — the OS theme moving. Call it once per window, after `Content` exists.
+
+Its colours are `AceCaption*` in `Brushes.xaml` and are deliberate copies of WinUI's own values, so a window whose two themes agree looks exactly as it did before. Only hover and pressed *fills* are ours — the close button's red is the system's and survives being overridden. High Contrast is skipped entirely (every colour set back to `null`): that dictionary is chosen system-wide rather than per element, so there is no mismatch to correct and WinUI already has it right. The `AceIsHighContrast` flag it tests is a plain app-level lookup, which is sound for that one question for the same reason.
+
+Reading a colour for a *specific* theme has no framework call — `Application.Current.Resources[key]` is the app-theme lookup that caused the bug — so `ThemeService.Resolve` indexes `ThemeDictionaries` by name and walks the merged dictionaries. `MainWindow.Motion.cs`'s `AceEdgeInactiveColor` lookup still goes through the app-theme path and has the same latent mismatch; it is a grey either way, so it has not been worth the change.
 
 **No OS call returns a window's corner radius.** `DWMWA_WINDOW_CORNER_PREFERENCE` reads back as `DWMWCP_DEFAULT` — a preference, not a measurement — so `WindowCornerRadius` takes WinUI's `OverlayCornerRadius` (8) instead.
 

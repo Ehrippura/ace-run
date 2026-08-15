@@ -17,6 +17,18 @@
         has a purpose-named brush (LayerFillColorDefaultBrush, CardStrokeColorDefaultBrush,
         SubtleFillColorSecondaryBrush) the usage sites reference it directly rather than
         going through an Ace-prefixed indirection that adds a name and nothing else.
+
+        The AceCaption* colours are the one exception, and they are duplicates of WinUI's
+        own WindowCaption* values on purpose. The minimise / maximise / close glyphs are
+        drawn by AppWindow.TitleBar, not by us, and WinUI's automatic colouring of them
+        resolves against the *app* theme rather than the root element's RequestedTheme.
+        With the OS in dark mode and the app set to Light that shipped a white glyph on a
+        near-white title bar - #FFFFFF on #F2F2F9, a contrast ratio of 1.06:1 - while the
+        inactive glyph stayed readable, because dark's *disabled* caption colour (#666666)
+        happens to read on a light background too. Hence the values here and the explicit
+        write in ThemeService.ApplyCaptionColors: same numbers WinUI would have picked,
+        chosen against the theme the window is actually wearing. Because they match, a
+        window whose app and element themes agree looks exactly as it did before.
     -->
     <ResourceDictionary.ThemeDictionaries>
 
@@ -31,6 +43,13 @@
                  so the window still reads as framed and the slot reads as fillable. A Color
                  rather than a Brush because the edge crossfades via ColorAnimation. -->
             <Color x:Key="AceEdgeInactiveColor">#C8C8C8</Color>
+
+            <!-- Caption buttons. See the block comment below. -->
+            <Color x:Key="AceCaptionForegroundColor">#000000</Color>
+            <Color x:Key="AceCaptionForegroundInactiveColor">#999999</Color>
+            <Color x:Key="AceCaptionButtonHoverBackgroundColor">#0F000000</Color>
+            <Color x:Key="AceCaptionButtonPressedBackgroundColor">#0A000000</Color>
+            <x:Boolean x:Key="AceIsHighContrast">False</x:Boolean>
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Dark">
@@ -41,6 +60,12 @@
             <SolidColorBrush x:Key="AceTagBrushPurple" Color="#B48CF2" />
             <SolidColorBrush x:Key="AceTagBrushGray"   Color="#A0A0A0" />
             <Color x:Key="AceEdgeInactiveColor">#4A4A4A</Color>
+
+            <Color x:Key="AceCaptionForegroundColor">#FFFFFF</Color>
+            <Color x:Key="AceCaptionForegroundInactiveColor">#666666</Color>
+            <Color x:Key="AceCaptionButtonHoverBackgroundColor">#0FFFFFFF</Color>
+            <Color x:Key="AceCaptionButtonPressedBackgroundColor">#0AFFFFFF</Color>
+            <x:Boolean x:Key="AceIsHighContrast">False</x:Boolean>
         </ResourceDictionary>
 
         <!--
@@ -57,6 +82,19 @@
             <SolidColorBrush x:Key="AceTagBrushPurple" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="AceTagBrushGray"   Color="{ThemeResource SystemColorWindowTextColor}" />
             <StaticResource x:Key="AceEdgeInactiveColor" ResourceKey="SystemColorWindowTextColor" />
+
+            <!--
+                No AceCaption* entries on purpose: under High Contrast the caption buttons
+                are left entirely to WinUI, which already gets them right there (see the
+                block comment below). This flag is what ThemeService reads to know that.
+
+                It is a plain app-level lookup, and that is sound *for this one question*
+                even though the same lookup is what makes the caption bug possible: a
+                RequestedTheme override picks between Light and Dark only, so whenever the
+                system is in High Contrast that dictionary wins at every level and the
+                app-level answer is the answer everywhere.
+            -->
+            <x:Boolean x:Key="AceIsHighContrast">True</x:Boolean>
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>
