@@ -87,12 +87,13 @@
   <data name="Tag_Manage" xml:space="preserve"><value>Manage Tags</value></data>
   <data name="Tag_ManageTitle" xml:space="preserve"><value>Manage Tags</value></data>
   <data name="Tag_New" xml:space="preserve"><value>New Tag</value></data>
-  <!-- The name a tag gets when the user leaves the box empty. Separate from Tag_New, which
-       is the button that opens the form — an unnamed tag used to be named after it. -->
+  <!-- The name a new row starts with. Separate from Tag_New, which is the button that creates
+       it — a tag used to be named after its own button. A numeric suffix is appended when the
+       name is already taken, so clicking New Tag twice does not trip the duplicate check. -->
   <data name="Tag_DefaultName" xml:space="preserve"><value>Untitled Tag</value></data>
-  <data name="Tag_NewTitle" xml:space="preserve"><value>New Tag</value></data>
   <data name="Tag_Name" xml:space="preserve"><value>Tag name</value></data>
-  <data name="Tag_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Tag_DuplicateName" xml:space="preserve"><value>A tag named "{0}" already exists.</value></data>
+  <data name="Tag_DeleteTitle" xml:space="preserve"><value>Delete Tag</value></data>
   <data name="Tag_DeleteConfirm" xml:space="preserve"><value>Delete tag "{0}"? It will be removed from all apps.</value></data>
   <data name="Tag_None" xml:space="preserve"><value>No Tag</value></data>
   <data name="Tag_Set" xml:space="preserve"><value>Set Tags</value></data>
@@ -114,27 +115,49 @@
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>Manage Workspaces</value></data>
   <data name="Workspace_New" xml:space="preserve"><value>New Workspace</value></data>
-  <data name="Workspace_Rename" xml:space="preserve"><value>Rename</value></data>
-  <data name="Workspace_Delete" xml:space="preserve"><value>Delete</value></data>
-<data name="Workspace_Default" xml:space="preserve"><value>(Default)</value></data>
+  <!-- Marks the workspace currently open behind the dialog. There is no "default workspace"
+       concept to mark instead: WorkspaceConfig carries ActiveWorkspaceId and nothing else. -->
+  <data name="Workspace_InUse" xml:space="preserve"><value>In use</value></data>
   <data name="Workspace_Export" xml:space="preserve"><value>Export</value></data>
   <data name="Workspace_Import" xml:space="preserve"><value>Import</value></data>
   <data name="Workspace_ImportAsNew" xml:space="preserve"><value>Import as New Workspace</value></data>
   <data name="Workspace_ImportMerge" xml:space="preserve"><value>Merge into Current</value></data>
   <data name="Workspace_CannotDeleteLast" xml:space="preserve"><value>Cannot delete the last workspace.</value></data>
+  <data name="Workspace_DeleteTitle" xml:space="preserve"><value>Delete Workspace</value></data>
   <data name="Workspace_DeleteConfirm" xml:space="preserve"><value>Delete "{0}"? All apps will be lost.</value></data>
+  <data name="Workspace_DuplicateName" xml:space="preserve"><value>A workspace named "{0}" already exists.</value></data>
   <data name="Workspace_CopyCurrent" xml:space="preserve"><value>Copy current workspace</value></data>
   <data name="Workspace_CreateBlank" xml:space="preserve"><value>Create blank workspace</value></data>
   <data name="Workspace_InvalidFile" xml:space="preserve"><value>Invalid .acerun file format.</value></data>
   <data name="Workspace_ImportTooNew" xml:space="preserve"><value>This file was exported by a newer version of Ace Run.</value></data>
-  <!-- The name a workspace gets when the user leaves the box empty. Separate from
-       Workspace_New, which is the button that opens the form. -->
+  <!-- The name a new row starts with. Separate from Workspace_New, which is the button that
+       creates it. A numeric suffix is appended when the name is already taken. -->
   <data name="Workspace_DefaultName" xml:space="preserve"><value>New Workspace</value></data>
   <data name="Workspace_NameLabel" xml:space="preserve"><value>Name</value></data>
-  <data name="Workspace_ColorLabel" xml:space="preserve"><value>Color</value></data>
   <data name="Workspace_AppCount" xml:space="preserve"><value>{0} apps</value></data>
   <data name="Workspace_ManageTitle" xml:space="preserve"><value>Manage Workspaces</value></data>
-  <data name="Workspace_NewTitle" xml:space="preserve"><value>New Workspace</value></data>
+
+  <!-- Colour names. These never appear as visible text next to a swatch in the row — the dot
+       is the label there — but they are the swatch's accessible name and tooltip, and the
+       picker shows them so the palette stays usable under High Contrast, where every
+       AceTagBrush* collapses to the same system colour. The key suffix is the persisted
+       ColorKeys value, so these follow that list and must not be renamed independently. -->
+  <data name="Color_Choose" xml:space="preserve"><value>Choose color</value></data>
+  <data name="Color_None" xml:space="preserve"><value>No color</value></data>
+  <data name="Color_Blue" xml:space="preserve"><value>Blue</value></data>
+  <data name="Color_Green" xml:space="preserve"><value>Green</value></data>
+  <data name="Color_Red" xml:space="preserve"><value>Red</value></data>
+  <data name="Color_Yellow" xml:space="preserve"><value>Yellow</value></data>
+  <data name="Color_Purple" xml:space="preserve"><value>Purple</value></data>
+  <data name="Color_Gray" xml:space="preserve"><value>Gray</value></data>
+
+  <!-- Row commands shared by the two manage dialogs. Move up / move down are the keyboard
+       route to reordering: a row holds a TextBox, which takes focus ahead of its container,
+       so the ListView's own Ctrl+Shift+Arrow gesture never reaches it. -->
+  <data name="Row_More" xml:space="preserve"><value>More options</value></data>
+  <data name="Row_MoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="Row_MoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="Row_Reorder" xml:space="preserve"><value>Drag to reorder</value></data>
 
   <!-- Settings -->
   <data name="Settings_Title" xml:space="preserve"><value>Settings</value></data>

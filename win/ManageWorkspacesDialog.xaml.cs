@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using ace_run.Helpers;
 using ace_run.Models;
 using ace_run.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.System;
 using WinRT.Interop;
 
 namespace ace_run;
@@ -17,8 +20,29 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
 {
     private readonly nint _hwnd;
     private readonly Guid _activeWorkspaceId;
+
+    /// <summary>
+    /// A second copy of the config, loaded here and written back whole.
+    /// </summary>
+    /// <remarks>
+    /// This is the one place that does not honour "settings have exactly one owner". It is safe
+    /// only because <c>ManageWorkspacesButton_Click</c> brackets the dialog: <c>CommitSave()</c>
+    /// before it opens flushes MainWindow's copy to disk, and <c>ReloadAfterWorkspaceManagement()</c>
+    /// after it closes re-reads it. Anything that opens this dialog without both halves will
+    /// silently discard whatever MainWindow had not yet saved.
+    /// </remarks>
     private WorkspaceConfig _config;
+
     private readonly ObservableCollection<WorkspaceViewModel> _workspaceVMs = new();
+
+    /// <summary>The row being renamed, captured at focus. See <see cref="CommitName"/>.</summary>
+    private WorkspaceViewModel? _editing;
+    private string _editingOriginal = string.Empty;
+
+    public static string NameFieldLabel => Loc.GetString("Workspace_NameLabel");
+    public static string MoreLabel => Loc.GetString("Row_More");
+    public static string ReorderLabel => Loc.GetString("Row_Reorder");
+    public static string ChooseColorLabel => Loc.GetString("Color_Choose");
 
     public ManageWorkspacesDialog(nint hwnd, Guid activeWorkspaceId)
     {
@@ -32,14 +56,10 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         PrimaryButtonText = Loc.GetString("CloseButton");
         DefaultButton = ContentDialogButton.Primary;
 
-        // Localize static labels
         NewWorkspaceLabel.Text = Loc.GetString("Workspace_New");
+        CreateBlankItem.Text = Loc.GetString("Workspace_CreateBlank");
+        CopyCurrentItem.Text = Loc.GetString("Workspace_CopyCurrent");
         ImportLabel.Text = Loc.GetString("Workspace_Import");
-        NewFormTitle.Text = Loc.GetString("Workspace_NewTitle");
-        BlankRadio.Content = Loc.GetString("Workspace_CreateBlank");
-        CopyRadio.Content = Loc.GetString("Workspace_CopyCurrent");
-        ConfirmNewBtn.Content = Loc.GetString("SaveButton");
-        CancelNewBtn.Content = Loc.GetString("CancelButton");
 
         BuildWorkspaceList();
         WorkspaceListView.ItemsSource = _workspaceVMs;
@@ -49,71 +69,154 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     {
         _workspaceVMs.Clear();
         foreach (var ws in _config.Workspaces)
-            _workspaceVMs.Add(new WorkspaceViewModel(ws));
+            _workspaceVMs.Add(new WorkspaceViewModel(ws) { IsActive = ws.Id == _activeWorkspaceId });
     }
 
-    // ---- New workspace (inline form) ----
+    // ---- New workspace ----
 
-    private void NewWorkspaceButton_Click(object sender, RoutedEventArgs e)
-    {
-        NewNameBox.Text = string.Empty;
-        ColorCombo.SelectedIndex = 0;
-        BlankRadio.IsChecked = true;
-        NewWorkspaceForm.Visibility = Visibility.Visible;
-        NewNameBox.Focus(FocusState.Programmatic);
-        ErrorBar.IsOpen = false;
-    }
+    private void CreateBlank_Click(object sender, RoutedEventArgs e) => CreateWorkspace(copyCurrent: false);
 
-    /// <summary>
-    /// A trimmed name, or the localized default when the user left the box empty.
-    /// </summary>
+    private void CopyCurrent_Click(object sender, RoutedEventArgs e) => CreateWorkspace(copyCurrent: true);
+
     /// <remarks>
-    /// <c>Workspace_DefaultName</c> and not <c>Workspace_New</c>: the latter is the button
-    /// that opens this form. This used to be a hardcoded English literal, so a Chinese or
-    /// Japanese user who skipped the name got an English workspace.
+    /// The row is created and named in place, rather than filled in on a form first. The form
+    /// this replaces was where Enter closed the whole dialog, where the only label for the name
+    /// was its placeholder, and where the colour choice lived in a hand-written list of English
+    /// <c>ComboBoxItem</c>s that had already drifted out of step with <see cref="ColorKeys"/>.
+    ///
+    /// A new workspace therefore starts colourless — null is a real state for it, and the
+    /// swatch on the row is one click away.
     /// </remarks>
-    private static string DefaultedName(string? input) =>
-        string.IsNullOrWhiteSpace(input) ? Loc.GetString("Workspace_DefaultName") : input.Trim();
-
-    private void ConfirmNewWorkspace_Click(object sender, RoutedEventArgs e)
+    private void CreateWorkspace(bool copyCurrent)
     {
-        var name = DefaultedName(NewNameBox.Text);
-        var colorTag = ColorTagFromCombo();
+        ErrorBar.IsOpen = false;
 
-        AppData appData = CopyRadio.IsChecked == true
-            ? DataService.LoadWorkspace(_activeWorkspaceId)
-            : new AppData();
+        var appData = copyCurrent ? DataService.LoadWorkspace(_activeWorkspaceId) : new AppData();
 
-        var wsInfo = new WorkspaceInfo
+        var info = new WorkspaceInfo
         {
-            Name = name,
-            ColorTag = colorTag,
+            Name = UniqueName(Loc.GetString("Workspace_DefaultName")),
             AppCount = appData.ItemCount
         };
 
-        _config.Workspaces.Add(wsInfo);
-        DataService.SaveWorkspace(wsInfo.Id, appData);
+        _config.Workspaces.Add(info);
+        DataService.SaveWorkspace(info.Id, appData);
         DataService.SaveConfig(_config);
 
-        _workspaceVMs.Add(new WorkspaceViewModel(wsInfo));
-        NewWorkspaceForm.Visibility = Visibility.Collapsed;
+        var vm = new WorkspaceViewModel(info);
+        _workspaceVMs.Add(vm);
+        FocusNameBox(vm);
     }
 
-    private void CancelNewWorkspace_Click(object sender, RoutedEventArgs e)
+    /// <summary>The given name, or the first free "<c>name N</c>" after it.</summary>
+    private string UniqueName(string basis)
     {
-        NewWorkspaceForm.Visibility = Visibility.Collapsed;
+        if (!IsTaken(basis, null)) return basis;
+
+        for (var n = 2; ; n++)
+        {
+            var candidate = $"{basis} {n}";
+            if (!IsTaken(candidate, null)) return candidate;
+        }
+    }
+
+    private bool IsTaken(string name, WorkspaceViewModel? exclude) =>
+        _workspaceVMs.Any(w => !ReferenceEquals(w, exclude)
+                               && string.Equals(w.Name, name, StringComparison.CurrentCultureIgnoreCase));
+
+    /// <summary>
+    /// Focuses a row's name box, retrying once on the dispatcher — <c>ContainerFromItem</c>
+    /// answers null straight after an <c>Add</c>, before layout has run.
+    /// </summary>
+    private void FocusNameBox(WorkspaceViewModel vm)
+    {
+        WorkspaceListView.ScrollIntoView(vm);
+        WorkspaceListView.UpdateLayout();
+
+        if (!TryFocusNameBox(vm))
+            DispatcherQueue.TryEnqueue(() => TryFocusNameBox(vm));
+    }
+
+    private bool TryFocusNameBox(WorkspaceViewModel vm)
+    {
+        if (WorkspaceListView.ContainerFromItem(vm) is not DependencyObject container) return false;
+        if (VisualTree.FindDescendant<TextBox>(container) is not { } box) return false;
+
+        box.Focus(FocusState.Programmatic);
+        box.SelectAll();
+        return true;
     }
 
     /// <summary>
-    /// Reads the selected color key from <c>Tag</c>, never from <c>Content</c>. The
-    /// returned string is persisted to config.json, so it must stay independent of the
-    /// display language. The "None" item has no Tag and yields null.
+    /// Names the row container for a screen reader. Without it a row announces itself as
+    /// "ace_run.WorkspaceViewModel" — see <see cref="ItemContainers.BindAutomationName"/>.
     /// </summary>
-    private string? ColorTagFromCombo()
+    private void WorkspaceListView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        var item = ColorCombo.SelectedItem as ComboBoxItem;
-        return item?.Tag as string;
+        if (args.InRecycleQueue || args.Item is not WorkspaceViewModel vm) return;
+        ItemContainers.BindAutomationName(args.ItemContainer, vm, nameof(WorkspaceViewModel.Name));
     }
+
+    // ---- Colour ----
+
+    private void Swatch_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: WorkspaceViewModel vm } button) return;
+
+        // allowNone: true — ColorTag is nullable and null is the documented "no colour, no
+        // window edge" state, so a workspace can genuinely be put back to having none.
+        ColorSwatchFlyout.Show(button, vm.ColorTag, allowNone: true, key =>
+        {
+            vm.ColorTag = key;
+
+            // The view model writes straight into the WorkspaceInfo held by _config, so the
+            // config is dirty the moment the setter runs. The live window edge repaints when
+            // the dialog closes and ReloadAfterWorkspaceManagement re-applies the identity.
+            DataService.SaveConfig(_config);
+        });
+    }
+
+    // ---- Overflow menu ----
+
+    private void More_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: WorkspaceViewModel vm } button) return;
+
+        var index = _workspaceVMs.IndexOf(vm);
+
+        ManageRowMenu.Show(
+            button,
+            onExport: () => _ = ExportWorkspaceAsync(vm),
+            onMoveUp: () => MoveRow(vm, -1),
+            onMoveDown: () => MoveRow(vm, 1),
+            canMoveUp: index > 0,
+            canMoveDown: index >= 0 && index < _workspaceVMs.Count - 1,
+            onDelete: () => RequestDelete(button, vm));
+    }
+
+    private void MoveRow(WorkspaceViewModel vm, int delta)
+    {
+        if (ItemOrdering.MoveBy(_workspaceVMs, vm, delta))
+            PersistWorkspaceOrder();
+    }
+
+    /// <summary>
+    /// Rebuilds the persisted list from the view models' order.
+    /// </summary>
+    /// <remarks>
+    /// Identity survives: <c>ToInfo()</c> hands back the very <see cref="WorkspaceInfo"/> the
+    /// view model wraps, so this reorders and changes nothing else. It also re-maps Ctrl+1..9,
+    /// which indexes the same list — intended, and now reachable by menu rather than only by a
+    /// drag that was nearly impossible to start.
+    /// </remarks>
+    private void PersistWorkspaceOrder()
+    {
+        _config.Workspaces = _workspaceVMs.Select(vm => vm.ToInfo()).ToList();
+        DataService.SaveConfig(_config);
+    }
+
+    private void WorkspaceListView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args) =>
+        PersistWorkspaceOrder();
 
     // ---- Import ----
 
@@ -142,20 +245,23 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
                     return;
             }
 
-            var wsInfo = new WorkspaceInfo
+            var info = new WorkspaceInfo
             {
-                // An export written without a name gets the same default a workspace created
-                // by hand would, rather than appearing in the picker as a blank row.
-                Name = DefaultedName(export!.Name),
+                // An export written without a name gets the same default a workspace created by
+                // hand would, rather than appearing in the picker as a blank row. Deduped for
+                // the same reason a new row is: two identical names in the picker are unusable.
+                Name = UniqueName(string.IsNullOrWhiteSpace(export!.Name)
+                    ? Loc.GetString("Workspace_DefaultName")
+                    : export.Name.Trim()),
                 ColorTag = export.ColorTag,
                 AppCount = export.AppData.ItemCount
             };
 
-            _config.Workspaces.Add(wsInfo);
-            DataService.SaveWorkspace(wsInfo.Id, export.AppData);
+            _config.Workspaces.Add(info);
+            DataService.SaveWorkspace(info.Id, export.AppData);
             DataService.SaveConfig(_config);
 
-            _workspaceVMs.Add(new WorkspaceViewModel(wsInfo));
+            _workspaceVMs.Add(new WorkspaceViewModel(info));
         }
         catch (Exception ex)
         {
@@ -166,10 +272,8 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
 
     // ---- Export ----
 
-    private async void ExportWorkspace_Click(object sender, RoutedEventArgs e)
+    private async System.Threading.Tasks.Task ExportWorkspaceAsync(WorkspaceViewModel vm)
     {
-        if (sender is not Button { Tag: WorkspaceViewModel vm }) return;
-
         var picker = new FileSavePicker();
         InitializeWithWindow.Initialize(picker, _hwnd);
         picker.SuggestedFileName = vm.Name;
@@ -190,8 +294,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
                 ColorTag = vm.ColorTag,
                 AppData = appData
             };
-            var json = DataService.SerializeExport(export);
-            await FileIO.WriteTextAsync(file, json);
+            await FileIO.WriteTextAsync(file, DataService.SerializeExport(export));
         }
         catch (Exception ex)
         {
@@ -200,22 +303,20 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
         }
     }
 
-    // ---- Delete (with Flyout confirmation, no nested ContentDialog) ----
+    // ---- Delete ----
 
-    private void DeleteWorkspace_Click(object sender, RoutedEventArgs e)
+    private void RequestDelete(Button anchor, WorkspaceViewModel vm)
     {
-        if (sender is not Button deleteBtn || deleteBtn.Tag is not WorkspaceViewModel vm) return;
-
         if (_config.Workspaces.Count <= 1)
         {
             ShowError(Loc.GetString("Workspace_CannotDeleteLast"));
             return;
         }
 
-        ConfirmFlyout.Show(
-            deleteBtn,
+        ManageRowMenu.ConfirmDelete(
+            anchor,
+            Loc.GetString("Workspace_DeleteTitle"),
             string.Format(Loc.GetString("Workspace_DeleteConfirm"), vm.Name),
-            Loc.GetString("DeleteButton"),
             () => PerformDelete(vm));
     }
 
@@ -227,9 +328,9 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
             _config.ActiveWorkspaceId = _config.Workspaces[0].Id;
 
         // Icons are cached per item id, and the workspace file is the last thing on disk that
-        // still knows those ids — read them out before the delete or the PNGs are orphaned
-        // for good. A workspace that fails to load yields nothing here, which leaks rather
-        // than deletes: the safe direction to fail in.
+        // still knows those ids — read them out before the delete or the cache entries are
+        // orphaned for good. A workspace that fails to load yields nothing here, which leaks
+        // rather than deletes: the safe direction to fail in.
         IconService.InvalidateCache(AppDataQuery.ItemIds(DataService.LoadWorkspace(vm.Id)));
 
         DataService.DeleteWorkspace(vm.Id);
@@ -239,27 +340,77 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
 
     // ---- Inline rename ----
 
+    private void WorkspaceName_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox tb) return;
+
+        _editing = tb.DataContext as WorkspaceViewModel;
+        _editingOriginal = _editing?.Name ?? string.Empty;
+    }
+
     private void WorkspaceName_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is not TextBox tb) return;
 
-        var vm = tb.DataContext as WorkspaceViewModel;
-        if (vm is null) return;
+        var vm = _editing;
+        _editing = null;
+        CommitName(tb, vm);
+    }
+
+    private void WorkspaceName_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (sender is not TextBox tb) return;
+
+        // Handled on purpose: unhandled, Enter reaches the dialog's DefaultButton — which is
+        // Close — and Escape reaches its cancel path, so finishing a rename the obvious way
+        // used to shut the dialog.
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            CommitName(tb, _editing);
+        }
+        else if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            tb.Text = _editingOriginal;
+        }
+    }
+
+    /// <summary>
+    /// Writes the edited name back, or explains why it will not.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="vm"/> is the row captured at <c>GotFocus</c>. Reading
+    /// <c>tb.DataContext</c> here instead is a data-corruption path: a delete shifts every
+    /// container below it and a drag reorder mutates the source with RemoveAt + Insert, so a
+    /// container can be recycled onto a different workspace between the edit and the commit.
+    /// </remarks>
+    private void CommitName(TextBox tb, WorkspaceViewModel? vm)
+    {
+        if (vm is null || !_workspaceVMs.Contains(vm) || !ReferenceEquals(tb.DataContext, vm)) return;
 
         var newName = tb.Text.Trim();
+        if (newName == vm.Name) return;
+
         if (string.IsNullOrEmpty(newName))
         {
-            // Put the old name back rather than just declining the edit. Returning here left
-            // the box showing blank while the workspace kept its name — the two disagreed
-            // until something else happened to redraw the row. ManageTagsDialog has always
-            // done it this way.
+            // Put the old name back rather than just declining the edit — returning here left
+            // the box blank while the workspace kept its name, and the two disagreed until
+            // something else happened to redraw the row.
             tb.Text = vm.Name;
             return;
         }
 
-        if (newName == vm.Name) return;
+        if (IsTaken(newName, vm))
+        {
+            ShowError(string.Format(Loc.GetString("Workspace_DuplicateName"), newName));
+            tb.Text = vm.Name;
+            return;
+        }
 
+        ErrorBar.IsOpen = false;
         vm.Name = newName;
+        _editingOriginal = newName;
 
         var info = _config.Workspaces.FirstOrDefault(w => w.Id == vm.Id);
         if (info is not null)
@@ -267,14 +418,6 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
             info.LastModifiedAt = DateTime.UtcNow;
             DataService.SaveConfig(_config);
         }
-    }
-
-    // ---- Drag reorder ----
-
-    private void WorkspaceListView_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
-    {
-        _config.Workspaces = _workspaceVMs.Select(vm => vm.ToInfo()).ToList();
-        DataService.SaveConfig(_config);
     }
 
     // ---- Helper ----

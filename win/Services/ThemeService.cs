@@ -1,6 +1,8 @@
 using ace_run.Models;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Windows.UI;
 
 namespace ace_run.Services;
@@ -122,7 +124,7 @@ internal static class ThemeService
     /// arbitrary <see cref="ElementTheme"/> from code, so the dictionary is indexed by
     /// name and the merged dictionaries are walked to find the one that carries the key.
     /// </summary>
-    private static Color? Resolve(string key, ElementTheme theme)
+    internal static Color? Resolve(string key, ElementTheme theme)
     {
         var name = theme == ElementTheme.Dark ? "Dark" : "Light";
 
@@ -140,6 +142,41 @@ internal static class ThemeService
         return null;
     }
 
-    private static bool IsHighContrast =>
+    internal static bool IsHighContrast =>
         Application.Current.Resources.TryGetValue("AceIsHighContrast", out var flag) && flag is true;
+
+    /// <summary>
+    /// Stamps the current app theme onto a flyout's presenter, so a popup built in code
+    /// wears the same theme as the window that opened it.
+    /// </summary>
+    /// <remarks>
+    /// Same problem as <c>ContentDialog</c>, one layer further out. A flyout is hosted on the
+    /// popup root, not inside the element tree carrying <c>RequestedTheme</c>, so it does not
+    /// reliably inherit from its placement target — which is why <c>ShowModalAsync</c> has to
+    /// set <c>dialog.RequestedTheme</c> by hand in the first place. It has gone unnoticed
+    /// because the app's only code-built flyout so far is <see cref="ConfirmFlyout"/>, whose
+    /// content is one <c>TextBlock</c> and two default buttons — the least likely thing to
+    /// reveal a mismatch. A grid of colour swatches is the most likely.
+    ///
+    /// The presenter style is built fresh rather than derived from the platform default:
+    /// a <c>Style</c> may only set properties the default does not, and adding one
+    /// <c>RequestedTheme</c> setter on top of an implicit lookup is exactly what
+    /// <c>BasedOn</c> is for — but <c>FlyoutPresenterStyle</c> starts null, so there is
+    /// nothing to base on and a bare setter is enough.
+    /// </remarks>
+    public static void ApplyTo(FlyoutBase flyout)
+    {
+        var theme = ToElementTheme(App.CurrentTheme);
+        if (theme == ElementTheme.Default) return;
+
+        var target = flyout is MenuFlyout ? typeof(MenuFlyoutPresenter) : typeof(FlyoutPresenter);
+        var style = new Style(target);
+        style.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, theme));
+
+        switch (flyout)
+        {
+            case MenuFlyout menu: menu.MenuFlyoutPresenterStyle = style; break;
+            case Flyout plain: plain.FlyoutPresenterStyle = style; break;
+        }
+    }
 }

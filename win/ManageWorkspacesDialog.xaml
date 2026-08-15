@@ -8,144 +8,126 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <StackPanel MinWidth="380" Spacing="12">
+    <ContentDialog.Resources>
+        <!-- The default is 548, which this row outgrows: gripper, swatch, count, "in use" and
+             the overflow button take roughly 220 DIP before the name box starts. -->
+        <x:Double x:Key="ContentDialogMaxWidth">640</x:Double>
+    </ContentDialog.Resources>
 
-        <!-- Error bar -->
+    <StackPanel MinWidth="500" Spacing="{StaticResource AceSpaceMd}">
+
+        <StackPanel Orientation="Horizontal" Spacing="{StaticResource AceSpaceSm}">
+            <!-- A split of one action into two, rather than a form with a radio group. Both
+                 items create the row straight away and put the caret in its name box. -->
+            <DropDownButton x:Name="NewWorkspaceButton">
+                <DropDownButton.Content>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE710;" FontSize="14" />
+                        <TextBlock x:Name="NewWorkspaceLabel" />
+                    </StackPanel>
+                </DropDownButton.Content>
+                <DropDownButton.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem x:Name="CreateBlankItem" Click="CreateBlank_Click" />
+                        <MenuFlyoutItem x:Name="CopyCurrentItem" Click="CopyCurrent_Click" />
+                    </MenuFlyout>
+                </DropDownButton.Flyout>
+            </DropDownButton>
+
+            <Button x:Name="ImportButton" Click="ImportButton_Click">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE8B5;" FontSize="14" />
+                    <TextBlock x:Name="ImportLabel" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
         <InfoBar x:Name="ErrorBar"
                  IsOpen="False"
                  Severity="Error"
                  IsClosable="True" />
 
-        <!-- Toolbar -->
-        <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button x:Name="NewWorkspaceButton" Click="NewWorkspaceButton_Click">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE710;" FontSize="14" />
-                    <TextBlock x:Name="NewWorkspaceLabel" Text="New Workspace" />
-                </StackPanel>
-            </Button>
-            <Button x:Name="ImportButton" Click="ImportButton_Click">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE8B5;" FontSize="14" />
-                    <TextBlock x:Name="ImportLabel" Text="Import" />
-                </StackPanel>
-            </Button>
-        </StackPanel>
-
-        <!-- Workspace list -->
         <ListView x:Name="WorkspaceListView"
-                  MinHeight="160"
                   MaxHeight="360"
                   SelectionMode="None"
                   CanReorderItems="True"
                   CanDragItems="True"
                   AllowDrop="True"
-                  DragItemsCompleted="WorkspaceListView_DragItemsCompleted">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                    <Setter Property="Padding" Value="8,4" />
-                </Style>
-            </ListView.ItemContainerStyle>
+                  DragItemsCompleted="WorkspaceListView_DragItemsCompleted"
+                  ContainerContentChanging="WorkspaceListView_ContainerContentChanging"
+                  ItemContainerStyle="{StaticResource AceManageRowStyle}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:WorkspaceViewModel">
-                    <Grid ColumnSpacing="8">
+                    <Grid ColumnSpacing="{StaticResource AceSpaceSm}">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
+                            <!-- Fixed, not Auto. Each row in a ListView measures on its own, so
+                                 an Auto meta column makes the star column a different width per
+                                 row: the row carrying "in use" pushed its name box visibly
+                                 shorter than its neighbours'. Right-aligned inside, so the
+                                 count still ends flush against the overflow button. -->
+                            <ColumnDefinition Width="176" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- Color dot -->
-                        <Ellipse Grid.Column="0"
-                                 Width="10" Height="10"
-                                 Fill="{x:Bind ColorBrush, Mode=OneWay}"
-                                 Visibility="{x:Bind HasColorVisibility, Mode=OneWay}"
-                                 VerticalAlignment="Center"
-                                 AutomationProperties.AccessibilityView="Raw" />
+                        <FontIcon Grid.Column="0"
+                                  Style="{StaticResource AceRowGripperStyle}"
+                                  ToolTipService.ToolTip="{x:Bind local:ManageWorkspacesDialog.ReorderLabel}"
+                                  AutomationProperties.AccessibilityView="Raw" />
 
-                        <!-- Workspace name (inline editable) -->
-                        <TextBox Grid.Column="1"
-                                 Text="{x:Bind Name, Mode=OneWay}"
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 Padding="4,2"
-                                 VerticalAlignment="Center"
-                                 LostFocus="WorkspaceName_LostFocus" />
-
-                        <!-- App count -->
-                        <TextBlock Grid.Column="2"
-                                   Text="{x:Bind AppCountText, Mode=OneWay}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="4,0"
-                                   VerticalAlignment="Center" />
-
-                        <!-- Export button -->
-                        <Button Grid.Column="3"
+                        <!-- Workspace colour was write-once at creation until this button
+                             existed: ColorTag's setter had no caller anywhere in the app, even
+                             though it drives the window edge, the rail selection indicator and
+                             the selected tile's border. A transparent fill inside the ring is
+                             what "no colour" looks like. -->
+                        <Button Grid.Column="1"
                                 Tag="{x:Bind}"
-                                Click="ExportWorkspace_Click"
-                                Padding="6,4"
-                                ToolTipService.ToolTip="{x:Bind ExportTooltip}"
-                                AutomationProperties.Name="{x:Bind ExportTooltip}">
-                            <FontIcon Glyph="&#xEDE1;" FontSize="14" />
+                                Style="{StaticResource AceSwatchButtonStyle}"
+                                Click="Swatch_Click"
+                                ToolTipService.ToolTip="{x:Bind ColorName, Mode=OneWay}"
+                                AutomationProperties.Name="{x:Bind local:ManageWorkspacesDialog.ChooseColorLabel}">
+                            <Ellipse Width="14" Height="14"
+                                     Fill="{x:Bind ColorBrush, Mode=OneWay}"
+                                     Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                                     StrokeThickness="1" />
                         </Button>
 
-                        <!-- Delete button -->
+                        <TextBox Grid.Column="2"
+                                 Text="{x:Bind Name, Mode=OneWay}"
+                                 Style="{StaticResource AceRowNameBoxStyle}"
+                                 AutomationProperties.Name="{x:Bind local:ManageWorkspacesDialog.NameFieldLabel}"
+                                 GotFocus="WorkspaceName_GotFocus"
+                                 LostFocus="WorkspaceName_LostFocus"
+                                 KeyDown="WorkspaceName_KeyDown" />
+
+                        <!-- Which workspace is open behind this dialog was not shown anywhere,
+                             although the dialog has always been told. -->
+                        <StackPanel Grid.Column="3"
+                                    Orientation="Horizontal"
+                                    Spacing="{StaticResource AceSpaceSm}"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource AceCaptionStyle}"
+                                       Text="{x:Bind InUseText}"
+                                       Visibility="{x:Bind ActiveVisibility, Mode=OneWay}" />
+                            <TextBlock Style="{StaticResource AceCaptionStyle}"
+                                       Text="{x:Bind AppCountText, Mode=OneWay}" />
+                        </StackPanel>
+
                         <Button Grid.Column="4"
                                 Tag="{x:Bind}"
-                                Click="DeleteWorkspace_Click"
-                                Padding="6,4"
-                                ToolTipService.ToolTip="{x:Bind DeleteTooltip}"
-                                AutomationProperties.Name="{x:Bind DeleteTooltip}">
-                            <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                Style="{StaticResource AceRowIconButtonStyle}"
+                                Click="More_Click"
+                                ToolTipService.ToolTip="{x:Bind local:ManageWorkspacesDialog.MoreLabel}"
+                                AutomationProperties.Name="{x:Bind local:ManageWorkspacesDialog.MoreLabel}">
+                            <FontIcon Glyph="&#xE712;" FontSize="14" />
                         </Button>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
-
-        <!-- Inline new-workspace form (collapsed by default) -->
-        <Border x:Name="NewWorkspaceForm"
-                Visibility="Collapsed"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0"
-                Padding="0,12,0,0">
-            <StackPanel Spacing="10">
-                <TextBlock x:Name="NewFormTitle"
-                           Style="{StaticResource BodyStrongTextBlockStyle}" />
-                <TextBox x:Name="NewNameBox"
-                         PlaceholderText="Workspace name" />
-                <ComboBox x:Name="ColorCombo"
-                          SelectedIndex="0"
-                          HorizontalAlignment="Left"
-                          MinWidth="160">
-                    <!-- Tag carries the persisted key; Content is display text only.
-                         Reading Content back would tie config.json to the UI language. -->
-                    <ComboBoxItem Content="None" />
-                    <ComboBoxItem Content="Blue" Tag="Blue" />
-                    <ComboBoxItem Content="Green" Tag="Green" />
-                    <ComboBoxItem Content="Red" Tag="Red" />
-                    <ComboBoxItem Content="Yellow" Tag="Yellow" />
-                    <ComboBoxItem Content="Purple" Tag="Purple" />
-                    <ComboBoxItem Content="Gray" Tag="Gray" />
-                </ComboBox>
-                <RadioButton x:Name="BlankRadio"
-                             GroupName="NewWsInit"
-                             IsChecked="True" />
-                <RadioButton x:Name="CopyRadio"
-                             GroupName="NewWsInit" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="ConfirmNewBtn"
-                            Style="{StaticResource AccentButtonStyle}"
-                            Click="ConfirmNewWorkspace_Click" />
-                    <Button x:Name="CancelNewBtn"
-                            Click="CancelNewWorkspace_Click" />
-                </StackPanel>
-            </StackPanel>
-        </Border>
 
     </StackPanel>
 </ContentDialog>

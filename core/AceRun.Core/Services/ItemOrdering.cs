@@ -125,4 +125,34 @@ public static class ItemOrdering
 
         return moved;
     }
+
+    /// <summary>
+    /// Shifts one item by <paramref name="delta"/> positions, clamped by the collection's bounds.
+    /// </summary>
+    /// <returns>
+    /// True when the item actually moved. False means the caller has nothing to persist —
+    /// the item is absent, <paramref name="delta"/> is zero, or it is already at that end.
+    /// </returns>
+    /// <remarks>
+    /// This is the keyboard half of drag reordering, and <c>Move</c> is what makes it usable
+    /// twice in a row. A <c>ListView</c>'s own drag reorder mutates its source with
+    /// <c>RemoveAt</c> + <c>Insert</c>, which recycles containers: the row's container is torn
+    /// down and a different one is prepared for the item, so focus does not survive and a
+    /// second "move up" would have nothing focused to act on. <c>Move</c> raises a Move
+    /// notification, which repositions the existing container — same reasoning as
+    /// <see cref="ApplyOrder"/>, for a different symptom.
+    /// </remarks>
+    public static bool MoveBy<T>(ObservableCollection<T> target, T item, int delta)
+    {
+        if (delta == 0) return false;
+
+        var from = target.IndexOf(item);
+        if (from < 0) return false;
+
+        var to = from + delta;
+        if (to < 0 || to >= target.Count) return false;
+
+        target.Move(from, to);
+        return true;
+    }
 }

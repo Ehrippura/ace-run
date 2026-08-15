@@ -14,10 +14,21 @@
 
 ## 2. Tag 管理功能
 
-- [x] 提供新增 tag 功能，可輸入 tag 名稱並選擇顏色。
-- [x] 提供編輯 tag 功能，可修改 tag 名稱與顏色。
-- [x] 提供刪除 tag 功能，刪除前顯示確認提示。
+「管理標籤」對話框與「管理工作區」共用同一個列型與同一套行為，差異只留真正該有差異的（無數量欄、無匯出、有空狀態）。列型、色票面板、⋯ 選單、鍵盤重排與主題解析的完整理由記在第五階段 §4，此處只記本對話框特有的部分。
+
+- [x] 列型：`⠿ 握把 / 顏色按鈕 / 名稱 TextBox / ⋯ 溢位選單`。
+- [x] 新增 tag：按下即在尾端建列並讓名稱欄取得焦點，預設名稱被占用時自動加序號。取代原本的展開式行內表單。
+- [x] 編輯 tag 名稱與顏色：名稱為列內 TextBox（Enter 提交、Esc 還原、重名以 InfoBar 擋除），顏色為列上的色票按鈕。
+    - **原本的每列顏色 `ComboBox` 是這次重做的主因。** 它靠 `Loaded` 事件初始化選取值，而 `Loaded` 每個容器只觸發一次；`ItemsStackPanel` 把容器回收到另一個 tag 上時只換 `DataContext`，`SelectedIndex` 就停在前一個 tag 的值。清單超過約九列即可重現：往下捲會看到別的 tag 的顏色，資料沒壞但畫面在說謊。改成 `{x:Bind ColorBrush, Mode=OneWay}` 之後，沒有任何容器層級的狀態可以走鐘。
+    - 一般規則：**列內控制項的狀態必須由 `x:Bind` 承載，不得靠 `Loaded` 初始化。** `DataTemplate` 裡的 `x:Bind`（含 OneTime）在每次 realization 重跑，回收安全；`Loaded` 不是。
+- [x] 刪除 tag，刪除前以 `ConfirmFlyout` 確認（經 ⋯ 選單，需延後一拍 dispatcher）。
 - [x] 刪除 tag 後，已套用該 tag 的 app 需自動移除對應 TagId。
+- [x] 補上 `InfoBar`（工作區對話框一直都有，這邊沒有，所以任何失敗都無處可說）。
+- [x] 空清單時整個 `ListView` 一起收掉，只留提示。原本 `MinHeight="120"` 的空清單留在提示底下，讀起來是「一句話加一塊空盒子」。
+- [x] 拖曳排序，以及 ⋯ 選單的上移／下移。
+    - **tag 順序是有意義的**：第九階段的「依標籤」排序用第一個 tag 在 `_tags` 中的索引，`NormalizeAppTags` 也照同一順序排每個項目上的色點。順序在那兩處看得見，卻在此之前無法編輯。
+    - 對話框自己不寫任何檔案：它拿到的是 `MainWindow._tags` 的參考並就地變更，`ManageTagsButton_Click` 收尾的 `NormalizeAppTags(); CommitSave();` 就是全部的持久化，`CommitSave` 寫出的正是這個集合的列舉順序。
+    - **絕不可重建 `_tags`**（`Clear()` + 重新 `Add`）：那會換掉每個 `AppItemViewModel.Tags` 持有的同一批實例，下一次 `NormalizeAppTags` 會把所有項目的標籤清空。
 
 ## 3. App Tag 指派
 
@@ -64,6 +75,8 @@
 ## 9. 在地化
 
 - [x] `Tag_Clear`、`Tag_Overflow`（`+{0}`）、`Tag_Separator`（zh-TW／ja 用「、」，en 用「, 」）、`Tag_Field`，三份 `.resw` 同步更新。
+- [x] 新增 `Tag_DuplicateName` 與 `Tag_DeleteTitle`；`Color_*` 與 `Row_*` 見第五階段 §6，兩個對話框共用。
+- [x] 刪除 `Tag_NewTitle`（表單移除）與 `Tag_Delete`（改用通用的 `DeleteButton`）。`Tag_Name` 從表單的 placeholder 改為列內名稱欄的 `AutomationProperties.Name`。
 
 ## 10. 不在本階段範圍
 

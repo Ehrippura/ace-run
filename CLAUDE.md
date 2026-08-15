@@ -125,10 +125,16 @@ Services/                # Static service classes — the ones that need WinUI o
   DisplayScale           # GetDpiForWindow, for the two constructors with no XamlRoot yet
   DpiChangeWatcher       # WM_DPICHANGED via SetWindowSubclass — early enough to move the resize floor
   ConfirmFlyout          # The shared yes/no popup both manage dialogs use
+  ColorSwatchFlyout      # The colour picker both manage dialogs use, built from ColorKeys.All
+  ManageRowMenu          # A manage-dialog row's ⋯ menu, and its deferred delete confirmation
   ShellFileDialog        # IFileDialog interop — the only picker that can be told where to open
+Helpers/                 # Framework plumbing with no domain in it
+  VisualTree             # FindDescendant / FindParent
+  ItemContainers         # BindAutomationName — names the container, not the template root
 Styles/                  # Design layer, merged in App.xaml
   Tokens.xaml            # Spacing scale, corner radii, type ramp (no colors)
   Brushes.xaml           # ThemeDictionaries: Light / Dark / HighContrast
+  ManageList.xaml        # The manage dialogs' shared row styles (Styles only — see below)
 ViewModels.cs            # AppItemViewModel, FolderViewModel, WorkspaceViewModel, TagViewModel (all INotifyPropertyChanged)
 MainWindow.xaml/.cs      # Primary UI + all orchestration (split across .Actions/.Data/.Events/.Motion/.TitleBar/.Workspace/.Organize/.ItemMenu/.Settings/.History partials)
 EditItemDialog.xaml/.cs  # ContentDialog for add/edit app or URL (folders use ad-hoc dialogs in MainWindow.Actions.cs)
@@ -172,6 +178,18 @@ What stays in `MainWindow` is what it genuinely owns: UI state, event wiring, an
 **Settings have exactly one owner, and it is not the settings window.** `MainWindow` holds the one live `WorkspaceConfig` and writes the **whole** thing back. `SettingsWindow` is handed the `MainWindow` and mutates `owner.Config.Settings` in place — a copy loaded with `LoadConfig()` would be overwritten the moment the main window closed. Every default reproduces the pre-settings behaviour, so an existing install gains a `Settings` block and behaves identically until the user touches something.
 
 `MainWindow.Settings.cs` is the seam: `InitializeSettings()` from the constructor (the HWND exists as soon as the `Window` does), `ApplySettings()` once the config is loaded, and `TryApplyHotkey` separately because it is the one setting that can *fail* — it returns false when Windows refuses the chord, leaving `Settings` untouched so the caller can restore the old binding. `ResetIconCache()` is the odd one out and sits in its own Storage group: it writes nothing to `AppSettings`, it performs an action.
+
+**A row's state rides on `x:Bind`, never on `Loaded`.** `Loaded` fires once per *container*; an `ItemsStackPanel` recycling that container onto another item only swaps the `DataContext`, so anything initialized from `Loaded` keeps the previous item's value. `ManageTagsDialog`'s per-row colour `ComboBox` did exactly this and showed the wrong colour for every row past about the ninth. `{x:Bind}` inside a `DataTemplate` — including `OneTime`, including the pathless `Tag="{x:Bind}"` — is re-evaluated on every realization, recycles included; that is what `MainWindow.xaml`'s `Glyph="{x:Bind FallbackGlyph}"` has always relied on in a grid that recycles constantly.
+
+The same rule rules out declaring a `Flyout` or `MenuFlyout` inside a `DataTemplate`: one is instantiated per realized container and it is *not* rebuilt on recycle, so whatever its handlers captured goes stale even though the bindings would not. Build them per click instead — `BuildAppMenu`, `ColorSwatchFlyout`, `ManageRowMenu` all do.
+
+**And a commit must not read `DataContext` back.** Both manage dialogs capture the row's view model at `GotFocus` and re-check `ReferenceEquals(tb.DataContext, vm)` before writing. Reading `DataContext` at `LostFocus` is a data-corruption path, not a theoretical one: a `ListView`'s drag reorder mutates its source with `RemoveAt` + `Insert` (not `Move`) and a delete shifts every container below it, so a container can be recycled onto a different item between the edit and the commit — and the edit lands on that one.
+
+**A manage-dialog row has one draggable surface, and it is the gripper.** A `TextBox` or a `Button` captures the pointer on press, so the press never reaches the `ListViewItem`'s drag detection. Before the `⠿` glyph existed, the only draggable part of a workspace row was the 16-DIP colour dot and the column gaps, which is why reordering read as "sometimes works". It works *only* by being an inert hit-test surface that bubbles to the container — do not wrap it in a `Button`, and note there is no public API to start a `ListView` reorder from code. Keyboard reorder is covered by the ⋯ menu's Move Up / Move Down instead: the row's `TextBox` takes focus ahead of its container, so `ListViewBase`'s own Ctrl+Shift+Arrow gesture is unreachable.
+
+**Popups do not inherit the element theme, and neither do their colours.** `ThemeService.ApplyTo(FlyoutBase)` stamps the presenter — same problem as `ContentDialog`, one layer further out. And `ColorTags.GetBrush` now resolves against `App.CurrentTheme` via `ResolveBrush`, not `Application.Current.Resources`: the app-theme lookup is fixed at the system theme for the process's life, and with the OS in Dark and the app set to Light it drew a tag dot at `#62ABF5` while the colour picker beside it drew `#0F6CBD` — measured. High Contrast still falls through to the app-level lookup, which is correct there because that dictionary is chosen system-wide.
+
+**`Styles/ManageList.xaml` holds `Style`s and nothing else.** A `ResourceDictionary` with no `x:Class` cannot host `{x:Bind}`, so the two row `DataTemplate`s stay in their own dialogs; what is shared is the styling plus the C# behaviour. It is merged in `App.xaml`, not into each dialog's `Resources`, and not only to avoid two copies of every `Style`: content built in code and handed to a `Flyout` is parented on the popup root, whose lookup chain reaches `Application.Resources` but **not** a `ContentDialog`'s local `Resources`.
 
 **`App.TrayEnabled` is not the close-to-tray preference.** It means the tray icon was created successfully; the preference is `AppSettings.CloseToTray`, and `MainWindow_Closed` needs both. The else branch must call `App.ExitApp()` — letting the window close is not quitting, because the tray icon keeps a message loop alive.
 
@@ -261,7 +279,7 @@ The target row highlight is a `Border` behind the row content, driven by `Folder
 
 **Design layer.** `Tokens.xaml` carries spacing / radii / type only — **no colors**; every color lives in `Brushes.xaml` under `ThemeDictionaries` with `Light`, `Dark`, and `HighContrast` declared explicitly (never `Default`). `{StaticResource}` inside a theme dictionary, `{ThemeResource}` at the usage site. The main window uses two type sizes, 14 and 12; don't reintroduce loose `FontSize` literals.
 
-**Color = context.** The only hues are workspace color (the shell) and tag color (items); everything else is achromatic and the system accent is left to interactive controls. `ColorTags.GetBrush` returns the **shared** brush instance from application resources, so it is allocation-free but resolves against the theme at call time. Color keys are persisted to JSON and must never be renamed — the dialogs carry the key in `ComboBoxItem.Tag` and use `Content` for display text only.
+**Color = context.** The only hues are workspace color (the shell) and tag color (items); everything else is achromatic and the system accent is left to interactive controls. `ColorTags.GetBrush` resolves against `App.CurrentTheme` and caches one brush per (theme, key), so it stays allocation-free after the first call; resolution happens at call time and is not tracked afterwards, so a caller caching the result must re-notify when the theme moves. Color keys are persisted to JSON and must never be renamed — `ColorKeys.All` is the single source both manage dialogs build their palette from, and the localized `Color_*` strings are display text keyed off those same values.
 
 **Workspace identity brush.** `InitializeWorkspaceBrush()` (`MainWindow.Motion.cs`) creates one `SolidColorBrush` and registers that same instance into the control-level `Resources` of both lists under the platform's own keys (`ListViewItemSelectionIndicator*Brush`, `GridViewItemSelected*BorderBrush`) and onto `WorkspaceEdge.BorderBrush`. Overriding theme keys keeps the platform's geometry, states and animations — **do not author a custom `ControlTemplate`**. It must run **before** `ItemsSource` is assigned, because `ListViewItemPresenter` resolves those keys when its template is applied. One shared instance means all three surfaces crossfade from a single `ColorAnimation`.
 

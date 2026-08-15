@@ -38,7 +38,8 @@
 
 - [x] 新增 `SortKeyBox`，置於標籤選擇器與「以系統管理員身分執行」之間。
 - [x] `ApplyUrlMode()` **不收合**此欄位：URL 項目一樣住在資料夾裡、一樣需要整理。
-- [x] Header／PlaceholderText 以 `Loc.GetString` 於程式碼設定而非 `x:Uid`。本專案為 unpackaged（`WindowsPackageType=None`），`x:Uid` 只會解析成 XAML 裡的英文字面值，而本功能的另一半（右鍵選單）會正確在地化——同一功能一半中文一半英文並不合理。`TagFieldLabel` 已有此先例。
+- [x] Header／PlaceholderText 以 `Loc.GetString` 於程式碼設定而非 `x:Uid`。理由是本功能的另一半（右鍵選單）是程式碼建構的，那裡沒有 `x:Uid` 可用，同一功能的兩半應該讀同一個來源。`TagFieldLabel` 已有此先例。
+    - **更正**：此處原本寫的理由是「本專案為 unpackaged，`x:Uid` 只會解析成 XAML 裡的英文字面值」，那是錯的。建置會把 `ace-run.pri` 產在 exe 旁邊，MRT 即使未封裝也會載入，`x:Uid` 確實會解析——`SearchBox.PlaceholderText` 與 `EditItemDialog` 的八處 `x:Uid` 都是出貨中且正確的。決定本身不變，只是理由要改對。
 - [x] `ApplyTo()` 對此欄位刻意 `Trim()`（該檔案其他欄位皆不 Trim）：尾端空白會靜默改變整理結果，而使用者在輸入框裡看不見它。
 
 ## 5. 在地化

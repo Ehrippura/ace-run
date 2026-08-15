@@ -197,6 +197,62 @@ public class ItemOrderingTests
         Assert.All(actions, a => Assert.Equal(NotifyCollectionChangedAction.Move, a));
     }
 
+    // --- MoveBy ---
+
+    [Fact]
+    public void MoveBy_shifts_the_item_and_reports_that_it_moved()
+    {
+        var a = new FakeItem("A");
+        var b = new FakeItem("B");
+        var c = new FakeItem("C");
+        var collection = new ObservableCollection<FakeItem> { a, b, c };
+
+        Assert.True(ItemOrdering.MoveBy(collection, c, -1));
+        Assert.Equal(new[] { "A", "C", "B" }, collection.Select(i => i.DisplayName));
+
+        Assert.True(ItemOrdering.MoveBy(collection, a, 1));
+        Assert.Equal(new[] { "C", "A", "B" }, collection.Select(i => i.DisplayName));
+    }
+
+    [Fact]
+    public void MoveBy_refuses_to_move_past_either_end()
+    {
+        var a = new FakeItem("A");
+        var b = new FakeItem("B");
+        var collection = new ObservableCollection<FakeItem> { a, b };
+
+        Assert.False(ItemOrdering.MoveBy(collection, a, -1));
+        Assert.False(ItemOrdering.MoveBy(collection, b, 1));
+        Assert.Equal(new[] { "A", "B" }, collection.Select(i => i.DisplayName));
+    }
+
+    [Fact]
+    public void MoveBy_reports_no_move_for_an_absent_item_or_a_zero_delta()
+    {
+        var a = new FakeItem("A");
+        var collection = new ObservableCollection<FakeItem> { a };
+
+        Assert.False(ItemOrdering.MoveBy(collection, new FakeItem("Stranger"), 1));
+        Assert.False(ItemOrdering.MoveBy(collection, a, 0));
+    }
+
+    [Fact]
+    public void MoveBy_raises_only_Move_and_never_Remove()
+    {
+        // The reason this exists rather than the caller doing RemoveAt + Insert: a Remove
+        // recycles the row's container, so keyboard focus does not survive the move and the
+        // menu item cannot be invoked twice in a row.
+        var items = Enumerable.Range(0, 4).Select(i => new FakeItem($"Item {i}")).ToList();
+        var collection = new ObservableCollection<FakeItem>(items);
+
+        var actions = new List<NotifyCollectionChangedAction>();
+        collection.CollectionChanged += (_, e) => actions.Add(e.Action);
+
+        ItemOrdering.MoveBy(collection, items[3], -1);
+
+        Assert.Equal(new[] { NotifyCollectionChangedAction.Move }, actions);
+    }
+
     private static List<FakeItem> Order(OrganizeBy by, params FakeItem[] items)
         => ItemOrdering.Order(items, by, NoTags);
 

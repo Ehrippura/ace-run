@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using System;
 using System.Threading.Tasks;
 using Windows.System;
+using static ace_run.Helpers.VisualTree;
 
 namespace ace_run;
 

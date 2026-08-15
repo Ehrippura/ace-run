@@ -87,12 +87,13 @@
   <data name="Tag_Manage" xml:space="preserve"><value>タグの管理</value></data>
   <data name="Tag_ManageTitle" xml:space="preserve"><value>タグの管理</value></data>
   <data name="Tag_New" xml:space="preserve"><value>新規タグ</value></data>
-  <!-- The name a tag gets when the user leaves the box empty. Separate from Tag_New, which
-       is the button that opens the form — an unnamed tag used to be named after it. -->
+  <!-- The name a new row starts with. Separate from Tag_New, which is the button that creates
+       it — a tag used to be named after its own button. A numeric suffix is appended when the
+       name is already taken, so clicking New Tag twice does not trip the duplicate check. -->
   <data name="Tag_DefaultName" xml:space="preserve"><value>名称未設定のタグ</value></data>
-  <data name="Tag_NewTitle" xml:space="preserve"><value>新規タグ</value></data>
   <data name="Tag_Name" xml:space="preserve"><value>タグ名</value></data>
-  <data name="Tag_Delete" xml:space="preserve"><value>削除</value></data>
+  <data name="Tag_DuplicateName" xml:space="preserve"><value>「{0}」という名前のタグは既に存在します。</value></data>
+  <data name="Tag_DeleteTitle" xml:space="preserve"><value>タグを削除</value></data>
   <data name="Tag_DeleteConfirm" xml:space="preserve"><value>タグ「{0}」を削除しますか？すべてのアプリから削除されます。</value></data>
   <data name="Tag_None" xml:space="preserve"><value>タグなし</value></data>
   <data name="Tag_Set" xml:space="preserve"><value>タグを設定</value></data>
@@ -114,27 +115,49 @@
   <!-- Workspace management -->
   <data name="Workspace_Manage" xml:space="preserve"><value>ワークスペースの管理</value></data>
   <data name="Workspace_New" xml:space="preserve"><value>新規ワークスペース</value></data>
-  <data name="Workspace_Rename" xml:space="preserve"><value>名前の変更</value></data>
-  <data name="Workspace_Delete" xml:space="preserve"><value>削除</value></data>
-<data name="Workspace_Default" xml:space="preserve"><value>（既定）</value></data>
+  <!-- Marks the workspace currently open behind the dialog. There is no "default workspace"
+       concept to mark instead: WorkspaceConfig carries ActiveWorkspaceId and nothing else. -->
+  <data name="Workspace_InUse" xml:space="preserve"><value>使用中</value></data>
   <data name="Workspace_Export" xml:space="preserve"><value>エクスポート</value></data>
   <data name="Workspace_Import" xml:space="preserve"><value>インポート</value></data>
   <data name="Workspace_ImportAsNew" xml:space="preserve"><value>新規ワークスペースとしてインポート</value></data>
   <data name="Workspace_ImportMerge" xml:space="preserve"><value>現在のワークスペースに統合</value></data>
   <data name="Workspace_CannotDeleteLast" xml:space="preserve"><value>最後のワークスペースは削除できません。</value></data>
+  <data name="Workspace_DeleteTitle" xml:space="preserve"><value>ワークスペースを削除</value></data>
   <data name="Workspace_DeleteConfirm" xml:space="preserve"><value>「{0}」を削除しますか？すべてのアプリが失われます。</value></data>
+  <data name="Workspace_DuplicateName" xml:space="preserve"><value>「{0}」という名前のワークスペースは既に存在します。</value></data>
   <data name="Workspace_CopyCurrent" xml:space="preserve"><value>現在のワークスペースをコピー</value></data>
   <data name="Workspace_CreateBlank" xml:space="preserve"><value>空のワークスペースを作成</value></data>
   <data name="Workspace_InvalidFile" xml:space="preserve"><value>.acerun ファイルの形式が無効です。</value></data>
   <data name="Workspace_ImportTooNew" xml:space="preserve"><value>このファイルは新しいバージョンの Ace Run でエクスポートされました。</value></data>
-  <!-- The name a workspace gets when the user leaves the box empty. Separate from
-       Workspace_New, which is the button that opens the form. -->
+  <!-- The name a new row starts with. Separate from Workspace_New, which is the button that
+       creates it. A numeric suffix is appended when the name is already taken. -->
   <data name="Workspace_DefaultName" xml:space="preserve"><value>新しいワークスペース</value></data>
   <data name="Workspace_NameLabel" xml:space="preserve"><value>名前</value></data>
-  <data name="Workspace_ColorLabel" xml:space="preserve"><value>色</value></data>
   <data name="Workspace_AppCount" xml:space="preserve"><value>{0} 個のアプリ</value></data>
   <data name="Workspace_ManageTitle" xml:space="preserve"><value>ワークスペースの管理</value></data>
-  <data name="Workspace_NewTitle" xml:space="preserve"><value>新規ワークスペース</value></data>
+
+  <!-- Colour names. These never appear as visible text next to a swatch in the row — the dot
+       is the label there — but they are the swatch's accessible name and tooltip, and the
+       picker shows them so the palette stays usable under High Contrast, where every
+       AceTagBrush* collapses to the same system colour. The key suffix is the persisted
+       ColorKeys value, so these follow that list and must not be renamed independently. -->
+  <data name="Color_Choose" xml:space="preserve"><value>色を選択</value></data>
+  <data name="Color_None" xml:space="preserve"><value>色なし</value></data>
+  <data name="Color_Blue" xml:space="preserve"><value>青</value></data>
+  <data name="Color_Green" xml:space="preserve"><value>緑</value></data>
+  <data name="Color_Red" xml:space="preserve"><value>赤</value></data>
+  <data name="Color_Yellow" xml:space="preserve"><value>黄</value></data>
+  <data name="Color_Purple" xml:space="preserve"><value>紫</value></data>
+  <data name="Color_Gray" xml:space="preserve"><value>グレー</value></data>
+
+  <!-- Row commands shared by the two manage dialogs. Move up / move down are the keyboard
+       route to reordering: a row holds a TextBox, which takes focus ahead of its container,
+       so the ListView's own Ctrl+Shift+Arrow gesture never reaches it. -->
+  <data name="Row_More" xml:space="preserve"><value>その他のオプション</value></data>
+  <data name="Row_MoveUp" xml:space="preserve"><value>上へ移動</value></data>
+  <data name="Row_MoveDown" xml:space="preserve"><value>下へ移動</value></data>
+  <data name="Row_Reorder" xml:space="preserve"><value>ドラッグして並べ替え</value></data>
 
   <!-- Settings -->
   <data name="Settings_Title" xml:space="preserve"><value>設定</value></data>

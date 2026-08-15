@@ -181,6 +181,11 @@ public sealed partial class MainWindow
 
             // Reconcile apps with the (possibly) changed tag list, then persist. Renames
             // and recolors need no pass here: the tiles bind the tag instances directly.
+            //
+            // This is also the whole of the tag dialog's persistence, reordering included —
+            // it is handed _tags by reference and mutates it in place, and CommitSave writes
+            // _tags out in enumeration order. NormalizeAppTags then re-sorts each item's own
+            // tags into the new workspace order, which is what keeps the dots lined up.
             NormalizeAppTags();
             CommitSave();
         });

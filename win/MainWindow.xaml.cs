@@ -232,32 +232,7 @@ public sealed partial class MainWindow : Window
     private void UpdateUngroupedCount() =>
         UngroupedItemCount.Text = _ungroupedApps.Count.ToString();
 
-    /// <summary>
-    /// First descendant of the given type, breadth-first-ish. The counterpart to
-    /// <see cref="FindParent{T}"/>, and the only way to reach a template part from outside
-    /// the control — <c>GetTemplateChild</c> is protected and <c>FindName</c> does not cross
-    /// into a template's namescope.
-    /// </summary>
-    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
-    {
-        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
-            if (child is T match) return match;
-            if (FindDescendant<T>(child) is { } nested) return nested;
-        }
-        return null;
-    }
-
-    private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
-    {
-        var parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(child);
-        while (parent is not null)
-        {
-            if (parent is T t) return t;
-            parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent);
-        }
-        return null;
-    }
+    // FindDescendant / FindParent moved to Helpers/VisualTree.cs — the manage dialogs need
+    // FindDescendant too, to reach the name box inside a freshly realized row. The partials
+    // that call them carry a `using static ace_run.Helpers.VisualTree;`.
 }

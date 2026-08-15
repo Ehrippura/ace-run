@@ -352,6 +352,7 @@ public class FolderViewModel : INotifyPropertyChanged
 public class WorkspaceViewModel : INotifyPropertyChanged
 {
     private readonly WorkspaceInfo _info;
+    private bool _isActive;
 
     public Guid Id => _info.Id;
 
@@ -398,16 +399,44 @@ public class WorkspaceViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Marks the workspace open behind the manage dialog. Session-only and deliberately absent
+    /// from <see cref="ToInfo"/> — same rule as <c>FolderViewModel.IsDropTarget</c>. The dialog
+    /// builds its own view models from a freshly loaded config, so this cannot leak into the
+    /// workspace picker's instances.
+    /// </summary>
+    public bool IsActive
+    {
+        get => _isActive;
+        set
+        {
+            if (_isActive != value)
+            {
+                _isActive = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ActiveVisibility));
+            }
+        }
+    }
+
+    public Visibility ActiveVisibility => _isActive ? Visibility.Visible : Visibility.Collapsed;
+
+    public string InUseText => Loc.GetString("Workspace_InUse");
+
     public Brush ColorBrush => ColorTags.GetBrush(_info.ColorTag);
 
     public Visibility HasColorVisibility =>
         _info.ColorTag is not null ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>
+    /// The current colour in words, for the swatch button's tooltip — the button's face is a
+    /// dot and nothing else. Null reads as "no colour", which is a real state here.
+    /// </summary>
+    public string ColorName =>
+        Loc.GetString(_info.ColorTag is null ? "Color_None" : $"Color_{_info.ColorTag}");
+
     public string AppCountText =>
         string.Format(Loc.GetString("Workspace_AppCount"), _info.AppCount);
-
-    public string ExportTooltip => Loc.GetString("Workspace_Export");
-    public string DeleteTooltip => Loc.GetString("Workspace_Delete");
 
     public WorkspaceInfo ToInfo() => _info;
 
@@ -447,13 +476,18 @@ public class TagViewModel : INotifyPropertyChanged, ITagRef
                 _colorKey = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ColorBrush));
+                OnPropertyChanged(nameof(ColorName));
             }
         }
     }
 
     public Brush ColorBrush => ColorTags.GetBrush(_colorKey);
 
-    public string DeleteTooltip => Loc.GetString("Tag_Delete");
+    /// <summary>
+    /// The current colour in words, for the swatch button's tooltip. The button's face is a
+    /// dot and nothing else, so this is the only place the colour is named.
+    /// </summary>
+    public string ColorName => Loc.GetString($"Color_{_colorKey}");
 
     public TagViewModel(TagItem model)
     {
