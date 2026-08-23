@@ -119,17 +119,19 @@ internal static class ShellFileDialog
         {
             for (var i = 0; i < fileTypes.Length; i++)
             {
-                var nameHandle = GCHandle.Alloc(fileTypes[i].Label, GCHandleType.Pinned);
-                var specHandle = GCHandle.Alloc(fileTypes[i].Spec, GCHandleType.Pinned);
-                handles[i * 2] = nameHandle;
-                handles[i * 2 + 1] = specHandle;
+                // Each handle lands in the array the instant it exists. Allocating both into
+                // locals first would strand the earlier one if the later Alloc threw — it
+                // would never reach the array the finally below sweeps, pinning that string
+                // for the life of the process.
+                handles[i * 2] = GCHandle.Alloc(fileTypes[i].Label, GCHandleType.Pinned);
+                handles[i * 2 + 1] = GCHandle.Alloc(fileTypes[i].Spec, GCHandleType.Pinned);
 
                 unsafe
                 {
                     specs[i] = new COMDLG_FILTERSPEC
                     {
-                        pszName = (char*)nameHandle.AddrOfPinnedObject(),
-                        pszSpec = (char*)specHandle.AddrOfPinnedObject(),
+                        pszName = (char*)handles[i * 2].AddrOfPinnedObject(),
+                        pszSpec = (char*)handles[i * 2 + 1].AddrOfPinnedObject(),
                     };
                 }
             }
@@ -147,6 +149,19 @@ internal static class ShellFileDialog
     /// Wraps a path as an <c>IShellItem</c>. A path that has gone missing between the check and
     /// here is not worth failing a click over — the dialog just opens wherever it would have.
     /// </summary>
+    /// <remarks>
+    /// The catch is deliberately unfiltered. <c>ThrowOnFailure</c> is
+    /// <c>Marshal.ThrowExceptionForHR</c>, which translates the shell's HRESULTs into four
+    /// unrelated exception families — measured: <c>0x80070002</c>/<c>0x80070003</c>/
+    /// <c>0x80070035</c> arrive as <c>FileNotFoundException</c>/<c>DirectoryNotFoundException</c>,
+    /// <c>E_ACCESSDENIED</c> as <c>UnauthorizedAccessException</c> (not even an
+    /// <c>IOException</c>), <c>E_INVALIDARG</c> as <c>ArgumentException</c>, the rest as
+    /// <c>COMException</c>. Naming them individually is how this method used to break its own
+    /// promise: a start folder on a drive that went away between <c>Directory.Exists</c> and
+    /// this call threw straight past the filters and killed a Browse click. Every one of them
+    /// means the same thing here, and the recovery is the same and always safe — leave the
+    /// start folder unset.
+    /// </remarks>
     private static bool TryCreateShellItem(string? path, out IShellItem? item)
     {
         item = null;
@@ -158,11 +173,7 @@ internal static class ShellFileDialog
             item = created;
             return true;
         }
-        catch (COMException)
-        {
-            return false;
-        }
-        catch (ArgumentException)
+        catch (Exception)
         {
             return false;
         }
