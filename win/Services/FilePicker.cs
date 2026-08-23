@@ -16,8 +16,21 @@ namespace ace_run.Services;
 /// it — <c>Windows.Storage.Pickers</c> and <c>Microsoft.Windows.Storage.Pickers</c> both gave
 /// the open and folder pickers only <c>SuggestedStartLocation</c>, a closed enum of known
 /// folders, and <c>SuggestedFolder</c> existed on <c>FileSavePicker</c> alone. Windows App SDK
-/// 2.x adds <c>SuggestedStartFolder</c> to all three, which is what makes "start where the
-/// value already points" expressible without COM interop.
+/// 2.x adds it to all three, which is what makes "start where the value already points"
+/// expressible without COM interop.
+/// </para>
+/// <para>
+/// <b><c>SuggestedFolder</c>, not <c>SuggestedStartFolder</c>.</b> 2.x added both and the names
+/// do not say which is which: <c>SuggestedFolder</c> is <c>IFileDialog::SetFolder</c> and always
+/// wins, while <c>SuggestedStartFolder</c> is <c>SetDefaultFolder</c> — a suggestion for the
+/// first ever use that yields to the folder remembered under
+/// <see cref="FileOpenPicker.SettingsIdentifier"/> on every later open. Overriding that memory
+/// is the whole point here, so the wrong one of the pair degrades into "wherever you were last
+/// time" from the second press onwards. Measured both ways against the same item: with
+/// <c>SuggestedStartFolder</c> the dialog opened at <c>C:\Windows</c> (the previously accepted
+/// folder) while the item's path pointed elsewhere; with <c>SuggestedFolder</c> it opened at the
+/// item's own folder. A test that only ever runs against a fresh settings identifier passes
+/// either way.
 /// </para>
 /// <para>
 /// These run asynchronously; the interop they replace pumped its own modal loop. That is not a
@@ -32,8 +45,8 @@ internal static class FilePicker
     /// </summary>
     /// <param name="settingsId">
     /// Identifies this call site to the shell, which keeps its last-used folder under that key.
-    /// It is the fallback whenever <paramref name="startFolder"/> is null, so call sites must
-    /// not share one.
+    /// It is what the dialog falls back to whenever <paramref name="startFolder"/> is null, so
+    /// call sites must not share one.
     /// </param>
     /// <param name="extensions">Filter entries, each a leading-dot extension such as ".exe".</param>
     public static async Task<string?> PickFileAsync(
@@ -50,7 +63,7 @@ internal static class FilePicker
                 picker.FileTypeFilter.Add(extension);
 
             if (startFolder is not null)
-                picker.SuggestedStartFolder = startFolder;
+                picker.SuggestedFolder = startFolder;
 
             var result = await picker.PickSingleFileAsync();
             return result?.Path;
@@ -78,7 +91,7 @@ internal static class FilePicker
             };
 
             if (startFolder is not null)
-                picker.SuggestedStartFolder = startFolder;
+                picker.SuggestedFolder = startFolder;
 
             var result = await picker.PickSingleFolderAsync();
             return result?.Path;

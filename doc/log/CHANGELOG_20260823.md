@@ -30,7 +30,8 @@
 
 ## 檔案選取器改回官方 API
 
-- **移除 `win/Services/ShellFileDialog.cs`（201 行手刻 `IFileDialog` interop），改用 `Microsoft.Windows.Storage.Pickers`**（新的 `win/Services/FilePicker.cs`）。該檔案存在的唯一理由是「以路徑指定起始資料夾」——1.8 為止兩種 picker 投影都只有 `SuggestedStartLocation` 這個封閉列舉，`SuggestedFolder` 只在 `FileSavePicker` 上。2.x 為三個 picker 都補上了 `SuggestedStartFolder`。
+- **移除 `win/Services/ShellFileDialog.cs`（201 行手刻 `IFileDialog` interop），改用 `Microsoft.Windows.Storage.Pickers`**（新的 `win/Services/FilePicker.cs`）。該檔案存在的唯一理由是「以路徑指定起始資料夾」——1.8 為止兩種 picker 投影都只有 `SuggestedStartLocation` 這個封閉列舉，`SuggestedFolder` 只在 `FileSavePicker` 上。2.x 為三個 picker 都補上了 `SuggestedFolder`。
+- **用的是 `SuggestedFolder`，不是 `SuggestedStartFolder`。** 2.x 兩個都加了，名字看不出差別：前者是 `IFileDialog::SetFolder`，永遠生效；後者是 `SetDefaultFolder`，只在第一次使用時是建議，之後就讓位給 `SettingsIdentifier` 記住的資料夾。覆蓋那份記憶正是這條需求的本意（舊 interop 的註解已載明），用錯會退化成「開在上次待過的地方」，而且對全新的 `SettingsIdentifier` 測起來是正常的——只有第二次按下瀏覽才看得出來。
 - `win/NativeMethods.txt` 連帶刪去四項：`SHCreateItemFromParsingName`、`FileOpenDialog`、`IFileDialog`、`IShellItem`。其餘八項（subclass 五項、`GetDpiForWindow`、前景視窗兩項）與 `Microsoft.Windows.CsWin32` 套件參考都必須保留。
 - 隨之消失的還有 `COMDLG_FILTERSPEC` 的 `GCHandle` pinning，以及那段把 shell 的 HRESULT 攤成四種例外家族、因此只能無過濾攔截的 catch。
 - **行為差異：非同步。** 舊的 interop 自己跑 modal loop，呼叫端同步阻塞，Browse 按鈕在對話框開著時按不動；新 picker 是 `IAsyncOperation`，三支 `_Click` 改為 `async void`，按鈕仍可按。`EditItemDialog` 因此新增 `_pickerOpen` 旗標，否則連按兩次會開出兩個對話框、由後開的那個決定結果。
