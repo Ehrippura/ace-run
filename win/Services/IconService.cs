@@ -108,6 +108,16 @@ internal static class IconService
     /// with a new icon, or when a cache entry has gone bad. See
     /// <see cref="IconCache.ClearAll"/> for why the sweep is unfiltered.
     /// </summary>
+    /// <remarks>
+    /// Only guarantees a fresh call to <see cref="GetThumbnailAsync"/>, not a fresh bitmap:
+    /// <c>GetThumbnailAsync</c> is backed by the Shell's own icon cache
+    /// (<c>iconcache_*.db</c>), which this does not touch. Most icon updates still show up,
+    /// because installers that replace an exe in place typically also notify the Shell — but
+    /// if that notification did not happen, this button re-asks the Shell and the Shell hands
+    /// back the same stale bitmap it already had cached. Forcing a true re-extraction needs
+    /// <c>IThumbnailCache::GetThumbnail</c> with <c>WTS_FORCEEXTRACTION</c>, a COM interface
+    /// WinRT does not wrap — not worth the interop surface for an edge case this narrow.
+    /// </remarks>
     public static int ClearCache()
     {
         Extractions.Clear();
