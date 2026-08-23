@@ -211,62 +211,96 @@ public sealed partial class EditItemDialog : ContentDialog
             IconService.InvalidateCache(viewModel.Id);
     }
 
-    // Stable per-call-site keys for the shell's "last folder used here" memory — what the old
-    // pickers' SettingsIdentifier strings did. They only decide where the dialog opens when
-    // there is no value in the box to open next to, so they must never be reused between the
-    // three buttons.
-    private static readonly Guid FilePickerClientId = new("6C0D8F2A-4E1B-4C67-9A2E-2F4B5A7C1D30");
-    private static readonly Guid IconPickerClientId = new("6C0D8F2A-4E1B-4C67-9A2E-2F4B5A7C1D31");
-    private static readonly Guid FolderPickerClientId = new("6C0D8F2A-4E1B-4C67-9A2E-2F4B5A7C1D32");
+    // Stable per-call-site keys for the shell's "last folder used here" memory. They only
+    // decide where the dialog opens when there is no value in the box to open next to, so
+    // they must never be reused between the three buttons.
+    private const string FilePickerSettingsId = "AceRun.EditItem.File";
+    private const string IconPickerSettingsId = "AceRun.EditItem.Icon";
+    private const string FolderPickerSettingsId = "AceRun.EditItem.WorkingDirectory";
 
-    private void BrowseFile_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// One picker at a time. The interop these replaced pumped its own modal loop, so a Browse
+    /// button could not be pressed again while its dialog was up. The SDK pickers are
+    /// asynchronous and leave the button live — without this, a double press opens two dialogs
+    /// and the second one's result wins.
+    /// </summary>
+    private bool _pickerOpen;
+
+    private async void BrowseFile_Click(object sender, RoutedEventArgs e)
     {
-        var path = ShellFileDialog.PickFile(
-            _hwnd,
-            FilePickerClientId,
-            PickerStart.FirstExisting(Directory.Exists, PickerStart.DirectoryOf(FilePathBox.Text)),
-            ("*.exe", "*.exe"));
-
-        if (path is not null)
+        if (_pickerOpen) return;
+        _pickerOpen = true;
+        try
         {
-            FilePathBox.Text = path;
+            var path = await FilePicker.PickFileAsync(
+                _hwnd,
+                FilePickerSettingsId,
+                PickerStart.FirstExisting(Directory.Exists, PickerStart.DirectoryOf(FilePathBox.Text)),
+                ".exe");
+
+            if (path is not null)
+            {
+                FilePathBox.Text = path;
+            }
+        }
+        finally
+        {
+            _pickerOpen = false;
         }
     }
 
-    private void BrowseIcon_Click(object sender, RoutedEventArgs e)
+    private async void BrowseIcon_Click(object sender, RoutedEventArgs e)
     {
-        // Where the current icon lives, then the working directory, then where the app lives —
-        // a first custom icon usually comes out of the program's own folder, and the working
-        // directory is the user's own answer to "where this app's files are" when it differs
-        // from the exe's folder. For a URL item that last candidate is an address, which
-        // PickerStart drops.
-        var start = PickerStart.FirstExisting(
-            Directory.Exists,
-            PickerStart.DirectoryOf(CustomIconPathBox.Text),
-            WorkingDirectoryBox.Text,
-            PickerStart.DirectoryOf(FilePathBox.Text));
+        if (_pickerOpen) return;
+        _pickerOpen = true;
+        try
+        {
+            // Where the current icon lives, then the working directory, then where the app
+            // lives — a first custom icon usually comes out of the program's own folder, and
+            // the working directory is the user's own answer to "where this app's files are"
+            // when it differs from the exe's folder. For a URL item that last candidate is an
+            // address, which PickerStart drops.
+            var start = PickerStart.FirstExisting(
+                Directory.Exists,
+                PickerStart.DirectoryOf(CustomIconPathBox.Text),
+                WorkingDirectoryBox.Text,
+                PickerStart.DirectoryOf(FilePathBox.Text));
 
-        var path = ShellFileDialog.PickFile(
-            _hwnd, IconPickerClientId, start, ("*.ico;*.exe", "*.ico;*.exe"));
+            var path = await FilePicker.PickFileAsync(
+                _hwnd, IconPickerSettingsId, start, ".ico", ".exe");
 
-        if (path is not null)
-            CustomIconPathBox.Text = path;
+            if (path is not null)
+                CustomIconPathBox.Text = path;
+        }
+        finally
+        {
+            _pickerOpen = false;
+        }
     }
 
-    private void BrowseFolder_Click(object sender, RoutedEventArgs e)
+    private async void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
-        // The box already holds a directory, so it is the candidate as-is. The exe's own folder
-        // is the fallback because that is effectively what an empty working directory means for
-        // the process being launched.
-        var start = PickerStart.FirstExisting(
-            Directory.Exists,
-            WorkingDirectoryBox.Text,
-            PickerStart.DirectoryOf(FilePathBox.Text));
-
-        var path = ShellFileDialog.PickFolder(_hwnd, FolderPickerClientId, start);
-        if (path is not null)
+        if (_pickerOpen) return;
+        _pickerOpen = true;
+        try
         {
-            WorkingDirectoryBox.Text = path;
+            // The box already holds a directory, so it is the candidate as-is. The exe's own
+            // folder is the fallback because that is effectively what an empty working
+            // directory means for the process being launched.
+            var start = PickerStart.FirstExisting(
+                Directory.Exists,
+                WorkingDirectoryBox.Text,
+                PickerStart.DirectoryOf(FilePathBox.Text));
+
+            var path = await FilePicker.PickFolderAsync(_hwnd, FolderPickerSettingsId, start);
+            if (path is not null)
+            {
+                WorkingDirectoryBox.Text = path;
+            }
+        }
+        finally
+        {
+            _pickerOpen = false;
         }
     }
 }

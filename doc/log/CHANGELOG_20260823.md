@@ -2,7 +2,7 @@
 
 本文件記錄 2026-08-15 之後（CHANGELOG_20260815.md 之後）的所有新功能、改善項目與 Bug 修正。
 
-本次沒有新功能，是一輪相依套件升級。動機不是想要新 API，而是支援期限：Windows App SDK 1.8 於 **2026-09-09** 停止服務，`1.8.260804001` 已是該線最後一版，2.x 是唯一還在 Current 的線。
+本次沒有新功能。主體是一輪相依套件升級，動機不是想要新 API，而是支援期限：Windows App SDK 1.8 於 **2026-09-09** 停止服務，`1.8.260804001` 已是該線最後一版，2.x 是唯一還在 Current 的線。升級順帶讓一段手刻的 COM interop 得以移除。
 
 ---
 
@@ -28,6 +28,16 @@
 
 - `environment-deps` 幾乎翻倍，而且沒有一位元組是這個 app 的：2.x 把 Windows ML 從 framework package 搬到 app-local，於是 `onnxruntime.dll`（20.7 MB）與 `DirectML.dll`（17.8 MB）出現在每一次 framework-dependent 發佈裡。已比對 1.8 的同設定輸出確認這兩個檔案原本不存在。本專案完全不碰 Windows ML，這 38.5 MB 純屬死重。`Microsoft.WindowsAppSDK.ML.targets` 有 `WindowsAppSDKMLPassthroughOnnxRuntime=true` 可抑制該複製，**尚未驗證，也刻意未設定**。
 
+## 檔案選取器改回官方 API
+
+- **移除 `win/Services/ShellFileDialog.cs`（201 行手刻 `IFileDialog` interop），改用 `Microsoft.Windows.Storage.Pickers`**（新的 `win/Services/FilePicker.cs`）。該檔案存在的唯一理由是「以路徑指定起始資料夾」——1.8 為止兩種 picker 投影都只有 `SuggestedStartLocation` 這個封閉列舉，`SuggestedFolder` 只在 `FileSavePicker` 上。2.x 為三個 picker 都補上了 `SuggestedStartFolder`。
+- `win/NativeMethods.txt` 連帶刪去四項：`SHCreateItemFromParsingName`、`FileOpenDialog`、`IFileDialog`、`IShellItem`。其餘八項（subclass 五項、`GetDpiForWindow`、前景視窗兩項）與 `Microsoft.Windows.CsWin32` 套件參考都必須保留。
+- 隨之消失的還有 `COMDLG_FILTERSPEC` 的 `GCHandle` pinning，以及那段把 shell 的 HRESULT 攤成四種例外家族、因此只能無過濾攔截的 catch。
+- **行為差異：非同步。** 舊的 interop 自己跑 modal loop，呼叫端同步阻塞，Browse 按鈕在對話框開著時按不動；新 picker 是 `IAsyncOperation`，三支 `_Click` 改為 `async void`，按鈕仍可按。`EditItemDialog` 因此新增 `_pickerOpen` 旗標，否則連按兩次會開出兩個對話框、由後開的那個決定結果。
+- 三個呼叫點的穩定識別（讓 shell 記住「這個按鈕上次開在哪」）從 `SetClientGuid` 的 GUID 改為 `SettingsIdentifier` 字串，語意相同，三者仍必須互不相同。
+- `core/AceRun.Core/Services/PickerStart.cs` 與它的 14 項測試未受影響——起始資料夾的推導與 picker 實作本來就是解耦的，這也是這次遷移唯一有回歸保護的部分。
+- 尚未收斂：新增 App（`MainWindow.Actions.cs`）與工作區匯入／匯出（`ManageWorkspacesDialog`）仍使用舊的 WinRT `Windows.Storage.Pickers` + `InitializeWithWindow`。改用新 API 會讓回傳型別從 `StorageFile` 變成路徑字串，連帶要改寫 `FileIO` 的讀寫，故未併入本次。
+
 ## 文件
 
 - `CLAUDE.md` 的 Tech Stack 與發佈設定檔表格更新；順帶修正 `H.NotifyIcon.WinUI` 版本（表上仍寫 2.1.3，實際已是 2.4.1）。
@@ -37,3 +47,8 @@
 
 - **2.5.0 的深色托盤選單。** H.NotifyIcon 2.5.0-beta.1 / dev 新增 `TaskbarIcon.ContextMenuThemeMode`，讓原生 `PopupMenu` 路徑跟隨深淺主題。本專案用的正是 `ContextMenuMode.PopupMenu`，托盤選單在深色模式下仍是白底、與其他表面不一致——但那兩版都是 prerelease，作者明說要先回報 regression 才會轉正式版。
 - **SDK 的 `TitleBar` 控制項。** 2.1.3 新增 `IsDragRegion` / `AutoRefreshDragRegions` / `RecomputeDragRegions()`，會自動排除互動控制項。本專案當初因 `RightInset` 的物理像素／DIP bug 而改走自繪路線，官方 release note 未提及該 bug 是否一併修正，需另行驗證後才談得上回歸官方控制項。
+- **抑制 Windows ML 的原生複製。** `WindowsAppSDKMLPassthroughOnnxRuntime=true` 可省下每次 framework-dependent 發佈的 38.5 MB，但未驗證是否有副作用，故未設定。
+
+## 相關規格
+
+- [doc/spec/3-ux-polish.md](../spec/3-ux-polish.md) — 自訂圖示與工作目錄的選擇對話框起始位置，及其實作從 `IFileDialog` 回到官方 picker 的理由

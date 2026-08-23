@@ -6,7 +6,3 @@ UnregisterHotKey
 GetDpiForWindow
 SetForegroundWindow
 GetForegroundWindow
-SHCreateItemFromParsingName
-FileOpenDialog
-IFileDialog
-IShellItem
