@@ -1,5 +1,8 @@
 using System;
-using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
+using Windows.Win32.UI.Shell;
 using ace_run.Models;
 
 namespace ace_run.Services;
@@ -35,7 +38,7 @@ internal static class HotkeyService
     /// keeps no managed reference to it; as a local it would be collected and every
     /// subsequent message would call into freed memory.
     /// </summary>
-    private static SubclassProc? _subclassProc;
+    private static SUBCLASSPROC? _subclassProc;
 
     /// <summary>Raised on the UI thread — <c>WM_HOTKEY</c> arrives on the window's own thread.</summary>
     public static event Action? Pressed;
@@ -47,7 +50,7 @@ internal static class HotkeyService
 
         _hwnd = hwnd;
         _subclassProc = SubclassCallback;
-        SetWindowSubclass(hwnd, _subclassProc, IntPtr.Zero, IntPtr.Zero);
+        PInvoke.SetWindowSubclass((HWND)hwnd, _subclassProc, 0, 0);
     }
 
     /// <summary>
@@ -62,8 +65,8 @@ internal static class HotkeyService
         if (_hwnd == IntPtr.Zero || binding is null || !binding.IsValid)
             return true; // "no hotkey" is a successful outcome, not a failure
 
-        _registered = RegisterHotKey(
-            _hwnd, HotkeyId, binding.ToWin32Modifiers() | ModNoRepeat, (uint)binding.Key);
+        _registered = PInvoke.RegisterHotKey(
+            (HWND)_hwnd, HotkeyId, (HOT_KEY_MODIFIERS)(binding.ToWin32Modifiers() | ModNoRepeat), (uint)binding.Key);
 
         return _registered;
     }
@@ -71,35 +74,19 @@ internal static class HotkeyService
     public static void Unregister()
     {
         if (!_registered || _hwnd == IntPtr.Zero) return;
-        UnregisterHotKey(_hwnd, HotkeyId);
+        PInvoke.UnregisterHotKey((HWND)_hwnd, HotkeyId);
         _registered = false;
     }
 
-    private static IntPtr SubclassCallback(
-        IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr data)
+    private static LRESULT SubclassCallback(
+        HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam, nuint id, nuint data)
     {
-        if (msg == WmHotkey && wParam == HotkeyId)
+        if (msg == WmHotkey && wParam == (nuint)HotkeyId)
         {
             Pressed?.Invoke();
-            return IntPtr.Zero;
+            return (LRESULT)0;
         }
 
-        return DefSubclassProc(hwnd, msg, wParam, lParam);
+        return PInvoke.DefSubclassProc(hwnd, msg, wParam, lParam);
     }
-
-    private delegate IntPtr SubclassProc(
-        IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
-
-    [DllImport("comctl32.dll", SetLastError = true)]
-    private static extern bool SetWindowSubclass(
-        IntPtr hWnd, SubclassProc pfnSubclass, IntPtr uIdSubclass, IntPtr dwRefData);
-
-    [DllImport("comctl32.dll")]
-    private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 }

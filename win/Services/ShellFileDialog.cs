@@ -1,5 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Shell;
+using Windows.Win32.UI.Shell.Common;
 
 namespace ace_run.Services;
 
@@ -21,22 +25,15 @@ namespace ace_run.Services;
 /// what the picker it replaces did too — the dialog disables the owner window and the caller
 /// resumes when it closes.
 /// </para>
+/// <para>
+/// The <c>IFileDialog</c>/<c>IShellItem</c> bindings themselves — vtable order, GUIDs, struct
+/// layout — come from <c>Microsoft.Windows.CsWin32</c> (see <c>NativeMethods.txt</c>) rather
+/// than being hand-written here, so a mismatched signature is a generator bug against
+/// Microsoft's own metadata, not a typo this file could silently make.
+/// </para>
 /// </remarks>
 internal static class ShellFileDialog
 {
-    /// <summary>Only filesystem items — no search results, no virtual shell locations.</summary>
-    private const uint FosForceFilesystem = 0x00000040;
-
-    /// <summary>Leave the process's current directory alone.</summary>
-    private const uint FosNoChangeDir = 0x00000008;
-
-    private const uint FosPathMustExist = 0x00000800;
-    private const uint FosFileMustExist = 0x00001000;
-    private const uint FosPickFolders = 0x00000020;
-
-    /// <summary>The full filesystem path, which is all any caller here wants.</summary>
-    private const uint SigdnFileSysPath = 0x80058000;
-
     /// <summary><c>HRESULT_FROM_WIN32(ERROR_CANCELLED)</c> — the user backed out.</summary>
     private const int ErrorCancelled = unchecked((int)0x800704C7);
 
@@ -51,34 +48,33 @@ internal static class ShellFileDialog
     /// <param name="fileTypes">Filter entries as (label, semicolon-separated spec) pairs.</param>
     public static string? PickFile(
         IntPtr owner, Guid clientId, string? startFolder, params (string Label, string Spec)[] fileTypes)
-        => Show(owner, clientId, startFolder, FosFileMustExist, fileTypes);
+        => Show(owner, clientId, startFolder, FILEOPENDIALOGOPTIONS.FOS_FILEMUSTEXIST, fileTypes);
 
     /// <summary>
     /// Picks one existing folder. Returns null when the user cancels.
     /// </summary>
     public static string? PickFolder(IntPtr owner, Guid clientId, string? startFolder)
-        => Show(owner, clientId, startFolder, FosPickFolders, []);
+        => Show(owner, clientId, startFolder, FILEOPENDIALOGOPTIONS.FOS_PICKFOLDERS, []);
 
     private static string? Show(
-        IntPtr owner, Guid clientId, string? startFolder, uint extraOptions, (string Label, string Spec)[] fileTypes)
+        IntPtr owner, Guid clientId, string? startFolder, FILEOPENDIALOGOPTIONS extraOptions,
+        (string Label, string Spec)[] fileTypes)
     {
-        var dialog = (IFileDialog)new FileOpenDialogClass();
+        var dialog = (IFileDialog)new FileOpenDialog();
 
         try
         {
-            dialog.SetClientGuid(ref clientId);
+            dialog.SetClientGuid(clientId);
 
             dialog.GetOptions(out var options);
-            dialog.SetOptions(options | FosForceFilesystem | FosNoChangeDir | FosPathMustExist | extraOptions);
+            dialog.SetOptions(options
+                | FILEOPENDIALOGOPTIONS.FOS_FORCEFILESYSTEM
+                | FILEOPENDIALOGOPTIONS.FOS_NOCHANGEDIR
+                | FILEOPENDIALOGOPTIONS.FOS_PATHMUSTEXIST
+                | extraOptions);
 
             if (fileTypes.Length > 0)
-            {
-                var specs = new FilterSpec[fileTypes.Length];
-                for (var i = 0; i < fileTypes.Length; i++)
-                    specs[i] = new FilterSpec { Name = fileTypes[i].Label, Spec = fileTypes[i].Spec };
-
-                dialog.SetFileTypes((uint)specs.Length, specs);
-            }
+                SetFileTypes(dialog, fileTypes);
 
             // SetFolder, not SetDefaultFolder: the latter is only a suggestion for the first
             // ever use and yields to the folder remembered under the client GUID afterwards,
@@ -89,9 +85,14 @@ internal static class ShellFileDialog
                 Marshal.FinalReleaseComObject(folder!);
             }
 
-            var hr = dialog.Show(owner);
-            if (hr == ErrorCancelled) return null;
-            Marshal.ThrowExceptionForHR(hr);
+            try
+            {
+                dialog.Show((HWND)owner);
+            }
+            catch (COMException ex) when (ex.HResult == ErrorCancelled)
+            {
+                return null;
+            }
 
             dialog.GetResult(out var item);
             return DisplayName(item);
@@ -99,6 +100,46 @@ internal static class ShellFileDialog
         finally
         {
             Marshal.FinalReleaseComObject(dialog);
+        }
+    }
+
+    /// <summary>
+    /// <c>COMDLG_FILTERSPEC</c> holds raw <c>PCWSTR</c>s, not marshalled strings — the
+    /// generated struct has no <c>[MarshalAs(LPWStr)]</c> to lean on the way the old
+    /// hand-written one did. Each label/spec is pinned instead of copied, because a plain
+    /// <c>fixed</c> block's pointers die at the end of that block and this needs them alive
+    /// through the <see cref="IFileDialog.SetFileTypes"/> call that follows.
+    /// </summary>
+    private static void SetFileTypes(IFileDialog dialog, (string Label, string Spec)[] fileTypes)
+    {
+        var specs = new COMDLG_FILTERSPEC[fileTypes.Length];
+        var handles = new GCHandle[fileTypes.Length * 2];
+
+        try
+        {
+            for (var i = 0; i < fileTypes.Length; i++)
+            {
+                var nameHandle = GCHandle.Alloc(fileTypes[i].Label, GCHandleType.Pinned);
+                var specHandle = GCHandle.Alloc(fileTypes[i].Spec, GCHandleType.Pinned);
+                handles[i * 2] = nameHandle;
+                handles[i * 2 + 1] = specHandle;
+
+                unsafe
+                {
+                    specs[i] = new COMDLG_FILTERSPEC
+                    {
+                        pszName = (char*)nameHandle.AddrOfPinnedObject(),
+                        pszSpec = (char*)specHandle.AddrOfPinnedObject(),
+                    };
+                }
+            }
+
+            dialog.SetFileTypes(specs);
+        }
+        finally
+        {
+            foreach (var handle in handles)
+                if (handle.IsAllocated) handle.Free();
         }
     }
 
@@ -113,9 +154,8 @@ internal static class ShellFileDialog
 
         try
         {
-            var riid = typeof(IShellItem).GUID;
-            SHCreateItemFromParsingName(path, IntPtr.Zero, in riid, out var created);
-            item = (IShellItem)created;
+            PInvoke.SHCreateItemFromParsingName(path, null, out IShellItem created).ThrowOnFailure();
+            item = created;
             return true;
         }
         catch (COMException)
@@ -130,83 +170,21 @@ internal static class ShellFileDialog
 
     private static string? DisplayName(IShellItem item)
     {
-        var buffer = IntPtr.Zero;
-
         try
         {
-            item.GetDisplayName(SigdnFileSysPath, out buffer);
-            return Marshal.PtrToStringUni(buffer);
+            item.GetDisplayName(SIGDN.SIGDN_FILESYSPATH, out var name);
+            try
+            {
+                return name.ToString();
+            }
+            finally
+            {
+                unsafe { if (name.Value is not null) Marshal.FreeCoTaskMem((IntPtr)name.Value); }
+            }
         }
         finally
         {
-            if (buffer != IntPtr.Zero) Marshal.FreeCoTaskMem(buffer);
             Marshal.FinalReleaseComObject(item);
         }
-    }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    private static extern void SHCreateItemFromParsingName(
-        [MarshalAs(UnmanagedType.LPWStr)] string path,
-        IntPtr bindContext,
-        in Guid riid,
-        [MarshalAs(UnmanagedType.Interface)] out object item);
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct FilterSpec
-    {
-        [MarshalAs(UnmanagedType.LPWStr)] public string Name;
-        [MarshalAs(UnmanagedType.LPWStr)] public string Spec;
-    }
-
-    [ComImport, Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")]
-    private class FileOpenDialogClass
-    {
-    }
-
-    // The vtable order below is the contract — these are hand-written declarations of shell
-    // interfaces, so a reordered, removed or wrongly-signed member silently calls the wrong
-    // slot. Members this file never calls are still declared, for that reason alone.
-    [ComImport, Guid("42F85136-DB7E-439C-85F1-E4075D135FC8")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IFileDialog
-    {
-        // IModalWindow. PreserveSig because "the user cancelled" arrives as a failure HRESULT
-        // and is not an error.
-        [PreserveSig] int Show(IntPtr parent);
-
-        void SetFileTypes(uint fileTypeCount, [MarshalAs(UnmanagedType.LPArray)] FilterSpec[] filterSpecs);
-        void SetFileTypeIndex(uint fileType);
-        void GetFileTypeIndex(out uint fileType);
-        void Advise(IntPtr events, out uint cookie);
-        void Unadvise(uint cookie);
-        void SetOptions(uint options);
-        void GetOptions(out uint options);
-        void SetDefaultFolder(IShellItem folder);
-        void SetFolder(IShellItem folder);
-        void GetFolder(out IShellItem folder);
-        void GetCurrentSelection(out IShellItem item);
-        void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string name);
-        void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string name);
-        void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string title);
-        void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string text);
-        void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string label);
-        void GetResult(out IShellItem item);
-        void AddPlace(IShellItem place, int order);
-        void SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string extension);
-        void Close([MarshalAs(UnmanagedType.Error)] int result);
-        void SetClientGuid(ref Guid client);
-        void ClearClientData();
-        void SetFilter(IntPtr filter);
-    }
-
-    [ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IShellItem
-    {
-        void BindToHandler(IntPtr bindContext, in Guid handler, in Guid riid, out IntPtr result);
-        void GetParent(out IShellItem parent);
-        void GetDisplayName(uint kind, out IntPtr name);
-        void GetAttributes(uint mask, out uint attributes);
-        void Compare(IShellItem other, uint hint, out int order);
     }
 }

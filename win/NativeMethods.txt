@@ -1,0 +1,12 @@
+SetWindowSubclass
+RemoveWindowSubclass
+DefSubclassProc
+RegisterHotKey
+UnregisterHotKey
+GetDpiForWindow
+SetForegroundWindow
+GetForegroundWindow
+SHCreateItemFromParsingName
+FileOpenDialog
+IFileDialog
+IShellItem

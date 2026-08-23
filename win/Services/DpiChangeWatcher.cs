@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Shell;
 
 namespace ace_run.Services;
 
@@ -33,7 +35,7 @@ internal static class DpiChangeWatcher
     private const uint WmDpiChanged = 0x02E0;
 
     /// <summary>Distinct from <see cref="HotkeyService"/>'s, which subclasses the same HWND.</summary>
-    private static readonly IntPtr SubclassId = new(1);
+    private const nuint SubclassId = 1;
 
     /// <summary>
     /// Static for the same reason as <see cref="HotkeyService"/>'s: unmanaged code holds no
@@ -41,7 +43,7 @@ internal static class DpiChangeWatcher
     /// later message would call into freed memory. One instance serves every window — the
     /// callback is chosen by HWND inside it.
     /// </summary>
-    private static SubclassProc? _subclassProc;
+    private static SUBCLASSPROC? _subclassProc;
 
     private static readonly Dictionary<IntPtr, Action<double>> Handlers = new();
 
@@ -54,7 +56,7 @@ internal static class DpiChangeWatcher
 
         Handlers[hwnd] = onScaleChanged;
         _subclassProc ??= SubclassCallback;
-        SetWindowSubclass(hwnd, _subclassProc, SubclassId, IntPtr.Zero);
+        PInvoke.SetWindowSubclass((HWND)hwnd, _subclassProc, SubclassId, 0);
     }
 
     /// <summary>
@@ -66,31 +68,17 @@ internal static class DpiChangeWatcher
     public static void Detach(IntPtr hwnd)
     {
         if (!Handlers.Remove(hwnd) || _subclassProc is null) return;
-        RemoveWindowSubclass(hwnd, _subclassProc, SubclassId);
+        PInvoke.RemoveWindowSubclass((HWND)hwnd, _subclassProc, SubclassId);
     }
 
-    private static IntPtr SubclassCallback(
-        IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr data)
+    private static LRESULT SubclassCallback(
+        HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam, nuint id, nuint data)
     {
         // Ahead of DefSubclassProc on purpose — that is where the resize this is racing happens.
         // LOWORD of wParam is the X-axis DPI; the Y is the same on every shipping configuration.
         if (msg == WmDpiChanged && Handlers.TryGetValue(hwnd, out var handler))
-            handler((ushort)(wParam.ToInt64() & 0xFFFF) / 96.0);
+            handler((ushort)((nuint)wParam & 0xFFFF) / 96.0);
 
-        return DefSubclassProc(hwnd, msg, wParam, lParam);
+        return PInvoke.DefSubclassProc(hwnd, msg, wParam, lParam);
     }
-
-    private delegate IntPtr SubclassProc(
-        IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
-
-    [DllImport("comctl32.dll", SetLastError = true)]
-    private static extern bool SetWindowSubclass(
-        IntPtr hWnd, SubclassProc pfnSubclass, IntPtr uIdSubclass, IntPtr dwRefData);
-
-    [DllImport("comctl32.dll", SetLastError = true)]
-    private static extern bool RemoveWindowSubclass(
-        IntPtr hWnd, SubclassProc pfnSubclass, IntPtr uIdSubclass);
-
-    [DllImport("comctl32.dll")]
-    private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 }
