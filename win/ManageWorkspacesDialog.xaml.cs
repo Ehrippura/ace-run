@@ -1,24 +1,22 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using ace_run.Helpers;
 using ace_run.Models;
 using ace_run.Services;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Windows.Storage;
-using Windows.Storage.Pickers;
 using Windows.System;
-using WinRT.Interop;
 
 namespace ace_run;
 
 public sealed partial class ManageWorkspacesDialog : ContentDialog
 {
-    private readonly nint _hwnd;
+    private readonly WindowId _ownerId;
     private readonly Guid _activeWorkspaceId;
 
     /// <summary>
@@ -39,14 +37,35 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     private WorkspaceViewModel? _editing;
     private string _editingOriginal = string.Empty;
 
+    // Stable per-call-site keys for the shell's "last folder used here" memory. Import and
+    // export are separate keys and neither may collide with EditItemDialog's three: exports
+    // go where the user keeps backups, imports come from wherever a file was handed over.
+    //
+    // Neither call site has a start folder to pass — nothing on a workspace points at one —
+    // so this key is the only thing deciding where the dialog opens from the second use
+    // onwards. Sharing one between import and export would put an export next to the file
+    // that was last imported, which is rarely where backups go.
+    private const string ImportSettingsId = "AceRun.Workspace.Import";
+    private const string ExportSettingsId = "AceRun.Workspace.Export";
+    private const string AceRunExtension = ".acerun";
+    private const string ExportTypeLabel = "Ace Run Workspace";
+
+    /// <summary>
+    /// One picker at a time, for the same reason as <c>EditItemDialog._pickerOpen</c>: the SDK
+    /// pickers are asynchronous and leave the menu item that opened them live. The WinRT picker
+    /// this replaced was initialized against the main window and blocked a second press by
+    /// disabling it. Import and export share the flag — there is only ever one shell dialog.
+    /// </summary>
+    private bool _pickerOpen;
+
     public static string NameFieldLabel => Loc.GetString("Workspace_NameLabel");
     public static string MoreLabel => Loc.GetString("Row_More");
     public static string ReorderLabel => Loc.GetString("Row_Reorder");
     public static string ChooseColorLabel => Loc.GetString("Color_Choose");
 
-    public ManageWorkspacesDialog(nint hwnd, Guid activeWorkspaceId)
+    public ManageWorkspacesDialog(WindowId ownerId, Guid activeWorkspaceId)
     {
-        _hwnd = hwnd;
+        _ownerId = ownerId;
         _activeWorkspaceId = activeWorkspaceId;
         _config = DataService.LoadConfig();
 
@@ -246,19 +265,24 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
     /// </remarks>
     private async System.Threading.Tasks.Task ImportAsync(bool merge)
     {
-        var picker = new FileOpenPicker();
-        InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.FileTypeFilter.Add(".acerun");
+        if (_pickerOpen) return;
+        _pickerOpen = true;
 
-        StorageFile? file;
-        try { file = await picker.PickSingleFileAsync(); }
-        catch { return; }
+        string? path;
+        try
+        {
+            path = await FilePicker.PickFileAsync(_ownerId, ImportSettingsId, null, AceRunExtension);
+        }
+        finally
+        {
+            _pickerOpen = false;
+        }
 
-        if (file is null) return;
+        if (path is null) return;
 
         try
         {
-            var json = await FileIO.ReadTextAsync(file);
+            var json = await File.ReadAllTextAsync(path);
             switch (WorkspaceImport.TryParse(json, out var export))
             {
                 case ImportRejection.NotAnAceRunFile:
@@ -353,16 +377,21 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
 
     private async System.Threading.Tasks.Task ExportWorkspaceAsync(WorkspaceViewModel vm)
     {
-        var picker = new FileSavePicker();
-        InitializeWithWindow.Initialize(picker, _hwnd);
-        picker.SuggestedFileName = vm.Name;
-        picker.FileTypeChoices.Add("Ace Run Workspace", new List<string> { ".acerun" });
+        if (_pickerOpen) return;
+        _pickerOpen = true;
 
-        StorageFile? file;
-        try { file = await picker.PickSaveFileAsync(); }
-        catch { return; }
+        string? path;
+        try
+        {
+            path = await FilePicker.PickSaveFileAsync(
+                _ownerId, ExportSettingsId, vm.Name, ExportTypeLabel, AceRunExtension);
+        }
+        finally
+        {
+            _pickerOpen = false;
+        }
 
-        if (file is null) return;
+        if (path is null) return;
 
         try
         {
@@ -373,7 +402,7 @@ public sealed partial class ManageWorkspacesDialog : ContentDialog
                 ColorTag = vm.ColorTag,
                 AppData = appData
             };
-            await FileIO.WriteTextAsync(file, DataService.SerializeExport(export));
+            await File.WriteAllTextAsync(path, DataService.SerializeExport(export));
         }
         catch (Exception ex)
         {

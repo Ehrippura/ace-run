@@ -7,7 +7,7 @@ using Microsoft.Windows.Storage.Pickers;
 namespace ace_run.Services;
 
 /// <summary>
-/// The shell's Open / Choose-folder dialogs, via the Windows App SDK pickers.
+/// The shell's Open / Save / Choose-folder dialogs, via the Windows App SDK pickers.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -50,11 +50,11 @@ internal static class FilePicker
     /// </param>
     /// <param name="extensions">Filter entries, each a leading-dot extension such as ".exe".</param>
     public static async Task<string?> PickFileAsync(
-        IntPtr owner, string settingsId, string? startFolder, params string[] extensions)
+        WindowId owner, string settingsId, string? startFolder, params string[] extensions)
     {
         try
         {
-            var picker = new FileOpenPicker(Win32Interop.GetWindowIdFromWindow(owner))
+            var picker = new FileOpenPicker(owner)
             {
                 SettingsIdentifier = settingsId,
             };
@@ -79,13 +79,49 @@ internal static class FilePicker
     }
 
     /// <summary>
-    /// Picks one existing folder. Returns null when the user cancels or the dialog fails.
+    /// Picks a destination for a new file. Returns null when the user cancels or the dialog fails.
     /// </summary>
-    public static async Task<string?> PickFolderAsync(IntPtr owner, string settingsId, string? startFolder)
+    /// <param name="typeLabel">
+    /// The name of the single entry in the type dropdown, e.g. "Ace Run Workspace".
+    /// </param>
+    /// <param name="extensions">
+    /// Leading-dot extensions for that entry. The first also becomes
+    /// <see cref="FileSavePicker.DefaultFileExtension"/>: the shell appends it when the user
+    /// types a bare name, which the WinRT picker this replaces did on its own.
+    /// </param>
+    public static async Task<string?> PickSaveFileAsync(
+        WindowId owner, string settingsId, string suggestedName, string typeLabel,
+        params string[] extensions)
     {
         try
         {
-            var picker = new FolderPicker(Win32Interop.GetWindowIdFromWindow(owner))
+            var picker = new FileSavePicker(owner)
+            {
+                SettingsIdentifier = settingsId,
+                SuggestedFileName = suggestedName,
+                DefaultFileExtension = extensions[0],
+            };
+
+            picker.FileTypeChoices.Add(typeLabel, extensions);
+
+            var result = await picker.PickSaveFileAsync();
+            return result?.Path;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Save picker failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Picks one existing folder. Returns null when the user cancels or the dialog fails.
+    /// </summary>
+    public static async Task<string?> PickFolderAsync(WindowId owner, string settingsId, string? startFolder)
+    {
+        try
+        {
+            var picker = new FolderPicker(owner)
             {
                 SettingsIdentifier = settingsId,
             };

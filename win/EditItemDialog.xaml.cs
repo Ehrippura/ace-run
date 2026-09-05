@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Shapes;
@@ -12,21 +13,21 @@ namespace ace_run;
 public sealed partial class EditItemDialog : ContentDialog
 {
     private readonly AppItemViewModel _viewModel;
-    private readonly IntPtr _hwnd;
+    private readonly WindowId _ownerId;
     private readonly IReadOnlyList<TagViewModel> _tags;
     private readonly HashSet<Guid> _selectedTagIds = new();
     private bool _suppressTagSelection;
 
-    public EditItemDialog(AppItemViewModel viewModel, IntPtr hwnd)
-        : this(viewModel, hwnd, Array.Empty<TagViewModel>())
+    public EditItemDialog(AppItemViewModel viewModel, WindowId ownerId)
+        : this(viewModel, ownerId, Array.Empty<TagViewModel>())
     {
     }
 
-    public EditItemDialog(AppItemViewModel viewModel, IntPtr hwnd, IReadOnlyList<TagViewModel> tags)
+    public EditItemDialog(AppItemViewModel viewModel, WindowId ownerId, IReadOnlyList<TagViewModel> tags)
     {
         InitializeComponent();
         _viewModel = viewModel;
-        _hwnd = hwnd;
+        _ownerId = ownerId;
         _tags = tags;
 
         PrimaryButtonText = Loc.GetString("SaveButton");
@@ -233,7 +234,7 @@ public sealed partial class EditItemDialog : ContentDialog
         try
         {
             var path = await FilePicker.PickFileAsync(
-                _hwnd,
+                _ownerId,
                 FilePickerSettingsId,
                 PickerStart.FirstExisting(Directory.Exists, PickerStart.DirectoryOf(FilePathBox.Text)),
                 ".exe");
@@ -267,7 +268,7 @@ public sealed partial class EditItemDialog : ContentDialog
                 PickerStart.DirectoryOf(FilePathBox.Text));
 
             var path = await FilePicker.PickFileAsync(
-                _hwnd, IconPickerSettingsId, start, ".ico", ".exe");
+                _ownerId, IconPickerSettingsId, start, ".ico", ".exe");
 
             if (path is not null)
                 CustomIconPathBox.Text = path;
@@ -292,7 +293,7 @@ public sealed partial class EditItemDialog : ContentDialog
                 WorkingDirectoryBox.Text,
                 PickerStart.DirectoryOf(FilePathBox.Text));
 
-            var path = await FilePicker.PickFolderAsync(_hwnd, FolderPickerSettingsId, start);
+            var path = await FilePicker.PickFolderAsync(_ownerId, FolderPickerSettingsId, start);
             if (path is not null)
             {
                 WorkingDirectoryBox.Text = path;
