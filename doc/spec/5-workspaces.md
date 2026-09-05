@@ -83,9 +83,9 @@
 - [x] 匯出 Workspace：
     - 管理對話框中每列的 ⋯ 選單提供「匯出」
     - 匯出為 .acerun 檔案（JSON 格式，含完整結構，不含圖示快取）
-    - FileSavePicker 讓使用者選擇儲存位置
+    - 儲存位置由 `FilePicker.PickSaveFileAsync` 開出（Windows App SDK 的 `FileSavePicker`），預設檔名為工作區名稱。`DefaultFileExtension` 明確設為 `.acerun`：使用者只打檔名時，副檔名要由 shell 補上，這件事在舊的 WinRT picker 是自動的。
 - [x] 匯入 Workspace：「匯入」改為 `DropDownButton`，兩個選項「匯入為新工作區」/「合併到目前工作區」。目的地在開檔案挑選器**之前**就選定，不是選完檔案再問——合併會寫進一個已經有內容的工作區，該考慮的時間點是在選檔案之前，而不是在一個本來就是 modal 的對話框上再疊一層確認。
-    - FileOpenPicker 選擇 .acerun 檔案
+    - 以 `FilePicker.PickFileAsync` 選擇 .acerun 檔案（Windows App SDK 的 `FileOpenPicker`）
     - 驗證檔案格式，格式錯誤時以 InfoBar 提示
     - 匯入為新工作區：作為新 Workspace 加入列表；名稱比照手動新增去重，兩個同名項目在切換器裡無從分辨
 - [x] 「合併到目前工作區」：把 `.acerun` 折進對話框背後那個工作區（`WorkspaceMerge.Merge`，core 層純函式）。
@@ -99,6 +99,10 @@
     - 項目數經 view model 的 setter 寫回，直接改 `WorkspaceInfo.AppCount` 會讓那一列的數字停在舊值直到重開對話框。
     - `InfoBar` 從只報錯改為 `MessageBar`，成功時以 `Severity="Success"` 顯示 `Workspace_MergeDone`：合併落在對話框**背後**的工作區，畫面上唯一的痕跡只有某一列的項目數，不說就等於沒有回饋。
 - [x] 兩顆 `DropDownButton` 在 XAML 宣告的 `MenuFlyout` 也走 `ThemeService.ApplyTo`。Flyout 掛在 popup root 上，不在承載對話框 `RequestedTheme` 的元素樹裡——和色票面板、⋯ 選單是同一個問題。
+- [x] 兩個挑選器都走 `win/Services/FilePicker.cs`，不再是 WinRT 的 `Windows.Storage.Pickers` + `InitializeWithWindow`（第三階段 §1 記錄了這條遷移的理由）。連帶的三件事：
+    - 各自持有 `SettingsIdentifier`（`AceRun.Workspace.Import` / `AceRun.Workspace.Export`），與 `EditItemDialog` 的三個互不重複。兩處都沒有可傳的起始資料夾——工作區上沒有任何欄位指向某個路徑——所以這個鍵就是第二次以後開在哪裡的唯一依據。匯入與匯出不共用，否則匯出會開在上次匯入檔案的所在地。
+    - 回傳的是路徑字串而非 `StorageFile`，讀寫改用 `File.ReadAllTextAsync` / `File.WriteAllTextAsync`。匯出檔因此不再帶 UTF-8 BOM；`File.ReadAllTextAsync` 仍會吃掉舊檔的 BOM，兩個方向都相容。
+    - 新增 `_pickerOpen` 旗標。舊 picker 綁在主視窗上、開著時主視窗被停用，連按不可能發生；SDK picker 是非同步的，選單項仍然按得動。匯入與匯出共用一個旗標。
 - [ ] 匯入後重新提取圖示快取（未實作，圖示於首次啟動時自動重建）
 
 ## 6. 在地化

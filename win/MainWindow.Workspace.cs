@@ -165,8 +165,7 @@ public sealed partial class MainWindow
             // (and later restore) a stale folder, snapping the sidebar back after confirming.
             CommitSave();
 
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var dialog = new ManageWorkspacesDialog(hwnd, _currentWorkspace.Id);
+            var dialog = new ManageWorkspacesDialog(AppWindow.Id, _currentWorkspace.Id);
             dialog.XamlRoot = Content.XamlRoot;
             await ShowModalAsync(dialog);
             await ReloadAfterWorkspaceManagement();

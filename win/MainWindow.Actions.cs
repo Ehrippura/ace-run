@@ -8,8 +8,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace ace_run;
 
@@ -28,19 +26,24 @@ public sealed partial class MainWindow
         await PickAndAddAppAsync();
     }
 
+    /// <summary>Identifies this call site to the shell, which reopens where it last left off.</summary>
+    /// <remarks>
+    /// No start folder is passed — a new item has no path to open next to — so this key is
+    /// the whole of it. Adding several apps in a row usually means several trips into the
+    /// same Program Files or game library, which is what there is to remember here.
+    /// </remarks>
+    private const string AddAppSettingsId = "AceRun.AddApp.File";
+
     // The modal guard spans the picker *and* the edit dialog that follows it, so a
-    // keyboard accelerator can't slip a second dialog into the gap between the two.
+    // keyboard accelerator can't slip a second dialog into the gap between the two. It
+    // also stands in for EditItemDialog's _pickerOpen: the SDK picker is asynchronous and
+    // leaves the Add button live, and _modalDepth covers that gap as well.
     private Task PickAndAddAppAsync() => RunModalAsync(async () =>
     {
-        var hwnd = WindowNative.GetWindowHandle(this);
-        var picker = new FileOpenPicker();
-        InitializeWithWindow.Initialize(picker, hwnd);
-        picker.FileTypeFilter.Add(".exe");
+        var path = await FilePicker.PickFileAsync(AppWindow.Id, AddAppSettingsId, null, ".exe");
+        if (path is null) return;
 
-        var file = await picker.PickSingleFileAsync();
-        if (file is null) return;
-
-        await AddItemFromPathAsync(file.Path);
+        await AddItemFromPathAsync(path);
     });
 
     private async void AddUrlMenuItem_Click(object sender, RoutedEventArgs e)
@@ -59,8 +62,7 @@ public sealed partial class MainWindow
     private async Task AddItemWithDialogAsync(AppItem item, string titleKey)
     {
         var vm = new AppItemViewModel(item, _tags);
-        var hwnd = WindowNative.GetWindowHandle(this);
-        var dialog = new EditItemDialog(vm, hwnd, _tags);
+        var dialog = new EditItemDialog(vm, AppWindow.Id, _tags);
         dialog.XamlRoot = Content.XamlRoot;
         dialog.Title = Loc.GetString(titleKey);
 
@@ -171,8 +173,7 @@ public sealed partial class MainWindow
 
     private async Task EditAppAsync(AppItemViewModel vm)
     {
-        var hwnd = WindowNative.GetWindowHandle(this);
-        var dialog = new EditItemDialog(vm, hwnd, _tags);
+        var dialog = new EditItemDialog(vm, AppWindow.Id, _tags);
         dialog.XamlRoot = Content.XamlRoot;
         dialog.Title = Loc.GetString(vm.IsUrl ? "EditUrlTitle" : "EditItemTitle");
 

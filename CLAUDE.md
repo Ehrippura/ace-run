@@ -16,10 +16,10 @@ Ace Run is a lightweight Windows launcher built with WinUI 3 and C#. Users manag
 
 ## Tech Stack
 
-- **Framework:** WinUI 3 (Windows App SDK 1.8)
+- **Framework:** WinUI 3 (Windows App SDK 2.4)
 - **Language:** C# / .NET 10.0 (net10.0-windows10.0.22000.0)
 - **Minimum OS:** Windows 10 1809 (build 17763)
-- **System Tray:** H.NotifyIcon.WinUI 2.1.3
+- **System Tray:** H.NotifyIcon.WinUI 2.4.1
 - **Target Platforms:** x86, x64, ARM64
 
 ## Build & Run
@@ -46,8 +46,12 @@ Available publish profiles:
 
 | Profile | Bundles | Target needs |
 |---|---|---|
-| `self-contained` | .NET **and** the Windows App SDK (~263 MB) | nothing — this is the one users get |
-| `environment-deps` | neither (~41 MB, no ReadyToRun) | .NET 10 Desktop Runtime **and** WindowsAppRuntime 1.8 preinstalled |
+| `self-contained` | .NET **and** the Windows App SDK (~275 MB) | nothing — this is the one users get |
+| `environment-deps` | neither (~82 MB, no ReadyToRun) | .NET 10 Desktop Runtime **and** WindowsAppRuntime **2.x** preinstalled |
+
+The runtime requirement names a major version on purpose. The 1.x line shipped one framework package per minor version (`Microsoft.WindowsAppRuntime.1.6`, `.1.7`, `.1.8` — side by side, not substitutable); 2.x collapses those into a single `Microsoft.WindowsAppRuntime.2` serviced in place, so a 1.8 machine cannot run a 2.4 build.
+
+`environment-deps` doubled (42 MB → 82 MB) when the SDK went from 1.8 to 2.4, and none of it is this app: 2.x moved Windows ML out of the framework package into app-local files, so `onnxruntime.dll` (20.7 MB) and `DirectML.dll` (17.8 MB) now land in every framework-dependent publish. Nothing here loads them. `Microsoft.WindowsAppSDK.ML.targets` exposes `WindowsAppSDKMLPassthroughOnnxRuntime=true` to suppress that copy — untested here, and deliberately not set.
 
 Profiles default to x64 Release publishing. Override the platform, runtime, or output directory with command-line properties when needed. Trimming is disabled because WinUI 3 relies on XAML reflection.
 

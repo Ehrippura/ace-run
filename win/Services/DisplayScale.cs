@@ -1,7 +1,7 @@
-using System;
-using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace ace_run.Services;
 
@@ -15,10 +15,7 @@ namespace ace_run.Services;
 /// </remarks>
 internal static class DisplayScale
 {
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hWnd);
-
     /// <summary>96 DPI is the definition of 1.0 — one DIP to one pixel.</summary>
     public static double ForWindow(AppWindow window)
-        => GetDpiForWindow(Win32Interop.GetWindowFromWindowId(window.Id)) / 96.0;
+        => PInvoke.GetDpiForWindow((HWND)Win32Interop.GetWindowFromWindowId(window.Id)) / 96.0;
 }

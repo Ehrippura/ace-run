@@ -4,7 +4,9 @@
 
 ## 1. 新增啟動項目 (Add Item)
 
-- [x] 實作 FileOpenPicker 讓使用者選擇 .exe 檔案。工具列的「新增」現為 SplitButton，主按鈕即此檔案選擇器，下拉另有「新增網址」（第七階段）。
+- [x] 檔案選擇器讓使用者選擇 .exe 檔案，經 `FilePicker.PickFileAsync`（Windows App SDK 的 `FileOpenPicker`，遷移理由見第三階段 §1）。工具列的「新增」現為 SplitButton，主按鈕即此檔案選擇器，下拉另有「新增網址」（第七階段）。
+    - `SettingsIdentifier` 為 `AceRun.AddApp.File`。這裡沒有可傳的起始資料夾——新項目還沒有路徑可以貼著開——而連續新增多個項目通常是往同一個 Program Files 或遊戲庫跑好幾趟，該被記住的就是那個資料夾。
+    - 不需要 `EditItemDialog` 那支 `_pickerOpen` 旗標：整段包在 `RunModalAsync` 裡，picker 與其後的編輯對話框共用同一個 `_modalDepth`，連帶把快捷鍵擋在兩個 modal 之間的空隙外。
 - [x] 自動從選擇的檔案路徑截取檔名作為「預設標題」。
 
 ## 2. 項目列表 (List View)

@@ -1,0 +1,8 @@
+SetWindowSubclass
+RemoveWindowSubclass
+DefSubclassProc
+RegisterHotKey
+UnregisterHotKey
+GetDpiForWindow
+SetForegroundWindow
+GetForegroundWindow
