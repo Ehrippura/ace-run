@@ -39,8 +39,10 @@ public class RecentLaunchListTests
     }
 
     [Fact]
-    public void The_launched_item_carries_its_name_and_path()
+    public void An_entry_is_the_items_id_and_its_name()
     {
+        // No path: the launch resolves the id back to the live item, so a copy of the path
+        // here would only be a second version of it to go stale.
         var recents = new List<RecentLaunch>();
         var item = new FakeItem("Notepad", @"C:\notepad.exe");
 
@@ -49,7 +51,6 @@ public class RecentLaunchListTests
         var entry = Assert.Single(recents);
         Assert.Equal(item.Id, entry.AppId);
         Assert.Equal("Notepad", entry.DisplayName);
-        Assert.Equal(@"C:\notepad.exe", entry.FilePath);
     }
 
     [Fact]

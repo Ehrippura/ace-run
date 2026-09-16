@@ -187,8 +187,7 @@ public static class WorkspaceMerge
             target.Add(new RecentLaunch
             {
                 AppId = newId,
-                DisplayName = recent.DisplayName,
-                FilePath = recent.FilePath
+                DisplayName = recent.DisplayName
             });
         }
 

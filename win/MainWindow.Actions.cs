@@ -299,6 +299,26 @@ public sealed partial class MainWindow
     private void TrackRecentLaunch(AppItemViewModel app)
         => RecentLaunchList.Track(_appData.RecentLaunches, app);
 
+    /// <summary>
+    /// Launches a recent-list entry, given the id the tray menu was built from.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="RecentLaunch"/> is an id and a label, nothing else, so this resolves the
+    /// live item and hands it to the ordinary launch path. The tray used to start the path it
+    /// had recorded, which silently dropped the arguments, the working directory and the admin
+    /// verb — a program that needs its own working directory failed from the tray and worked
+    /// from the window.
+    ///
+    /// A missing id is ignored rather than reported: <c>PurgeStaleRecentLaunches</c> runs
+    /// whenever the workspace changes, so a miss means the item died between the menu being
+    /// built and being clicked.
+    /// </remarks>
+    public void LaunchRecent(Guid appId)
+    {
+        if (FindAppById(appId) is { } app)
+            LaunchApp(app);
+    }
+
     public List<RecentLaunch> GetRecentLaunches() => _appData.RecentLaunches;
 
     public void ClearRecentLaunches()

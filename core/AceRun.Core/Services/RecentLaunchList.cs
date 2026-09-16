@@ -33,8 +33,7 @@ public static class RecentLaunchList
         recents.Insert(0, new RecentLaunch
         {
             AppId = app.Id,
-            DisplayName = app.DisplayName,
-            FilePath = app.FilePath
+            DisplayName = app.DisplayName
         });
 
         if (recents.Count > max)

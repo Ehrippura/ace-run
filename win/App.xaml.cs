@@ -131,25 +131,14 @@ namespace ace_run
             {
                 foreach (var recent in recents)
                 {
-                    var filePath = recent.FilePath;
+                    // Through the window, not Process.Start here: the entry is only an id, and
+                    // everything that makes the launch correct — arguments, working directory,
+                    // the admin verb — lives on the item it names.
+                    var appId = recent.AppId;
                     var recentItem = new MenuFlyoutItem
                     {
                         Text = recent.DisplayName,
-                        Command = new RelayCommand(() =>
-                        {
-                            try
-                            {
-                                Process.Start(new ProcessStartInfo
-                                {
-                                    FileName = filePath,
-                                    UseShellExecute = true
-                                });
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"Failed to launch recent: {ex.Message}");
-                            }
-                        })
+                        Command = new RelayCommand(() => _window?.LaunchRecent(appId))
                     };
                     menu.Items.Add(recentItem);
                 }
