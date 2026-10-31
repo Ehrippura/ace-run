@@ -46,4 +46,4 @@
 | 第九階段：整理與排序鍵 | [9-organize.md](spec/9-organize.md) | ✓ 已完成 |
 | 第十階段：設定畫面 | [10-settings.md](spec/10-settings.md) | ✓ 已完成 |
 | 第十一階段：可測試性與單元測試 | [11-testability.md](spec/11-testability.md) | ✓ 已完成 |
-| 第十二階段：MCP 自動化介面 | [12-mcp-automation.md](spec/12-mcp-automation.md) | 規劃中（階段 A 唯讀查詢、階段 B 寫入與啟動，皆未開始） |
+| 第十二階段：MCP 自動化介面 | [12-mcp-automation.md](spec/12-mcp-automation.md) | 已實作（階段 A 唯讀查詢已完成；階段 B 寫入與啟動規劃中） |

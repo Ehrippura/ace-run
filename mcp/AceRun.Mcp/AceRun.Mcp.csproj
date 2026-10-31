@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The MCP automation server: a console app that speaks the Model Context Protocol over
+    stdio and answers questions about the data in %LOCALAPPDATA%\AceRun.
+
+    It lives outside win/ for the same reason core/ and test/ do: ace-run.csproj has no
+    <Compile> items and relies on the SDK's default globbing, so anything under win/ would be
+    compiled into the app as well as into its own assembly.
+
+    Every MCP dependency is confined to this project. AceRun.Core must keep its zero
+    PackageReference rule (11-testability.md §1) — that is what lets the test project run on a
+    machine with no WindowsAppRuntime, and the logic this server needs has to stay testable
+    there.
+
+    Windows TFM, not plain net10.0: AceRun.Core targets one (for the WinRT key enums in
+    HotkeyBinding), and a referencing project cannot be less specific. No loss — a launcher
+    automation server has nowhere else to run.
+
+    AnyCPU like core/ and test/: the architecture of the app it reads for is irrelevant to
+    reading JSON. The publish step picks a RID.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22000.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <AssemblyName>AceRun.Mcp</AssemblyName>
+    <RootNamespace>ace_run.Mcp</RootNamespace>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\AceRun.Core\AceRun.Core.csproj" />
+  </ItemGroup>
+
+</Project>

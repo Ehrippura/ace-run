@@ -31,6 +31,9 @@ dotnet build win/ace-run.csproj
 # Test — no -p:Platform, and that is the point (see "Testability" below)
 dotnet test test/AceRun.Core.Tests/AceRun.Core.Tests.csproj
 
+# MCP automation server — AnyCPU too, so no -p:Platform here either
+dotnet build mcp/AceRun.Mcp/AceRun.Mcp.csproj
+
 # Run (unpackaged mode)
 dotnet run --project win/ace-run.csproj
 
@@ -76,19 +79,20 @@ The core data store accepts a configurable root so the full persistence layer ca
 
 ### Layers
 
-The repository is split into three projects plus documentation and assets. `core/` holds logic that does not need WinUI, `win/` is the WinUI app, and `test/` covers the core project without referencing the app. `doc/` contains the specification and change logs, while `img/` contains project images.
+The repository is split into four projects plus documentation and assets. `core/` holds logic that does not need WinUI, `win/` is the WinUI app, `test/` covers the core project without referencing the app, and `mcp/` is a console MCP server that answers questions about the stored data. `doc/` contains the specification and change logs, while `img/` contains project images.
 
 ```
 core/                     # Core domain models and services; no WinUI dependencies.
 test/                     # xUnit tests for core behavior; never references win/.
 win/                      # WinUI 3 application, UI, platform integrations, and resources.
+mcp/                      # MCP automation server (stdio); reads the data files, read-only.
 doc/                      # Product specification, implementation phases, and change logs.
 img/                      # Project images and other visual assets.
 ```
 
 ### Testability — two rules hold the split open
 
-The test project references only `AceRun.Core`; core logic must not depend on WinUI, Windows App SDK services, or the app project. Shared interfaces keep search and organization logic independent from view-specific types.
+The test project references only `AceRun.Core`; core logic must not depend on WinUI, Windows App SDK services, or the app project. Shared interfaces keep search and organization logic independent from view-specific types. Every Model Context Protocol dependency stays inside `mcp/` for the same reason the app's do: `AceRun.Core` carries no `PackageReference` at all, which is what lets the tests run on a machine with no WindowsAppRuntime.
 
 The main window owns UI state and persistence timing, while core services own data transformation and domain rules.
 

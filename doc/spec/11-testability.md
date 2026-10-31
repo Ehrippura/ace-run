@@ -4,8 +4,8 @@
 
 ## 1. 專案結構
 
-- [x] 三個專案：`core/AceRun.Core/`（無 WinUI 的邏輯層）、`win/`（app）、`test/AceRun.Core.Tests/`（xUnit）。
-- [x] 兩個新專案放在 `win/` **同層而非底下**：`ace-run.csproj` 沒有任何 `<Compile>` 設定，完全依賴 SDK 預設 globbing，放進 `win/` 的任何資料夾都會被自動編進 app。
+- [x] 本階段建立三個專案：`core/AceRun.Core/`（無 WinUI 的邏輯層）、`win/`（app）、`test/AceRun.Core.Tests/`（xUnit）。第十二階段又加了第四個 `mcp/AceRun.Mcp/`（MCP 自動化伺服器），同樣只參考 `AceRun.Core`。
+- [x] 新專案一律放在 `win/` **同層而非底下**——本階段的兩個與第十二階段的 `mcp/` 都是：`ace-run.csproj` 沒有任何 `<Compile>` 設定，完全依賴 SDK 預設 globbing，放進 `win/` 的任何資料夾都會被自動編進 app。
 - [x] 命名空間沿用 `ace_run.Models` 與 `ace_run.Services`，搬移不影響任何呼叫端的 `using`。
 - [x] **測試專案只參考 `AceRun.Core`，絕不參考 `win/ace-run.csproj`。** 這條規則有兩個作用：測試不需要安裝 WindowsAppRuntime 就能跑（`dotnet test` 因此不必帶 `-p:Platform`），以及強制「想測的東西就必須放進 Core」——否則邏輯可以留在 `MainWindow` 裡卻看起來像被測過了。
 - [x] **`AceRun.Core` 沒有任何 `PackageReference`。** 它用 Windows TFM（`net10.0-windows10.0.22000.0`）只為了 `HotkeyBinding` 的 `Windows.System.VirtualKey`，那是純 metadata 的 WinRT enum，由 TFM 隱含的 Windows SDK projection 提供，不需要 COM 啟動也不需要 UI 執行緒。

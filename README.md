@@ -67,6 +67,53 @@ dotnet build win/ace-run.csproj
 dotnet run --project win/ace-run.csproj
 ```
 
+## MCP Server
+
+`mcp/AceRun.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets an AI agent ask about your launcher — workspaces, folders, items, tags, recent launches — and search them by the same rules as the app's own search box.
+
+It is read-only: it changes nothing, and it cannot launch anything. It reads the data files directly, so it answers whether or not Ace Run is running.
+
+```bash
+dotnet build mcp/AceRun.Mcp/AceRun.Mcp.csproj
+```
+
+Register it with Claude Code:
+
+```bash
+claude mcp add ace-run -- "C:\path\to\AceRun.Mcp.exe"
+```
+
+Or, in a client that takes a JSON config:
+
+```json
+{
+  "mcpServers": {
+    "ace-run": {
+      "command": "C:\\path\\to\\AceRun.Mcp.exe"
+    }
+  }
+}
+```
+
+VS Code (Copilot) uses a different shape, in `.vscode/mcp.json` or your user `mcp.json`:
+
+```json
+{
+  "servers": {
+    "ace-run": {
+      "type": "stdio",
+      "command": "C:\\path\\to\\AceRun.Mcp.exe"
+    }
+  }
+}
+```
+
+Tools: `list_workspaces`, `list_folders`, `list_items`, `search_items`, `list_tags`, `get_recent_launches`.
+
+Workspaces, folders and tags are addressed by id or name, and `workspace: "all"` spans every workspace — tags belong to a workspace, so that is how you find which one a tag lives in. `list_items` filters by `tag` and `folder` and returns a page with the matching total, so ask for the tag you want rather than listing everything.
+
+Launching and editing over MCP are planned — see [doc/spec/12-mcp-automation.md](doc/spec/12-mcp-automation.md).
+
 ## Publish
 
 Self-contained publish (x64). Both the .NET runtime and the Windows App SDK runtime ship inside the output folder (`SelfContained` covers the former, `WindowsAppSDKSelfContained` the latter), so the target machine needs no separate install — at the cost of a ~275 MB folder. `dotnet publish` does not clear the target directory, so empty it first when switching publish settings:
