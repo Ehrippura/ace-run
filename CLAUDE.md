@@ -49,8 +49,10 @@ Available publish profiles:
 
 | Profile | Bundles | Target needs |
 |---|---|---|
-| `self-contained` | .NET **and** the Windows App SDK (~275 MB) | nothing — this is the one users get |
-| `environment-deps` | neither (~82 MB, no ReadyToRun) | .NET 10 Desktop Runtime **and** WindowsAppRuntime **2.x** preinstalled |
+| `self-contained` | .NET **and** the Windows App SDK (283 MB) | nothing — this is the one users get |
+| `environment-deps` | neither (86 MB, no ReadyToRun) | .NET 10 Desktop Runtime **and** WindowsAppRuntime **2.x** preinstalled |
+
+Both profiles also publish `AceRun.Mcp.exe` into the same folder, through the `PublishAutomationServer` target in `win/ace-run.csproj`. That target exists instead of a `ProjectReference` so the MCP packages stay out of the app's output, and the same folder is a contract rather than tidiness: `AutomationLayout` is how each executable finds the other. Measured increments: 82.0 → 86.3 MB framework-dependent, 275.6 → 283.4 MB self-contained (R2R applies to the server's assemblies too). `-p:PublishAutomationServer=false` publishes the app alone.
 
 The runtime requirement names a major version on purpose. The 1.x line shipped one framework package per minor version (`Microsoft.WindowsAppRuntime.1.6`, `.1.7`, `.1.8` — side by side, not substitutable); 2.x collapses those into a single `Microsoft.WindowsAppRuntime.2` serviced in place, so a 1.8 machine cannot run a 2.4 build.
 
@@ -79,13 +81,13 @@ The core data store accepts a configurable root so the full persistence layer ca
 
 ### Layers
 
-The repository is split into four projects plus documentation and assets. `core/` holds logic that does not need WinUI, `win/` is the WinUI app, `test/` covers the core project without referencing the app, and `mcp/` is a console MCP server that answers questions about the stored data. `doc/` contains the specification and change logs, while `img/` contains project images.
+The repository is split into four projects plus documentation and assets. `core/` holds logic that does not need WinUI, `win/` is the WinUI app, `test/` covers the core project without referencing the app, and `mcp/` is a console MCP server that answers questions about the stored data and drives the running app. `doc/` contains the specification and change logs, while `img/` contains project images.
 
 ```
 core/                     # Core domain models and services; no WinUI dependencies.
 test/                     # xUnit tests for core behavior; never references win/.
 win/                      # WinUI 3 application, UI, platform integrations, and resources.
-mcp/                      # MCP automation server (stdio); reads the data files, read-only.
+mcp/                      # MCP automation server (stdio); reads the data files, drives the app over a pipe.
 doc/                      # Product specification, implementation phases, and change logs.
 img/                      # Project images and other visual assets.
 ```
@@ -152,6 +154,8 @@ The application runs as a single instance and redirects later activations to the
 
 The system tray owns close-to-tray behaviour and recent-launch access. Closing must either hide the window when enabled or exit the application completely.
 
+**Automation.** An MCP server in `mcp/` answers queries about the data and, through a named pipe, asks the running app to launch and edit. The split is not a style choice: the app holds the live workspace in its view models and rewrites the whole file from them on the next save, so anything that writes has to go through the window. Two rules hold the adapter (`win/MainWindow.Automation.cs`) together — every command runs on the UI thread, and none of them opens a dialog — and the write path saves through `CommitSave`, never `SaveItems`, which returns early while the search box has text. Placement comes from the request, not from whichever folder the user has open. The interface is off by default and has a read-only position; elevated launches need their own opt-in. Both halves share DTOs in `core/AceRun.Core/Automation/`, and the two executables find each other by being published into the same folder.
+
 ### Notable Capabilities
 
 - Launches executable files, URLs, and custom protocols, with optional administrator mode for applications.
@@ -159,3 +163,4 @@ The system tray owns close-to-tray behaviour and recent-launch access. Closing m
 - Provides a system tray, global hotkey, configurable theme and language, and close-to-tray behaviour.
 - Uses a responsive WinUI layout with a custom title bar, Mica backdrop, DPI-aware sizing, and high-contrast support.
 - Accepts files, shortcuts, web links, and text drops, and caches application icons for the UI.
+- Exposes an MCP automation interface: queries always, and launching and editing when the user switches it on.

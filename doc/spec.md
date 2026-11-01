@@ -27,7 +27,7 @@
 
 歷史（某件事何時做的）由 `doc/log/CHANGELOG_*.md` 與 git 承擔，不需要由階段檔案保存。
 
-狀態欄的兩個值有明確定義，不可混用：
+狀態欄的三個值有明確定義，不可混用：
 
 - **✓ 已完成** — 該階段規格範圍內的項目全數實作。各檔案末尾「不在本階段範圍」區塊列出的延伸想法不影響此標記，那些是刻意留到日後的，不算欠帳。
 - **已實作** — 主要功能可用，但**規格範圍內**仍有項目未實作，括號中註明是哪些。
@@ -46,4 +46,4 @@
 | 第九階段：整理與排序鍵 | [9-organize.md](spec/9-organize.md) | ✓ 已完成 |
 | 第十階段：設定畫面 | [10-settings.md](spec/10-settings.md) | ✓ 已完成 |
 | 第十一階段：可測試性與單元測試 | [11-testability.md](spec/11-testability.md) | ✓ 已完成 |
-| 第十二階段：MCP 自動化介面 | [12-mcp-automation.md](spec/12-mcp-automation.md) | 已實作（階段 A 唯讀查詢已完成；階段 B 寫入與啟動規劃中） |
+| 第十二階段：MCP 自動化介面 | [12-mcp-automation.md](spec/12-mcp-automation.md) | 已實作 |

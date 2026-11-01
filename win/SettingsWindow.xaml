@@ -18,7 +18,7 @@
     <Grid x:Name="RootGrid" PreviewKeyDown="RootGrid_PreviewKeyDown">
         <Grid.Resources>
             <!--
-                Hand-rolled rather than CommunityToolkit's SettingsCard. Seven cards is not
+                Hand-rolled rather than CommunityToolkit's SettingsCard. Ten cards is not
                 worth the project's second third-party dependency, and the shape is three
                 columns and two text styles the design layer already defines.
             -->
@@ -201,6 +201,83 @@
                          IsOpen="False"
                          IsClosable="True"
                          Severity="Informational" />
+
+                <!-- Automation. Its own group, and placed after appearance rather than in
+                     General, because it is the only group that hands another program control
+                     of this one — a reader skimming for that should not have to find it among
+                     the window preferences. -->
+                <TextBlock x:Name="AutomationGroupLabel"
+                           Style="{StaticResource AceBodyStrongStyle}"
+                           Margin="0,16,0,4" />
+
+                <!-- Mode: off / read-only / full -->
+                <Border Style="{StaticResource SettingsCardStyle}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE99A;" FontSize="16" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="AutomationHeader" Style="{StaticResource AceBodyStyle}" />
+                            <TextBlock x:Name="AutomationDesc" Style="{StaticResource AceCaptionStyle}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ComboBox Grid.Column="2"
+                                  x:Name="AutomationCombo"
+                                  MinWidth="160"
+                                  VerticalAlignment="Center"
+                                  SelectionChanged="AutomationCombo_SelectionChanged" />
+                    </Grid>
+                </Border>
+
+                <!-- Administrator launches. Disabled unless the mode above is Full: it grants
+                     nothing on its own, and a live switch that does nothing is worse than a
+                     greyed-out one. -->
+                <Border Style="{StaticResource SettingsCardStyle}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE7EF;" FontSize="16" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="AutomationAdminHeader" Style="{StaticResource AceBodyStyle}" />
+                            <TextBlock x:Name="AutomationAdminDesc" Style="{StaticResource AceCaptionStyle}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="2"
+                                      x:Name="AutomationAdminToggle"
+                                      Style="{StaticResource SettingsToggleStyle}"
+                                      Toggled="AutomationAdminToggle_Toggled" />
+                    </Grid>
+                </Border>
+
+                <!-- Copy the client configuration -->
+                <Border Style="{StaticResource SettingsCardStyle}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE8C8;" FontSize="16" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="AutomationCopyHeader" Style="{StaticResource AceBodyStyle}" />
+                            <TextBlock x:Name="AutomationCopyDesc" Style="{StaticResource AceCaptionStyle}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                x:Name="AutomationCopyButton"
+                                MinWidth="120"
+                                VerticalAlignment="Center"
+                                Click="AutomationCopyButton_Click" />
+                    </Grid>
+                </Border>
+
+                <InfoBar x:Name="AutomationInfoBar"
+                         IsOpen="False"
+                         IsClosable="True"
+                         Severity="Success" />
 
                 <!-- Storage. Its own group because this is neither a preference nor a look:
                      nothing here is remembered in AppSettings, the card performs an action. -->

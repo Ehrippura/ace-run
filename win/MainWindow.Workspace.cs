@@ -34,6 +34,10 @@ public sealed partial class MainWindow
 
         await LoadWorkspaceDataAsync(active);
         ApplyWorkspaceIdentity();
+
+        // Last, so the pipe only starts listening once there is a workspace behind it. See
+        // ApplySettings for why it is not switched on with the rest of the settings.
+        ApplyAutomationSetting();
     }
 
     private async Task LoadWorkspaceDataAsync(WorkspaceInfo ws)
@@ -104,6 +108,25 @@ public sealed partial class MainWindow
         ApplyWorkspaceIdentity();
         FadeInContent();
         ((App)Application.Current).UpdateTrayContextMenu();
+    }
+
+    /// <summary>
+    /// Switches workspace from code, keeping the picker in step.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SwitchWorkspaceAsync"/> is reached from the picker's own
+    /// <c>SelectionChanged</c>, so it has never had to move the picker itself. An
+    /// automation-driven switch comes from the other direction and would otherwise leave the
+    /// combo box naming a workspace that is no longer open. The suppression flag is what keeps
+    /// the assignment from bouncing back through the handler and starting a second switch.
+    /// </remarks>
+    private async Task SwitchWorkspaceFromCodeAsync(WorkspaceInfo target)
+    {
+        _suppressWorkspaceSwitch = true;
+        try { WorkspaceComboBox.SelectedItem = _workspaces.FirstOrDefault(v => v.Id == target.Id); }
+        finally { _suppressWorkspaceSwitch = false; }
+
+        await SwitchWorkspaceAsync(target);
     }
 
     public async Task ReloadAfterWorkspaceManagement()

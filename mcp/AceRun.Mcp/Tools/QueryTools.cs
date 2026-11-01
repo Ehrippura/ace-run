@@ -10,10 +10,13 @@ namespace ace_run.Mcp.Tools;
 /// The read-only half of the automation interface.
 /// </summary>
 /// <remarks>
-/// Every tool here is a projection of files on disk and changes nothing, which is why they all
-/// carry <c>ReadOnly</c> and <c>Idempotent</c>: a client is free to call them without asking
-/// the user first. Launching and editing arrive with the named pipe (12-mcp-automation.md
-/// stage B) and will not share that property.
+/// Every tool here changes nothing, which is why they all carry <c>ReadOnly</c> and
+/// <c>Idempotent</c>: a client is free to call them without asking the user first. The ones
+/// that act are in <see cref="ActionTools"/> and do not share that property.
+///
+/// Each call opens its own <see cref="WorkspaceAccess"/>, which asks the running app for its
+/// live state and falls back to the data files. That is why these answers are current even for
+/// edits the app has not written yet, and why they still arrive when it is closed.
 ///
 /// The methods are thin on purpose. Resolution and failure messages belong to
 /// <see cref="WorkspaceAccess"/> and the projections to <see cref="AutomationQuery"/>, so what
@@ -37,7 +40,7 @@ internal static class QueryTools
     [McpServerTool(Name = "list_workspaces", Title = "List workspaces", ReadOnly = true, Idempotent = true)]
     [Description("Lists Ace Run's workspaces with their ids, colour tags, item counts, and which one is active.")]
     public static IReadOnlyList<WorkspaceSummary> ListWorkspaces() =>
-        AutomationQuery.Workspaces(WorkspaceAccess.Config());
+        AutomationQuery.Workspaces(WorkspaceAccess.Open().Config);
 
     [McpServerTool(Name = "list_folders", Title = "List folders", ReadOnly = true, Idempotent = true)]
     [Description("Lists the folders in a workspace. Items that are not in a folder are not reported here; list_items returns them with no folder.")]
@@ -46,7 +49,7 @@ internal static class QueryTools
     {
         var folders = new List<FolderSummary>();
 
-        foreach (var loaded in WorkspaceAccess.Resolve(workspace))
+        foreach (var loaded in WorkspaceAccess.Open().Resolve(workspace))
             folders.AddRange(AutomationQuery.Folders(loaded.Data, loaded.Info.Name));
 
         return folders;
@@ -64,10 +67,11 @@ internal static class QueryTools
         [Description("Items to skip, for the next page.")] int offset = 0)
     {
         var items = new List<ItemSummary>();
+        var source = WorkspaceAccess.Open();
 
         if (folder is not null)
         {
-            var one = WorkspaceAccess.ResolveOne(workspace, "folder");
+            var one = source.ResolveOne(workspace, "folder");
             var tagged = WorkspaceAccess.WithTag(new[] { one }, tag);
 
             foreach (var (loaded, tagId) in tagged)
@@ -76,7 +80,7 @@ internal static class QueryTools
         }
         else
         {
-            foreach (var (loaded, tagId) in WorkspaceAccess.WithTag(WorkspaceAccess.Resolve(workspace), tag))
+            foreach (var (loaded, tagId) in WorkspaceAccess.WithTag(source.Resolve(workspace), tag))
                 items.AddRange(AutomationQuery.Items(loaded.Data, loaded.Info.Name, null, tagId));
         }
 
@@ -100,7 +104,7 @@ internal static class QueryTools
 
         var hits = new List<ItemSummary>();
 
-        foreach (var loaded in WorkspaceAccess.Resolve(workspace))
+        foreach (var loaded in WorkspaceAccess.Open().Resolve(workspace))
             hits.AddRange(AutomationQuery.Search(loaded.Data, loaded.Info.Name, query));
 
         return AutomationQuery.Page(hits, offset, limit);
@@ -113,7 +117,7 @@ internal static class QueryTools
     {
         var tags = new List<TagSummary>();
 
-        foreach (var loaded in WorkspaceAccess.Resolve(workspace))
+        foreach (var loaded in WorkspaceAccess.Open().Resolve(workspace))
             tags.AddRange(AutomationQuery.Tags(loaded.Data, loaded.Info.Name));
 
         return tags;
@@ -126,7 +130,7 @@ internal static class QueryTools
     {
         var recents = new List<RecentSummary>();
 
-        foreach (var loaded in WorkspaceAccess.Resolve(workspace))
+        foreach (var loaded in WorkspaceAccess.Open().Resolve(workspace))
             recents.AddRange(AutomationQuery.Recents(loaded.Data, loaded.Info.Name));
 
         return recents;

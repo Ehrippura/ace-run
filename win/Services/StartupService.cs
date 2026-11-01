@@ -21,7 +21,11 @@ internal static class StartupService
     /// the window in the user's face would make the option unusable for the case it exists
     /// for — being resident behind a hotkey.
     /// </summary>
-    public const string TrayArgument = "--tray";
+    /// <remarks>
+    /// The value lives in <see cref="Automation.AutomationLayout"/> because the MCP server
+    /// starts the app the same way and cannot see this class.
+    /// </remarks>
+    public const string TrayArgument = Automation.AutomationLayout.TrayArgument;
 
     public static bool IsEnabled
     {

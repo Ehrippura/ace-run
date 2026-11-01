@@ -343,6 +343,19 @@ public sealed partial class MainWindow
         if (await ShowModalAsync(dialog) != ContentDialogResult.Primary)
             return;
 
+        DeleteAppsCore(targets);
+    }
+
+    /// <summary>
+    /// The deletion itself, with no confirmation in front of it.
+    /// </summary>
+    /// <remarks>
+    /// Split out for the automation path, which has no dialog to show and no user watching it
+    /// (12-mcp-automation.md §B3). The confirmation guards against a misclick; a command that
+    /// arrived over the pipe was already confirmed by whoever sent it, if it was going to be.
+    /// </remarks>
+    private void DeleteAppsCore(IList<AppItemViewModel> targets)
+    {
         foreach (var app in targets)
         {
             _ungroupedApps.Remove(app);
@@ -372,6 +385,12 @@ public sealed partial class MainWindow
         if (await ShowModalAsync(dialog) != ContentDialogResult.Primary)
             return;
 
+        DeleteFolderCore(folder);
+    }
+
+    /// <inheritdoc cref="DeleteAppsCore"/>
+    private void DeleteFolderCore(FolderViewModel folder)
+    {
         foreach (var app in folder.Apps)
             _searchResults.Remove(app);
 

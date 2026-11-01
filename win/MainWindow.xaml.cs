@@ -133,6 +133,10 @@ public sealed partial class MainWindow : Window
 
         CommitSave();
 
+        // Only on the way out, not on the branch above: closing to the tray leaves the app
+        // running, and an agent that could reach it a second ago should still be able to.
+        StopAutomation();
+
         // Letting the window close is not the same as quitting: the tray icon keeps a
         // message loop alive, so without this the process lingers with no window. Before
         // the close-to-tray setting existed this branch was only reachable when the tray

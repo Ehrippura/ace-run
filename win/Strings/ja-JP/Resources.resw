@@ -188,6 +188,21 @@
   <data name="Settings_Language_Desc" xml:space="preserve"><value>次回 Ace Run を起動したときに反映されます。</value></data>
   <data name="Settings_Language_System" xml:space="preserve"><value>システム設定に従う</value></data>
   <data name="Settings_Language_RestartRequired" xml:space="preserve"><value>新しい言語を適用するには Ace Run を再起動してください。</value></data>
+  <!-- Automation (MCP) -->
+  <data name="Settings_Group_Automation" xml:space="preserve"><value>自動化</value></data>
+  <data name="Settings_Automation_Header" xml:space="preserve"><value>MCP 自動化</value></data>
+  <data name="Settings_Automation_Desc" xml:space="preserve"><value>AI エージェントが Ace Run の MCP サーバー経由でこのウィンドウを操作できるようにします。項目の読み取りだけでなく、起動と編集も許可できます。</value></data>
+  <data name="Settings_Automation_Off" xml:space="preserve"><value>オフ</value></data>
+  <data name="Settings_Automation_ReadOnly" xml:space="preserve"><value>読み取りのみ</value></data>
+  <data name="Settings_Automation_Full" xml:space="preserve"><value>起動と編集</value></data>
+  <data name="Settings_Automation_Admin_Header" xml:space="preserve"><value>管理者としての起動を許可</value></data>
+  <data name="Settings_Automation_Admin_Desc" xml:space="preserve"><value>管理者として実行する設定の項目を、自動化から起動できるようにします。意図しない UAC 画面が出るため、オフのあいだは拒否します。</value></data>
+  <data name="Settings_Automation_Copy_Header" xml:space="preserve"><value>MCP 設定をコピー</value></data>
+  <data name="Settings_Automation_Copy_Desc" xml:space="preserve"><value>このコンピューター上のサーバーのパスを含むクライアント設定をクリップボードにコピーします。Claude Desktop と Claude Code 向けです。VS Code は形式が異なります（README を参照）。</value></data>
+  <data name="Settings_Automation_Copy_Button" xml:space="preserve"><value>コピー</value></data>
+  <data name="Settings_Automation_Copy_Done" xml:space="preserve"><value>設定をクリップボードにコピーしました。</value></data>
+  <data name="Settings_Automation_Copy_Missing" xml:space="preserve"><value>{0} が Ace Run の隣にありません。配布時は同じフォルダーに入りますが、開発ビルドでは別の場所に置かれます。</value></data>
+
   <data name="Settings_Group_Storage" xml:space="preserve"><value>ストレージ</value></data>
   <data name="Settings_ResetCache_Header" xml:space="preserve"><value>アイコンキャッシュをリセット</value></data>
   <data name="Settings_ResetCache_Desc" xml:space="preserve"><value>キャッシュ済みのアイコンをすべて破棄し、ファイルから読み直します。アプリを更新してもタイルが古いアイコンのままのときに使います。</value></data>

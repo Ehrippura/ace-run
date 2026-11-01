@@ -73,6 +73,48 @@
   </ItemGroup>
 
   <!--
+    The MCP automation server, published into the same folder as the app.
+
+    A post-publish MSBuild call rather than a ProjectReference, and that is the point: a
+    reference would pull ModelContextProtocol and Microsoft.Extensions.Hosting into this
+    project's output, which is exactly what 12-mcp-automation.md §A1 keeps confined to mcp/.
+    Nothing in the app calls the server — they talk over a named pipe — so there is no
+    compile-time dependency to express.
+
+    Same folder is a contract, not a convenience: AutomationLayout is how each half finds the
+    other, so the server can start the app on demand and the settings window can write out a
+    client configuration with a real path in it. Neither works from a development build, where
+    each project has its own bin.
+
+    The overrides matter. Platform: this project is x86/x64/ARM64 and the server is AnyCPU, so
+    the inherited value would be refused outright. PublishProfile: a profile name passed on the
+    command line is a global property and would send MSBuild looking for a profile of that name
+    under mcp/. WindowsAppSDKSelfContained: the server has no WinAppSDK reference to bundle.
+    SelfContained and the RID are inherited on purpose, so the two executables end up framework-
+    dependent or self-contained together — and when they are self-contained they share one copy
+    of the runtime, since the files are identical and land on top of each other.
+  -->
+  <!-- -p:PublishAutomationServer=false publishes the app on its own, which is how the size
+       figures in CLAUDE.md were measured. -->
+  <Target Name="PublishAutomationServer" AfterTargets="Publish"
+          Condition="'$(PublishAutomationServer)' != 'false'">
+    <!--
+      Restored first, and in a call of its own. The server is not a ProjectReference, so the
+      outer publish never restores it, and a RID-specific publish of a project whose assets
+      file has no RID target fails with NETSDK1047. The extra property is there to make this a
+      different project instance from the publish below, since restore has to finish before
+      that one is evaluated.
+    -->
+    <MSBuild Projects="..\mcp\AceRun.Mcp\AceRun.Mcp.csproj"
+             Targets="Restore"
+             Properties="Configuration=$(Configuration);Platform=AnyCPU;RuntimeIdentifier=$(RuntimeIdentifier);PublishProfile=;PublishProfileFullPath=;_AceRunRestorePass=true" />
+
+    <MSBuild Projects="..\mcp\AceRun.Mcp\AceRun.Mcp.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);Platform=AnyCPU;RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$(PublishDir);PublishReadyToRun=$(PublishReadyToRun);PublishSingleFile=false;PublishTrimmed=false;WindowsAppSDKSelfContained=false;PublishProfile=;PublishProfileFullPath=" />
+  </Target>
+
+  <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if
     the Windows App SDK Nuget package has not yet been restored.

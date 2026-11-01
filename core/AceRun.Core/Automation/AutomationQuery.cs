@@ -73,19 +73,19 @@ public static class AutomationQuery
         {
             foreach (var item in folder.Children)
                 if (HasTag(item, tagId))
-                    items.Add(Summarize(data, item, folder.DisplayName, workspace));
+                    items.Add(Describe(data, item, folder.DisplayName, workspace));
 
             return items;
         }
 
         foreach (var item in data.UngroupedItems)
             if (HasTag(item, tagId))
-                items.Add(Summarize(data, item, null, workspace));
+                items.Add(Describe(data, item, null, workspace));
 
         foreach (var f in data.Folders)
             foreach (var item in f.Children)
                 if (HasTag(item, tagId))
-                    items.Add(Summarize(data, item, f.DisplayName, workspace));
+                    items.Add(Describe(data, item, f.DisplayName, workspace));
 
         return items;
     }
@@ -106,7 +106,7 @@ public static class AutomationQuery
             throw new ArgumentException("A search needs a query.", nameof(query));
 
         return SearchRanking.Rank(query, Candidates(data), data.RecentLaunches)
-            .Select(hit => Summarize(data, hit.Item.Source, Label(hit.FolderLabel), workspace))
+            .Select(hit => Describe(data, hit.Item.Source, Label(hit.FolderLabel), workspace))
             .ToList();
     }
 
@@ -122,6 +122,22 @@ public static class AutomationQuery
         var next = start + page.Count;
 
         return new ItemPage(items.Count, start, page, next < items.Count ? next : null);
+    }
+
+    /// <summary>
+    /// The folder <paramref name="itemId"/> sits in, or null when it is ungrouped.
+    /// </summary>
+    /// <remarks>
+    /// For the write side, which resolves an item by name and then has to say where it ended
+    /// up. The read side never needs it: it walks the folders anyway and already knows.
+    /// </remarks>
+    public static FolderItem? FolderOf(AppData data, Guid itemId)
+    {
+        foreach (var folder in data.Folders)
+            foreach (var item in folder.Children)
+                if (item.Id == itemId) return folder;
+
+        return null;
     }
 
     private static bool HasTag(AppItem item, Guid? tagId) =>
@@ -151,7 +167,15 @@ public static class AutomationQuery
     private static ItemView ViewOf(AppData data, AppItem item) =>
         new(item, TagOrdering.InWorkspaceOrder(data.Tags, item.TagIds));
 
-    private static ItemSummary Summarize(AppData data, AppItem item, string? folder, string workspace)
+    /// <summary>
+    /// One item as the automation interface reports it.
+    /// </summary>
+    /// <remarks>
+    /// Public because the write side answers with it too: a command that launched, added or
+    /// moved something reports the item it acted on, through this same projection, so a client
+    /// never has to reconcile two descriptions of the same row.
+    /// </remarks>
+    public static ItemSummary Describe(AppData data, AppItem item, string? folder, string workspace)
     {
         var isApp = item.Kind == ItemKind.App;
         var tags = TagOrdering.InWorkspaceOrder(data.Tags, item.TagIds);

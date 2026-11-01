@@ -120,7 +120,9 @@ namespace ace_run
                 var clearItem = new MenuFlyoutItem
                 {
                     Text = Loc.GetString("TrayClearRecent"),
-                    Command = new RelayCommand(() => _window?.ClearRecentLaunches())
+                    // Braced: ClearRecentLaunches returns a count for the automation path,
+                    // and an expression body would be an int the Action cannot take.
+                    Command = new RelayCommand(() => { _window?.ClearRecentLaunches(); })
                 };
                 menu.Items.Add(clearItem);
             }

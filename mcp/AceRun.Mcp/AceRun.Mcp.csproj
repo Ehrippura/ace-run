@@ -28,6 +28,14 @@
     <RootNamespace>ace_run.Mcp</RootNamespace>
     <Nullable>enable</Nullable>
     <Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+
+    <!--
+      The RIDs the app offers, so this server can be published for the same one. Declared
+      even though AnyCPU is what gets built: without them restore writes no RID-specific
+      target into project.assets.json, and ace-run.csproj's PublishAutomationServer target
+      then fails with NETSDK1047 for the RID it was asked to match.
+    -->
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

@@ -126,17 +126,32 @@ public sealed partial class MainWindow
 
         if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
-            var name = string.IsNullOrWhiteSpace(nameBox.Text)
+            CreateFolderCore(string.IsNullOrWhiteSpace(nameBox.Text)
                 ? Loc.GetString("DefaultFolderName")
-                : nameBox.Text.Trim();
-            var vm = new FolderViewModel(name);
-            _folders.Add(vm);
-            SaveItems();
+                : nameBox.Text.Trim());
 
             // Invoked from the keyboard the rail may be collapsed, which would put the
             // new folder somewhere the user can't see it.
             RailSplitView.IsPaneOpen = true;
         }
+    }
+
+    /// <summary>
+    /// Appends a folder and saves. Shared with the automation path, which supplies the name
+    /// instead of asking for it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PersistAfterEdit"/> rather than the <c>SaveItems()</c> this used to call.
+    /// That one returns early while the search box has text, so a folder created during a
+    /// search was not written until something else saved — a latent bug found while splitting
+    /// this out, and one the automation path would hit every time a user left a query up.
+    /// </remarks>
+    private FolderViewModel CreateFolderCore(string name)
+    {
+        var folder = new FolderViewModel(name);
+        _folders.Add(folder);
+        PersistAfterEdit();
+        return folder;
     }
 
     /// <summary>
@@ -229,11 +244,15 @@ public sealed partial class MainWindow
         if (await ShowModalAsync(dialog) == ContentDialogResult.Primary)
         {
             if (!string.IsNullOrWhiteSpace(nameBox.Text))
-            {
-                folder.DisplayName = nameBox.Text.Trim();
-                SaveItems();
-            }
+                RenameFolderCore(folder, nameBox.Text.Trim());
         }
+    }
+
+    /// <inheritdoc cref="CreateFolderCore"/>
+    private void RenameFolderCore(FolderViewModel folder, string name)
+    {
+        folder.DisplayName = name;
+        PersistAfterEdit();
     }
 
     #endregion
@@ -264,7 +283,15 @@ public sealed partial class MainWindow
         AfterLaunch();
     }
 
-    private void LaunchCore(AppItemViewModel app)
+    /// <summary>
+    /// Starts one item.
+    /// </summary>
+    /// <returns>
+    /// What the OS threw, or null. The two UI callers ignore it — a failed launch is already
+    /// reported by the program not appearing — but an automation caller gets no such feedback
+    /// and has to be told (12-mcp-automation.md §B4).
+    /// </returns>
+    private Exception? LaunchCore(AppItemViewModel app)
     {
         // Before the try: the confirmation is for the click, not for the outcome.
         PulseLaunch(app);
@@ -289,10 +316,12 @@ public sealed partial class MainWindow
 
             Process.Start(psi);
             TrackRecentLaunch(app);
+            return null;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Failed to launch: {ex.Message}");
+            return ex;
         }
     }
 
@@ -321,11 +350,22 @@ public sealed partial class MainWindow
 
     public List<RecentLaunch> GetRecentLaunches() => _appData.RecentLaunches;
 
-    public void ClearRecentLaunches()
+    /// <summary>
+    /// Empties the launch history. Reachable from the tray and from automation, neither of
+    /// which can see whether the user has left a query in the search box — hence
+    /// <see cref="PersistAfterEdit"/> and not <c>SaveItems()</c>, which would have dropped the
+    /// write in that state.
+    /// </summary>
+    /// <returns>How many entries went, so the caller can report it.</returns>
+    public int ClearRecentLaunches()
     {
+        var cleared = _appData.RecentLaunches.Count;
+
         _appData.RecentLaunches.Clear();
-        SaveItems();
+        PersistAfterEdit();
         ((App)Application.Current).UpdateTrayContextMenu();
+
+        return cleared;
     }
 
     #endregion

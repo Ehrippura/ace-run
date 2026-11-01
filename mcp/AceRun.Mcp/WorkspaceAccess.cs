@@ -13,9 +13,21 @@ namespace ace_run.Mcp;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The failures here are the ones an agent can recover from by itself — a name that matched
-/// two workspaces, a name that matched none, a tag that lives in a different workspace — so
-/// each message says what to call next rather than only what went wrong.
+/// One instance per tool call, from <see cref="Open"/>. It asks the running app for its live
+/// state first and falls back to the files on disk — so a query answers either way, and when the
+/// app <em>is</em> up the answer includes edits it has not written yet. That last part is the gap
+/// the read-only stage had to disclaim in its tool descriptions: with text in the search box the
+/// app holds changes back from disk, and the workspace in that state is the one it has open.
+/// </para>
+/// <para>
+/// Only the open workspace comes from the app, because only the open workspace is live. Any
+/// other is a file the app is not holding, and reading it here is both correct and one hop
+/// shorter.
+/// </para>
+/// <para>
+/// The failures below are the ones an agent can recover from by itself — a name that matched two
+/// workspaces, a name that matched none, a tag that lives in a different workspace — so each
+/// message says what to call next rather than only what went wrong.
 /// </para>
 /// <para>
 /// English, like the rest of the protocol surface. The app's own UI is localized through
@@ -23,7 +35,7 @@ namespace ace_run.Mcp;
 /// deliberately free of localization (which is also why the lookup layer returns enums).
 /// </para>
 /// </remarks>
-internal static class WorkspaceAccess
+internal sealed class WorkspaceAccess
 {
     private static readonly AutomationReader Reader = AutomationReader.Default;
 
@@ -33,7 +45,37 @@ internal static class WorkspaceAccess
     /// <summary>One workspace's index entry and its loaded contents.</summary>
     public readonly record struct Loaded(WorkspaceInfo Info, AppData Data);
 
-    public static WorkspaceConfig Config()
+    private readonly AutomationState? _live;
+
+    private WorkspaceAccess(AutomationState? live, WorkspaceConfig config)
+    {
+        _live = live;
+        Config = config;
+    }
+
+    public WorkspaceConfig Config { get; }
+
+    /// <summary>True when this call is reading the running app rather than the files.</summary>
+    public bool Live => _live is not null;
+
+    public static WorkspaceAccess Open()
+    {
+        var live = AutomationClient.TryReadState();
+
+        if (live is null)
+            return new WorkspaceAccess(null, ReadConfig());
+
+        // The stored count is denormalized and only updated on save, so for the one workspace
+        // whose real contents we are holding, report what is actually in it. The config here is
+        // our own deserialized copy, so correcting it affects nothing but this answer.
+        foreach (var info in live.Config.Workspaces)
+            if (info.Id == live.ActiveWorkspaceId)
+                info.AppCount = live.ActiveData.ItemCount;
+
+        return new WorkspaceAccess(live, live.Config);
+    }
+
+    private static WorkspaceConfig ReadConfig()
     {
         var result = Reader.ReadConfig();
 
@@ -52,17 +94,16 @@ internal static class WorkspaceAccess
     }
 
     /// <summary>
-    /// The workspaces a key names: one by id or name, the active one when it is empty, or all
-    /// of them for <see cref="AllKeyword"/>.
+    /// The workspaces a key names: one by id or name, the open one when it is empty, or all of
+    /// them for <see cref="AllKeyword"/>.
     /// </summary>
     /// <remarks>
     /// The keyword is only considered once name resolution has failed, so a workspace actually
     /// called "All" still wins and stays reachable by its name.
     /// </remarks>
-    public static IReadOnlyList<Loaded> Resolve(string? key)
+    public IReadOnlyList<Loaded> Resolve(string? key)
     {
-        var config = Config();
-        var found = ItemLookup.Workspace(config, key);
+        var found = ItemLookup.Workspace(Config, key);
 
         if (found.Outcome == LookupOutcome.Ambiguous)
             throw new McpException(
@@ -73,7 +114,7 @@ internal static class WorkspaceAccess
             return new[] { new Loaded(found.Value, Load(found.Value)) };
 
         if (IsAll(key))
-            return LoadAll(config);
+            return LoadAll();
 
         throw new McpException(string.IsNullOrWhiteSpace(key)
             ? "The configuration lists no workspaces."
@@ -85,7 +126,7 @@ internal static class WorkspaceAccess
     /// The one workspace a key names, for a question that cannot span several —
     /// <paramref name="because"/> names the parameter that makes it so.
     /// </summary>
-    public static Loaded ResolveOne(string? key, string because)
+    public Loaded ResolveOne(string? key, string because)
     {
         if (IsAll(key))
             throw new McpException(
@@ -155,8 +196,11 @@ internal static class WorkspaceAccess
     private static bool IsAll(string? key) =>
         string.Equals(key?.Trim(), AllKeyword, StringComparison.OrdinalIgnoreCase);
 
-    private static AppData Load(WorkspaceInfo info)
+    private AppData Load(WorkspaceInfo info)
     {
+        if (_live is not null && info.Id == _live.ActiveWorkspaceId)
+            return _live.ActiveData;
+
         var data = Reader.ReadWorkspace(info.Id);
 
         if (data.Ok) return data.Value!;
@@ -179,12 +223,18 @@ internal static class WorkspaceAccess
     /// to an across-everything answer. One that exists and cannot be read or parsed still
     /// throws: silently leaving its items out would make this a confident wrong answer.
     /// </remarks>
-    private static IReadOnlyList<Loaded> LoadAll(WorkspaceConfig config)
+    private IReadOnlyList<Loaded> LoadAll()
     {
-        var loaded = new List<Loaded>(config.Workspaces.Count);
+        var loaded = new List<Loaded>(Config.Workspaces.Count);
 
-        foreach (var info in config.Workspaces)
+        foreach (var info in Config.Workspaces)
         {
+            if (_live is not null && info.Id == _live.ActiveWorkspaceId)
+            {
+                loaded.Add(new Loaded(info, _live.ActiveData));
+                continue;
+            }
+
             var data = Reader.ReadWorkspace(info.Id);
 
             if (data.Outcome == ReadOutcome.Missing) continue;

@@ -187,6 +187,69 @@ public sealed class ItemLookupTests
         Assert.Equal(LookupOutcome.NotFound, ItemLookup.Folder(data, " ").Outcome);
     }
 
+    // --- Items ---
+
+    [Fact]
+    public void An_item_is_found_wherever_it_sits_in_the_workspace()
+    {
+        // Flat across ungrouped items and every folder, because the caller names an item, not
+        // a place.
+        var data = new AppData();
+        data.UngroupedItems.Add(new AppItem { DisplayName = "Notepad" });
+        var tools = new FolderItem { DisplayName = "Tools" };
+        var hex = new AppItem { DisplayName = "Hex Editor" };
+        tools.Children.Add(hex);
+        data.Folders.Add(tools);
+
+        Assert.Equal(hex.Id, ItemLookup.Item(data, hex.Id.ToString()).Value!.Id);
+        Assert.Equal(hex.Id, ItemLookup.Item(data, "hex editor").Value!.Id);
+        Assert.Equal(hex.Id, ItemLookup.Item(data, "hex").Value!.Id);
+    }
+
+    [Fact]
+    public void Two_items_with_one_name_are_Ambiguous_and_both_ids_are_offered()
+    {
+        // Nothing stops duplicate item names, and a library grown by dropping files in has
+        // them. This is the resolution where refusing to choose matters most: the next thing
+        // that happens to a resolved item is that it gets launched.
+        var data = new AppData();
+        var first = new AppItem { DisplayName = "Setup" };
+        var second = new AppItem { DisplayName = "Setup" };
+        data.UngroupedItems.Add(first);
+        var tools = new FolderItem { DisplayName = "Tools" };
+        tools.Children.Add(second);
+        data.Folders.Add(tools);
+
+        var result = ItemLookup.Item(data, "Setup");
+
+        Assert.Equal(LookupOutcome.Ambiguous, result.Outcome);
+        Assert.Null(result.Value);
+        Assert.Equal(
+            new[] { first.Id, second.Id }.OrderBy(id => id),
+            result.Candidates.Select(c => c.Id).OrderBy(id => id));
+    }
+
+    [Fact]
+    public void An_item_whose_whole_name_is_another_prefix_stays_reachable()
+    {
+        var data = new AppData();
+        data.UngroupedItems.Add(new AppItem { DisplayName = "Steam" });
+        data.UngroupedItems.Add(new AppItem { DisplayName = "Steam (Beta)" });
+
+        Assert.Equal(LookupOutcome.Found, ItemLookup.Item(data, "Steam").Outcome);
+        Assert.Equal("Steam", ItemLookup.Item(data, "Steam").Value!.DisplayName);
+    }
+
+    [Fact]
+    public void No_item_key_is_NotFound()
+    {
+        var data = new AppData();
+        data.UngroupedItems.Add(new AppItem { DisplayName = "Notepad" });
+
+        Assert.Equal(LookupOutcome.NotFound, ItemLookup.Item(data, null).Outcome);
+        Assert.Equal(LookupOutcome.NotFound, ItemLookup.Item(data, " ").Outcome);
+    }
+
     private static WorkspaceConfig Config(out WorkspaceInfo work, out WorkspaceInfo games)
     {
         work = new WorkspaceInfo { Name = "Work" };

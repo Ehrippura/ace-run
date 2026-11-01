@@ -188,6 +188,21 @@
   <data name="Settings_Language_Desc" xml:space="preserve"><value>下次啟動 Ace Run 時生效。</value></data>
   <data name="Settings_Language_System" xml:space="preserve"><value>跟隨系統</value></data>
   <data name="Settings_Language_RestartRequired" xml:space="preserve"><value>請重新啟動 Ace Run 以套用新的語言。</value></data>
+  <!-- Automation (MCP) -->
+  <data name="Settings_Group_Automation" xml:space="preserve"><value>自動化</value></data>
+  <data name="Settings_Automation_Header" xml:space="preserve"><value>MCP 自動化</value></data>
+  <data name="Settings_Automation_Desc" xml:space="preserve"><value>讓 AI agent 透過 Ace Run 的 MCP 伺服器操作這個視窗：讀取項目，也可以連啟動與編輯一起開放。</value></data>
+  <data name="Settings_Automation_Off" xml:space="preserve"><value>關閉</value></data>
+  <data name="Settings_Automation_ReadOnly" xml:space="preserve"><value>僅讀取</value></data>
+  <data name="Settings_Automation_Full" xml:space="preserve"><value>啟動與編輯</value></data>
+  <data name="Settings_Automation_Admin_Header" xml:space="preserve"><value>允許以管理員身分啟動</value></data>
+  <data name="Settings_Automation_Admin_Desc" xml:space="preserve"><value>讓自動化啟動設定為以管理員身分執行的項目。這會跳出你沒預期的 UAC 視窗，所以關閉時一律拒絕。</value></data>
+  <data name="Settings_Automation_Copy_Header" xml:space="preserve"><value>複製 MCP 設定</value></data>
+  <data name="Settings_Automation_Copy_Desc" xml:space="preserve"><value>把含有本機伺服器路徑的用戶端設定複製到剪貼簿，適用於 Claude Desktop 與 Claude Code。VS Code 的格式不同，請見 README。</value></data>
+  <data name="Settings_Automation_Copy_Button" xml:space="preserve"><value>複製</value></data>
+  <data name="Settings_Automation_Copy_Done" xml:space="preserve"><value>設定已複製到剪貼簿。</value></data>
+  <data name="Settings_Automation_Copy_Missing" xml:space="preserve"><value>{0} 不在 Ace Run 旁邊。兩者會發佈到同一個資料夾，開發建置則分開存放。</value></data>
+
   <data name="Settings_Group_Storage" xml:space="preserve"><value>儲存空間</value></data>
   <data name="Settings_ResetCache_Header" xml:space="preserve"><value>重設圖示快取</value></data>
   <data name="Settings_ResetCache_Desc" xml:space="preserve"><value>丟棄所有已快取的圖示，重新從檔案讀取。應用程式更新後磁磚仍顯示舊圖示時可用。</value></data>

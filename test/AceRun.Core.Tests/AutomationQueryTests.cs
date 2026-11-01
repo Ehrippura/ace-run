@@ -418,6 +418,24 @@ public sealed class AutomationQueryTests
         Assert.Throws<ArgumentException>(() => AutomationQuery.Search(data, Ws, "  "));
     }
 
+    [Fact]
+    public void FolderOf_names_where_an_item_sits_and_null_when_it_sits_nowhere()
+    {
+        // What the write side uses after resolving an item by name, to report where it ended
+        // up. The read side walks the folders anyway and never needs it.
+        var data = new AppData();
+        var loose = App("Notepad");
+        data.UngroupedItems.Add(loose);
+        var tools = new FolderItem { DisplayName = "Tools" };
+        var hex = App("Hex Editor");
+        tools.Children.Add(hex);
+        data.Folders.Add(tools);
+
+        Assert.Same(tools, AutomationQuery.FolderOf(data, hex.Id));
+        Assert.Null(AutomationQuery.FolderOf(data, loose.Id));
+        Assert.Null(AutomationQuery.FolderOf(data, Guid.NewGuid()));
+    }
+
     private static AppItem App(string name, string path = "") =>
         new() { DisplayName = name, FilePath = path };
 }

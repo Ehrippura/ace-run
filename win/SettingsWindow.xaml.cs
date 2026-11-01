@@ -1,6 +1,8 @@
 using System;
+using ace_run.Automation;
 using ace_run.Models;
 using ace_run.Services;
+using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
@@ -16,7 +18,7 @@ namespace ace_run;
 
 /// <summary>
 /// The settings surface. A window rather than a <see cref="ContentDialog"/> like the two
-/// manage dialogs: seven cards is taller than a dialog wants to be, and the interaction is
+/// manage dialogs: ten cards is taller than a dialog wants to be, and the interaction is
 /// apply-on-change, which has no use for the OK/Cancel pair a dialog is built around.
 ///
 /// It never loads its own <see cref="WorkspaceConfig"/>. MainWindow owns the one live copy
@@ -206,6 +208,18 @@ public sealed partial class SettingsWindow : Window
         LanguageHeader.Text = Loc.GetString("Settings_Language_Header");
         LanguageDesc.Text = Loc.GetString("Settings_Language_Desc");
 
+        AutomationGroupLabel.Text = Loc.GetString("Settings_Group_Automation");
+
+        AutomationHeader.Text = Loc.GetString("Settings_Automation_Header");
+        AutomationDesc.Text = Loc.GetString("Settings_Automation_Desc");
+
+        AutomationAdminHeader.Text = Loc.GetString("Settings_Automation_Admin_Header");
+        AutomationAdminDesc.Text = Loc.GetString("Settings_Automation_Admin_Desc");
+
+        AutomationCopyHeader.Text = Loc.GetString("Settings_Automation_Copy_Header");
+        AutomationCopyDesc.Text = Loc.GetString("Settings_Automation_Copy_Desc");
+        AutomationCopyButton.Content = Loc.GetString("Settings_Automation_Copy_Button");
+
         ResetCacheHeader.Text = Loc.GetString("Settings_ResetCache_Header");
         ResetCacheDesc.Text = Loc.GetString("Settings_ResetCache_Desc");
         ResetCacheButton.Content = Loc.GetString("Settings_ResetCache_Button");
@@ -246,6 +260,14 @@ public sealed partial class SettingsWindow : Window
             "ja-JP" => 3,
             _ => 0
         };
+
+        AddComboItem(AutomationCombo, Loc.GetString("Settings_Automation_Off"), AutomationMode.Off);
+        AddComboItem(AutomationCombo, Loc.GetString("Settings_Automation_ReadOnly"), AutomationMode.ReadOnly);
+        AddComboItem(AutomationCombo, Loc.GetString("Settings_Automation_Full"), AutomationMode.Full);
+        AutomationCombo.SelectedIndex = (int)Settings.Automation;
+
+        AutomationAdminToggle.IsOn = Settings.AutomationAllowAdminLaunch;
+        UpdateAutomationEnabledState();
 
         UpdateHotkeyDisplay();
     }
@@ -441,6 +463,73 @@ public sealed partial class SettingsWindow : Window
         Settings.Language = tag;
         Persist();
         RestartInfoBar.IsOpen = true;
+    }
+
+    #endregion
+
+    #region Automation
+
+    private void AutomationCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading) return;
+        if (AutomationCombo.SelectedItem is not ComboBoxItem { Tag: AutomationMode mode }) return;
+
+        Settings.Automation = mode;
+        Persist();
+
+        // Takes effect now: the pipe starts or stops here rather than at the next launch. A
+        // setting the user has to restart the app to apply is one they cannot tell they applied.
+        _owner.ApplyAutomationSetting();
+        UpdateAutomationEnabledState();
+    }
+
+    private void AutomationAdminToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        Settings.AutomationAllowAdminLaunch = AutomationAdminToggle.IsOn;
+        Persist();
+    }
+
+    /// <summary>
+    /// Greys out the two cards that only mean something once automation is on, and the admin
+    /// switch specifically once it is on all the way: in read-only mode nothing launches at all,
+    /// so an administrator opt-in there would be a switch with no effect.
+    /// </summary>
+    private void UpdateAutomationEnabledState()
+    {
+        AutomationAdminToggle.IsEnabled = Settings.Automation == AutomationMode.Full;
+        AutomationCopyButton.IsEnabled = Settings.Automation != AutomationMode.Off;
+    }
+
+    /// <summary>
+    /// Puts a client configuration naming the real path to the server on the clipboard.
+    /// </summary>
+    /// <remarks>
+    /// The path is the one thing the user cannot be expected to produce — the server sits next
+    /// to the app in a publish folder they never had to look inside. A development build has the
+    /// two executables in separate <c>bin</c> directories and gets told so, rather than handed a
+    /// configuration pointing at a file that is not there.
+    /// </remarks>
+    private void AutomationCopyButton_Click(object sender, RoutedEventArgs e)
+    {
+        var exe = AutomationLayout.Sibling(AppContext.BaseDirectory, AutomationLayout.McpExeName);
+
+        if (exe is null)
+        {
+            AutomationInfoBar.Severity = InfoBarSeverity.Warning;
+            AutomationInfoBar.Message = string.Format(
+                Loc.GetString("Settings_Automation_Copy_Missing"), AutomationLayout.McpExeName);
+            AutomationInfoBar.IsOpen = true;
+            return;
+        }
+
+        var package = new DataPackage { RequestedOperation = DataPackageOperation.Copy };
+        package.SetText(AutomationLayout.ClientConfigJson(exe));
+        Clipboard.SetContent(package);
+
+        AutomationInfoBar.Severity = InfoBarSeverity.Success;
+        AutomationInfoBar.Message = Loc.GetString("Settings_Automation_Copy_Done");
+        AutomationInfoBar.IsOpen = true;
     }
 
     #endregion

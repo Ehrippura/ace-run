@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ace_run.Models;
+using ace_run.Services;
 
 namespace ace_run.Automation;
 
@@ -64,6 +65,24 @@ public static class ItemLookup
         }
 
         return Resolve(config.Workspaces, key, w => w.Id, w => w.Name);
+    }
+
+    /// <summary>
+    /// The item <paramref name="key"/> names, from anywhere in the workspace.
+    /// </summary>
+    /// <remarks>
+    /// Flat across ungrouped items and every folder, because the caller names an item, not a
+    /// place. Two items may well share a display name — nothing stops it, and a library grown
+    /// by dropping files in has duplicates — so this is the resolution where
+    /// <see cref="LookupOutcome.Ambiguous"/> earns its keep: the next thing that happens to a
+    /// resolved item is that it gets launched.
+    /// </remarks>
+    public static LookupResult<AppItem> Item(AppData data, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return new LookupResult<AppItem>(LookupOutcome.NotFound, null, None);
+
+        return Resolve(AppDataQuery.AllItems(data).ToList(), key, i => i.Id, i => i.DisplayName);
     }
 
     public static LookupResult<FolderItem> Folder(AppData data, string? key)

@@ -48,6 +48,11 @@ public sealed partial class MainWindow
         // in — so the binding is kept and the user sees it not working until they revisit
         // the settings, where re-recording it will surface the conflict.
         HotkeyService.Register(Settings.Hotkey);
+
+        // Automation is deliberately *not* started here. ApplySettings runs before the first
+        // workspace is loaded, and a request arriving in that gap would be answered out of
+        // empty collections — "you have no items" is a worse answer than a short wait.
+        // InitializeWorkspacesAsync starts it once there is something to report.
     }
 
     /// <summary>

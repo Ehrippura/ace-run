@@ -188,6 +188,21 @@
   <data name="Settings_Language_Desc" xml:space="preserve"><value>Takes effect the next time Ace Run starts.</value></data>
   <data name="Settings_Language_System" xml:space="preserve"><value>Use system setting</value></data>
   <data name="Settings_Language_RestartRequired" xml:space="preserve"><value>Restart Ace Run to apply the new language.</value></data>
+  <!-- Automation (MCP) -->
+  <data name="Settings_Group_Automation" xml:space="preserve"><value>Automation</value></data>
+  <data name="Settings_Automation_Header" xml:space="preserve"><value>MCP automation</value></data>
+  <data name="Settings_Automation_Desc" xml:space="preserve"><value>Lets an AI agent reach this window through the Ace Run MCP server: reading your items, and optionally launching and editing them.</value></data>
+  <data name="Settings_Automation_Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Settings_Automation_ReadOnly" xml:space="preserve"><value>Read only</value></data>
+  <data name="Settings_Automation_Full" xml:space="preserve"><value>Launch and edit</value></data>
+  <data name="Settings_Automation_Admin_Header" xml:space="preserve"><value>Allow administrator launches</value></data>
+  <data name="Settings_Automation_Admin_Desc" xml:space="preserve"><value>Let automation start items set to run as administrator. Those raise a UAC prompt you did not ask for, so they are refused while this is off.</value></data>
+  <data name="Settings_Automation_Copy_Header" xml:space="preserve"><value>Copy MCP configuration</value></data>
+  <data name="Settings_Automation_Copy_Desc" xml:space="preserve"><value>Puts a client configuration naming this machine's server path on the clipboard, for Claude Desktop and Claude Code. VS Code uses a different shape: see the README.</value></data>
+  <data name="Settings_Automation_Copy_Button" xml:space="preserve"><value>Copy</value></data>
+  <data name="Settings_Automation_Copy_Done" xml:space="preserve"><value>Configuration copied to the clipboard.</value></data>
+  <data name="Settings_Automation_Copy_Missing" xml:space="preserve"><value>{0} is not next to Ace Run. The two are published into the same folder; a development build keeps them apart.</value></data>
+
   <data name="Settings_Group_Storage" xml:space="preserve"><value>Storage</value></data>
   <data name="Settings_ResetCache_Header" xml:space="preserve"><value>Reset icon cache</value></data>
   <data name="Settings_ResetCache_Desc" xml:space="preserve"><value>Discards every cached icon and reads them from their files again. Use it when an app has been updated and its tile still shows the old icon.</value></data>

@@ -35,13 +35,23 @@ internal static class Program
         'nextOffset' is absent you have everything. If the total is large, narrow with tag or
         folder instead of paging through it.
 
-        This server reads Ace Run's data files directly, so it answers whether or not the app
-        is running. Everything here is read-only: there is no tool to launch an item, add one
-        or change one yet.
+        Questions are answered whether or not Ace Run is running: the server asks the app for
+        its live state and reads the data files when it cannot. So list_* and search_* always
+        work.
 
-        Answers reflect the last save. The app saves after every change, with one exception:
-        while the user has text in its search box, edits are held back until the box is
-        cleared, so a change made in that state may not show up here yet.
+        Launching and editing go through the running app, which owns the live data, and are
+        switched off by default — the user turns them on under Settings > Automation, where
+        there is also a read-only position. If one of those tools reports that, say so rather
+        than looking for another way in; editing the files directly would be overwritten by the
+        app's next save.
+
+        The tools that act address the workspace Ace Run has open, and only that one. Reading
+        spans every workspace, so an item you found with workspace 'all' may well need a
+        switch_workspace call before you can launch it.
+
+        An item is an executable or a URL for life, and a file has to exist before it can be
+        added. delete_item and delete_folder do not ask for confirmation on the app side and
+        cannot be undone; deleting a folder deletes the items in it.
         """;
 
     /// <summary>

@@ -26,6 +26,26 @@ public class AppSettings
     public string Language { get; set; } = string.Empty;
 
     public bool HideOnLaunch { get; set; }
+
+    /// <summary>
+    /// Whether the MCP automation interface may talk to this window, and how far.
+    /// </summary>
+    /// <remarks>
+    /// The one default here that is not "what the app did before settings existed" in the
+    /// literal sense, and is in the spirit of it: before this there was no such interface at
+    /// all, so off is its continuation. See 12-mcp-automation.md §B6.
+    /// </remarks>
+    public AutomationMode Automation { get; set; } = AutomationMode.Off;
+
+    /// <summary>
+    /// Whether automation may launch an item marked <see cref="AppItem.RunAsAdmin"/>.
+    /// </summary>
+    /// <remarks>
+    /// Its own switch rather than part of <see cref="AutomationMode.Full"/>, because the
+    /// consequence is different in kind: an elevated launch puts a UAC prompt on screen that
+    /// the user did not ask for and cannot attribute to anything they just did.
+    /// </remarks>
+    public bool AutomationAllowAdminLaunch { get; set; }
 }
 
 public enum AppTheme
@@ -33,6 +53,23 @@ public enum AppTheme
     System,
     Light,
     Dark
+}
+
+/// <summary>
+/// How much of the automation interface is open. Three positions rather than a bool: reading
+/// the list of items and launching one are different powers, and a user may well want to give
+/// an agent the first without the second.
+/// </summary>
+public enum AutomationMode
+{
+    /// <summary>No pipe is listening. The MCP server still answers queries from disk.</summary>
+    Off,
+
+    /// <summary>Queries are answered from the live window; everything else is refused.</summary>
+    ReadOnly,
+
+    /// <summary>Launching, editing and window control as well.</summary>
+    Full
 }
 
 /// <summary>

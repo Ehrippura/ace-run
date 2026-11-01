@@ -23,7 +23,8 @@ Manage a hierarchical list of `.exe` files and URLs across multiple workspaces a
 - **Icon Extraction** — Automatically displays and caches each app's icon
 - **Keyboard Shortcuts** — Drive the whole app from the keyboard; see below
 - **Global Shortcut** — Bind a key combination that summons the window from anywhere and puts it away again
-- **Settings** — Global shortcut, start with Windows, close-to-tray, hide-after-launch, theme, and language, in their own window
+- **Settings** — Global shortcut, start with Windows, close-to-tray, hide-after-launch, theme, language, and the automation interface, in their own window
+- **MCP Automation** — Let an AI agent read your launcher, and optionally launch and edit through it; off by default, with a read-only setting in between. See below
 - **Fluent Design** — Mica backdrop with the workspace color framing the window; light, dark, and high-contrast themes
 - **i18n** — English, Traditional Chinese, and Japanese
 
@@ -69,9 +70,11 @@ dotnet run --project win/ace-run.csproj
 
 ## MCP Server
 
-`mcp/AceRun.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets an AI agent ask about your launcher — workspaces, folders, items, tags, recent launches — and search them by the same rules as the app's own search box.
+`mcp/AceRun.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets an AI agent work with your launcher: list and search workspaces, folders, items and tags, and — once you switch it on — launch items and edit them.
 
-It is read-only: it changes nothing, and it cannot launch anything. It reads the data files directly, so it answers whether or not Ace Run is running.
+Queries always work. The server asks the running app for its live state and reads the data files when it cannot, so it answers whether or not Ace Run is running.
+
+Launching and editing go through the running app, because the app owns the live data and rewrites the workspace file on its next save. They are **off by default**: open Settings and set **Automation** to *Read only* or *Launch and edit*. The same card has a **Copy MCP configuration** button that puts a client config with the right path on your clipboard.
 
 ```bash
 dotnet build mcp/AceRun.Mcp/AceRun.Mcp.csproj
@@ -108,11 +111,17 @@ VS Code (Copilot) uses a different shape, in `.vscode/mcp.json` or your user `mc
 }
 ```
 
-Tools: `list_workspaces`, `list_folders`, `list_items`, `search_items`, `list_tags`, `get_recent_launches`.
+Queries: `list_workspaces`, `list_folders`, `list_items`, `search_items`, `list_tags`, `get_recent_launches`.
 
-Workspaces, folders and tags are addressed by id or name, and `workspace: "all"` spans every workspace — tags belong to a workspace, so that is how you find which one a tag lives in. `list_items` filters by `tag` and `folder` and returns a page with the matching total, so ask for the tag you want rather than listing everything.
+Actions: `launch_item`, `add_item`, `update_item`, `delete_item`, `move_item`, `create_folder`, `rename_folder`, `delete_folder`, `set_item_tags`, `create_tag`, `switch_workspace`, `show_window`, `hide_window`, `clear_recent_launches`.
 
-Launching and editing over MCP are planned — see [doc/spec/12-mcp-automation.md](doc/spec/12-mcp-automation.md).
+Workspaces, folders, tags and items are addressed by id or name, and a name that matches more than one thing is an error that lists the candidates rather than a guess. Queries span every workspace with `workspace: "all"` — tags belong to a workspace, so that is how you find which one a tag lives in — and `list_items` filters by `tag` and `folder` and returns a page with the matching total, so ask for the tag you want rather than listing everything.
+
+The actions address the workspace Ace Run has open, and only that one; `switch_workspace` changes which that is. Items marked to run as administrator are refused unless you also enable **Allow administrator launches**, and `delete_item` / `delete_folder` are not confirmed by the app, so your client should ask you first.
+
+A published build puts `AceRun.Mcp.exe` next to `ace-run.exe`, which is how the server starts the app on demand (hidden, in the tray). Set `ACERUN_MCP_NO_AUTOSTART` to stop it doing that.
+
+Design notes and the reasoning behind all of this: [doc/spec/12-mcp-automation.md](doc/spec/12-mcp-automation.md).
 
 ## Publish
 
