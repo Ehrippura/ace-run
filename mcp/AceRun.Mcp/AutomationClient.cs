@@ -340,6 +340,11 @@ internal static class AutomationClient
             AutomationError.TagAmbiguous =>
                 $"A tag name matches {Candidates(response)}. Pass one of those ids.",
 
+            AutomationError.TagNameInUse =>
+                $"The open workspace already has a tag called '{response.Detail}'. Tags are "
+                + "addressed by name all over this interface, so two sharing one name would "
+                + "leave both reachable only by id.",
+
             AutomationError.InvalidName =>
                 "A name cannot be empty or only spaces.",
 

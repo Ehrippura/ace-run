@@ -189,6 +189,7 @@ public static class AutomationQuery
             Arguments = isApp ? Text(item.Arguments) : null,
             WorkingDirectory = isApp ? WorkingDirectory(item) : null,
             RunAsAdmin = isApp && item.RunAsAdmin,
+            SortKey = Text(item.SortKey),
             Tags = tags.Count == 0 ? null : tags.Select(t => t.Name).ToList(),
             Folder = folder,
             Workspace = workspace

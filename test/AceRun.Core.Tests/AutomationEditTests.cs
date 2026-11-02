@@ -288,6 +288,50 @@ public sealed class AutomationEditTests : IDisposable
             AutomationEdit.Edits(request, ItemKind.Url, out _));
     }
 
+    // --- The sort key ---
+
+    [Fact]
+    public void A_sort_key_is_stored_on_a_new_item_and_trimmed()
+    {
+        var error = AutomationEdit.NewItem(
+            Add(nameof(ItemKind.App), _exe) with { SortKey = "  010  " }, out var item);
+
+        Assert.Equal(AutomationError.None, error);
+        Assert.Equal("010", item.SortKey);
+    }
+
+    [Fact]
+    public void A_url_item_takes_a_sort_key_where_it_refuses_the_launch_fields()
+    {
+        // Not a launch field. The edit dialog shows the box for a URL item, and the Organize
+        // menu sorts both kinds by it.
+        var error = AutomationEdit.NewItem(
+            Add(nameof(ItemKind.Url), "https://example.com") with { SortKey = "b" }, out var item);
+
+        Assert.Equal(AutomationError.None, error);
+        Assert.Equal("b", item.SortKey);
+    }
+
+    [Fact]
+    public void An_update_can_set_a_sort_key_and_an_empty_one_clears_it()
+    {
+        var request = new AutomationRequest
+        {
+            Command = nameof(AutomationAction.UpdateItem),
+            Item = "app",
+            SortKey = "  a1 "
+        };
+
+        Assert.Equal(AutomationError.None, AutomationEdit.Edits(request, ItemKind.App, out var edits));
+        Assert.Equal("a1", edits.SortKey);
+
+        Assert.Equal(
+            AutomationError.None,
+            AutomationEdit.Edits(
+                request with { SortKey = string.Empty }, ItemKind.Url, out var cleared));
+        Assert.Equal(string.Empty, cleared.SortKey);
+    }
+
     // --- Names and colours ---
 
     [Theory]
@@ -304,6 +348,19 @@ public sealed class AutomationEditTests : IDisposable
     {
         Assert.Equal(AutomationError.None, AutomationEdit.ResolveName("  Tools  ", out var name));
         Assert.Equal("Tools", name);
+    }
+
+    [Fact]
+    public void A_name_is_taken_without_regard_to_case()
+    {
+        // The comparison ManageTagsDialog makes, and it has to be that one: a rename the
+        // dialog refuses must not be accepted over the pipe.
+        var names = new[] { "Work", "Fun" };
+
+        Assert.True(AutomationEdit.NameIsTaken(names, "work"));
+        Assert.True(AutomationEdit.NameIsTaken(names, "FUN"));
+        Assert.False(AutomationEdit.NameIsTaken(names, "Games"));
+        Assert.False(AutomationEdit.NameIsTaken(Array.Empty<string>(), "Work"));
     }
 
     [Fact]

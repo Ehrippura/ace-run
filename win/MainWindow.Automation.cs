@@ -140,6 +140,8 @@ public sealed partial class MainWindow
             AutomationAction.DeleteFolder => DeleteFolder(request),
             AutomationAction.SetItemTags => SetItemTags(request),
             AutomationAction.CreateTag => CreateTag(request),
+            AutomationAction.UpdateTag => UpdateTag(request),
+            AutomationAction.DeleteTag => DeleteTag(request),
             AutomationAction.SwitchWorkspace => await SwitchToWorkspaceAsync(request),
             AutomationAction.ShowWindow => ShowWindow(request),
             AutomationAction.HideWindow => HideWindow(request),
@@ -250,6 +252,12 @@ public sealed partial class MainWindow
         if (invalid != AutomationError.None) return Failed(request, invalid);
 
         if (TargetFolder(request, out var folder) is { } failure) return failure;
+        if (ResolveTagIds(request, out var tagIds) is { } badTag) return badTag;
+
+        // Onto the model before the view model is built: the constructor is what puts tags into
+        // workspace order, so the item is tagged from the moment it appears rather than one
+        // round trip later. Asking for no tags leaves the empty list it already had.
+        item.TagIds = tagIds.ToList();
 
         var app = new AppItemViewModel(item, _tags);
         (folder?.Apps ?? _ungroupedApps).Add(app);
@@ -277,6 +285,7 @@ public sealed partial class MainWindow
         if (edits.Arguments is not null) app.Arguments = edits.Arguments;
         if (edits.WorkingDirectory is not null) app.WorkingDirectory = edits.WorkingDirectory;
         if (edits.RunAsAdmin is bool admin) app.RunAsAdmin = admin;
+        if (edits.SortKey is not null) app.SortKey = edits.SortKey;
 
         // The cached icon was extracted from the old path and is keyed by the item id, so it
         // outlives the change. Invalidated here rather than from the property setter for the
@@ -319,22 +328,7 @@ public sealed partial class MainWindow
     private AutomationResponse SetItemTags(AutomationRequest request)
     {
         if (Resolve(request, out var app) is { } failure) return failure;
-
-        var snapshot = Snapshot();
-        var ids = new HashSet<Guid>();
-
-        foreach (var key in request.Tags!)
-        {
-            var found = ItemLookup.Tag(snapshot, key);
-
-            if (found.Outcome == LookupOutcome.Ambiguous)
-                return Failed(request, AutomationError.TagAmbiguous, found.Candidates);
-
-            if (found.Value is null)
-                return Failed(request, AutomationError.TagNotFound, detail: key);
-
-            ids.Add(found.Value.Id);
-        }
+        if (ResolveTagIds(request, out var ids) is { } badTag) return badTag;
 
         // Through the workspace order, like every other tag assignment: the dots on two tiles
         // carrying the same tags have to line up, and that is what maintains it.
@@ -389,18 +383,78 @@ public sealed partial class MainWindow
         var invalidColor = AutomationEdit.ResolveColor(request.Color, out var color);
         if (invalidColor != AutomationError.None) return Failed(request, invalidColor);
 
-        // A name already in use is allowed, because it is allowed in the manage dialog, and
-        // automation is not the place to invent a rule the UI does not have. The cost lands on
-        // whoever then names that tag in a request and is told it is ambiguous.
+        // Refused, the way the manage dialog refuses it. The dialog has no path to a clash at
+        // all — a new row is given a uniquified default name, and a rename is checked before it
+        // commits — so accepting one here would build a state the window cannot, and leave
+        // every later request that names the tag answering "ambiguous".
+        if (AutomationEdit.NameIsTaken(_tags.Select(t => t.Name), name))
+            return Failed(request, AutomationError.TagNameInUse, detail: name);
+
         var tag = new TagViewModel(name, color);
         _tags.Add(tag);
         CommitSave();
 
-        return new AutomationResponse
+        return new AutomationResponse { Id = request.Id, Tag = Describe(tag) };
+    }
+
+    private AutomationResponse UpdateTag(AutomationRequest request)
+    {
+        if (ResolveTag(request, out var tag) is { } failure) return failure;
+
+        var name = tag.Name;
+
+        if (request.Name is not null)
         {
-            Id = request.Id,
-            Tag = new TagSummary(tag.Id, tag.Name, tag.ColorKey, _currentWorkspace.Name)
-        };
+            var invalidName = AutomationEdit.ResolveName(request.Name, out name);
+            if (invalidName != AutomationError.None) return Failed(request, invalidName);
+
+            // Itself excluded: a tag renamed to the name it already has has not clashed.
+            if (AutomationEdit.NameIsTaken(
+                    _tags.Where(t => !ReferenceEquals(t, tag)).Select(t => t.Name), name))
+                return Failed(request, AutomationError.TagNameInUse, detail: name);
+        }
+
+        var color = tag.ColorKey;
+
+        if (request.Color is not null)
+        {
+            // Blank is refused where on a create it means the default colour. A request that
+            // asked for a colour and then named none must not have one chosen for it.
+            if (string.IsNullOrWhiteSpace(request.Color))
+                return Failed(request, AutomationError.InvalidColor);
+
+            var invalidColor = AutomationEdit.ResolveColor(request.Color, out color);
+            if (invalidColor != AutomationError.None) return Failed(request, invalidColor);
+        }
+
+        // Both checked before either is written: a refused colour must not leave a rename
+        // applied behind it.
+        tag.Name = name;
+        tag.ColorKey = color;
+
+        // No NormalizeAppTags pass. The tiles bind these very instances, so a rename or a
+        // recolour reaches every item carrying the tag with nothing else to do — the same note
+        // ManageTagsButton_Click makes about the dialog.
+        CommitSave();
+
+        return new AutomationResponse { Id = request.Id, Tag = Describe(tag) };
+    }
+
+    private AutomationResponse DeleteTag(AutomationRequest request)
+    {
+        if (ResolveTag(request, out var tag) is { } failure) return failure;
+
+        var described = Describe(tag);
+        var carried = AllApps().Count(app => app.Tags.Any(t => t.Id == tag.Id));
+
+        _tags.Remove(tag);
+
+        // The pair the manage dialog ends on. Without the reconcile, every item that carried
+        // the tag keeps an id pointing at a tag the workspace no longer has.
+        NormalizeAppTags();
+        CommitSave();
+
+        return new AutomationResponse { Id = request.Id, Tag = described, Count = carried };
     }
 
     private async Task<AutomationResponse> SwitchToWorkspaceAsync(AutomationRequest request)
@@ -533,6 +587,61 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
+    /// Finds the tag a request names, by the same rules as everything else.
+    /// </summary>
+    private AutomationResponse? ResolveTag(AutomationRequest request, out TagViewModel tag)
+    {
+        tag = null!;
+
+        var found = ItemLookup.Tag(Snapshot(), request.Tag);
+
+        if (found.Outcome == LookupOutcome.Ambiguous)
+            return Failed(request, AutomationError.TagAmbiguous, found.Candidates);
+
+        // Two steps for the reason Resolve gives: the lookup runs on a snapshot so a name
+        // resolves exactly as it does in the read-only tools, and the id then comes back to the
+        // live instance — the items hold those instances, and a copy out of the snapshot
+        // reaches none of them.
+        if (found.Value is not { } stored
+            || _tags.FirstOrDefault(t => t.Id == stored.Id) is not { } resolved)
+            return Failed(request, AutomationError.TagNotFound, detail: request.Tag);
+
+        tag = resolved;
+        return null;
+    }
+
+    /// <summary>
+    /// The ids behind <see cref="AutomationRequest.Tags"/>, or the failure to report.
+    /// </summary>
+    /// <remarks>
+    /// All of them or none. A list whose third name is unknown is a mistyped request, and
+    /// applying the first two would leave the item in a state nobody asked for.
+    /// </remarks>
+    private AutomationResponse? ResolveTagIds(AutomationRequest request, out HashSet<Guid> ids)
+    {
+        ids = new HashSet<Guid>();
+
+        if (request.Tags is null) return null;
+
+        var snapshot = Snapshot();
+
+        foreach (var key in request.Tags)
+        {
+            var found = ItemLookup.Tag(snapshot, key);
+
+            if (found.Outcome == LookupOutcome.Ambiguous)
+                return Failed(request, AutomationError.TagAmbiguous, found.Candidates);
+
+            if (found.Value is null)
+                return Failed(request, AutomationError.TagNotFound, detail: key);
+
+            ids.Add(found.Value.Id);
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// One item as the automation interface reports it, through the same projection the queries
     /// use — so a client never has to reconcile two descriptions of one row.
     /// </summary>
@@ -549,6 +658,9 @@ public sealed partial class MainWindow
 
     private FolderSummary Describe(FolderViewModel folder) =>
         new(folder.Id, folder.DisplayName, folder.Apps.Count, _currentWorkspace.Name);
+
+    private TagSummary Describe(TagViewModel tag) =>
+        new(tag.Id, tag.Name, tag.ColorKey, _currentWorkspace.Name);
 
     private static AutomationResponse Failed(
         AutomationRequest request,

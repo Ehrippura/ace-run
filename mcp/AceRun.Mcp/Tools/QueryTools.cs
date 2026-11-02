@@ -56,7 +56,7 @@ internal static class QueryTools
     }
 
     [McpServerTool(Name = "list_items", Title = "List launch items", ReadOnly = true, Idempotent = true)]
-    [Description("Lists launch items: name, kind (App or Url), target path or URL, arguments, administrator flag, tags, folder and workspace. Narrow with tag and folder; " + PagingNote)]
+    [Description("Lists launch items: name, kind (App or Url), target path or URL, arguments, administrator flag, tags, sort key, folder and workspace. Narrow with tag and folder; " + PagingNote)]
     public static ItemPage ListItems(
         [Description(WorkspaceParam)] string? workspace = null,
         [Description("Folder id or name, matched like the workspace parameter. Omit for every item in the workspace, each naming its own folder. Needs a single workspace.")]

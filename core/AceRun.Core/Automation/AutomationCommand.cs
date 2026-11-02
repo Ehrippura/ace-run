@@ -33,6 +33,8 @@ public enum AutomationAction
     DeleteFolder,
     SetItemTags,
     CreateTag,
+    UpdateTag,
+    DeleteTag,
     SwitchWorkspace,
     ShowWindow,
     HideWindow,
@@ -91,6 +93,14 @@ public enum AutomationError
     ItemAmbiguous,
     TagNotFound,
     TagAmbiguous,
+
+    /// <summary>
+    /// Another tag already answers to that name. The manage dialog refuses the same rename,
+    /// and a clash is unreachable through the UI — a new row is given a uniquified default
+    /// name — so accepting one here would build a state the window cannot, and leave every
+    /// later request that names the tag answering "ambiguous".
+    /// </summary>
+    TagNameInUse,
 
     /// <summary>A name that is empty or only whitespace.</summary>
     InvalidName,
@@ -192,6 +202,12 @@ public sealed record AutomationRequest
     public bool? RunAsAdmin { get; init; }
 
     /// <summary>
+    /// The free-form ordering key the Organize menu reads. Not a launch field: a URL item has
+    /// one too, which is why the edit dialog keeps its box visible for both kinds.
+    /// </summary>
+    public string? SortKey { get; init; }
+
+    /// <summary>
     /// <see cref="ItemKind"/> by name, for <see cref="AutomationAction.AddItem"/> only.
     /// Required there, and deliberately not inferred from the target: the kind cannot be
     /// changed afterwards, so a wrong guess is permanent.
@@ -199,8 +215,18 @@ public sealed record AutomationRequest
     public string? Kind { get; init; }
 
     /// <summary>
-    /// Tag ids or names, replacing whatever the item carries. An empty list clears them; null
-    /// is not a request to leave them alone, it is a missing argument.
+    /// The tag an <see cref="AutomationAction.UpdateTag"/> or
+    /// <see cref="AutomationAction.DeleteTag"/> acts on, by id or name. Separate from
+    /// <see cref="Tags"/>, which never names a subject — it is the list an item's tags are
+    /// replaced with.
+    /// </summary>
+    public string? Tag { get; init; }
+
+    /// <summary>
+    /// Tag ids or names, replacing whatever the item carries. On
+    /// <see cref="AutomationAction.SetItemTags"/> an empty list clears them and null is a
+    /// missing argument; on <see cref="AutomationAction.AddItem"/> null just means the new item
+    /// starts with none.
     /// </summary>
     public IReadOnlyList<string>? Tags { get; init; }
 
@@ -270,6 +296,17 @@ public sealed record AutomationRequest
             case AutomationAction.SetItemTags:
                 return Tags is null ? AutomationError.MissingArgument : Given(Item);
 
+            case AutomationAction.UpdateTag:
+                var noTag = Given(Tag);
+                if (noTag != AutomationError.None) return noTag;
+                // The rule UpdateItem has, for the reason UpdateItem has it.
+                return Name is not null || Color is not null
+                    ? AutomationError.None
+                    : AutomationError.MissingArgument;
+
+            case AutomationAction.DeleteTag:
+                return Given(Tag);
+
             case AutomationAction.SwitchWorkspace:
                 return Given(Workspace);
 
@@ -280,7 +317,7 @@ public sealed record AutomationRequest
 
     private bool ChangesAField =>
         Name is not null || Target is not null || Arguments is not null
-        || WorkingDirectory is not null || RunAsAdmin is not null;
+        || WorkingDirectory is not null || RunAsAdmin is not null || SortKey is not null;
 
     private static AutomationError Given(params string?[] values)
     {

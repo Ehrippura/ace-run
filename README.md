@@ -113,11 +113,13 @@ VS Code (Copilot) uses a different shape, in `.vscode/mcp.json` or your user `mc
 
 Queries: `list_workspaces`, `list_folders`, `list_items`, `search_items`, `list_tags`, `get_recent_launches`.
 
-Actions: `launch_item`, `add_item`, `update_item`, `delete_item`, `move_item`, `create_folder`, `rename_folder`, `delete_folder`, `set_item_tags`, `create_tag`, `switch_workspace`, `show_window`, `hide_window`, `clear_recent_launches`.
+Actions: `launch_item`, `add_item`, `update_item`, `delete_item`, `move_item`, `create_folder`, `rename_folder`, `delete_folder`, `set_item_tags`, `create_tag`, `update_tag`, `delete_tag`, `switch_workspace`, `show_window`, `hide_window`, `clear_recent_launches`.
 
 Workspaces, folders, tags and items are addressed by id or name, and a name that matches more than one thing is an error that lists the candidates rather than a guess. Queries span every workspace with `workspace: "all"` — tags belong to a workspace, so that is how you find which one a tag lives in — and `list_items` filters by `tag` and `folder` and returns a page with the matching total, so ask for the tag you want rather than listing everything.
 
-The actions address the workspace Ace Run has open, and only that one; `switch_workspace` changes which that is. Items marked to run as administrator are refused unless you also enable **Allow administrator launches**, and `delete_item` / `delete_folder` are not confirmed by the app, so your client should ask you first.
+`add_item` and `update_item` reach every field the app's own edit dialog does except the custom icon, the sort key included — that is the free-form string Organize sorts by. Tags can go on at the same time as an item is added, and a tag can be renamed, recoloured or deleted; deleting one takes it off every item that carried it and leaves the items alone.
+
+The actions address the workspace Ace Run has open, and only that one; `switch_workspace` changes which that is. Items marked to run as administrator are refused unless you also enable **Allow administrator launches**, and `delete_item` / `delete_folder` / `delete_tag` are not confirmed by the app, so your client should ask you first.
 
 A published build puts `AceRun.Mcp.exe` next to `ace-run.exe`, which is how the server starts the app on demand (hidden, in the tray). Set `ACERUN_MCP_NO_AUTOSTART` to stop it doing that.
 

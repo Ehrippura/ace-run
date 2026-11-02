@@ -19,7 +19,7 @@
 
 A 期完工後 MCP 伺服器就已經可用，不是半成品。
 
-**目前狀態：兩期都已實作並驗證完畢。A 期由真實 client 流程驗證過；B 期先以一支自備 app 端的冒煙腳本對真實 `AceRun.Mcp.exe` 驗過全部 20 個工具與錯誤路徑，再接上真實的 app 跑過三個檔位、十四個動作工具與畫面／托盤／最近清單的同步（見 §B7）。**
+**目前狀態：兩期都已實作並驗證完畢。A 期由真實 client 流程驗證過；B 期先以一支自備 app 端的冒煙腳本對真實 `AceRun.Mcp.exe` 驗過全部工具與錯誤路徑，再接上真實的 app 跑過三個檔位、動作工具與畫面／托盤／最近清單的同步（見 §B7）。之後補上的排序鍵欄位與兩個標籤工具（工具數 20 → 22）也照同一套跑過一輪，見 §B7 最後一條。**
 
 ---
 
@@ -113,7 +113,8 @@ MCP client ──stdio──> AceRun.Mcp.exe ──讀取──> %LOCALAPPDATA%\
 - [x] `ItemLookup`：以 id 或名稱解析工作區、資料夾與標籤。名稱比對規則釘死——忽略大小寫、完全相符優先（`Work` 不會被 `Work (old)` 變成歧義）、多筆相符時回報歧義並列出候選 id，而不是隨便挑第一筆。這是 agent 最容易踩的地方，而「隨便挑一筆」在 B 期會變成啟動錯的程式。解析得出是 `Guid` 的 key 只比對 id，絕不退回名稱比對：把精確的請求變成模糊的請求沒有道理。
   - **項目解析留到 B 期。** A 期沒有任何工具需要它（查詢回傳的是清單，不是單一項目），照本專案「當時無人使用就是死碼」的慣例（第十一階段 §5 的 `IconsDir`）不先寫。B 期補上 `ItemLookup.Item`，走同一個 `Resolve`，扁平掃過未分組與每個資料夾——這也是歧義判定最值得存在的地方：解析完的下一件事就是啟動它。
   - `ActiveWorkspaceId` 指向不存在的工作區時退回第一個而不是報錯：修復那個索引是 `MigrateOrInitialize` 的事，而它會**寫磁碟**——這一側絕對不能做。把答得出來的問題變成錯誤沒有好處。
-- [x] `AutomationQuery` 與 `AutomationSummaries`：投影型別與查詢。`AppItem` 不直接外洩，`SortKey`、`CustomIconPath` 這些內部欄位不出現在 MCP 介面上；URL 項目不回報 `Arguments` / `WorkingDirectory` / admin（第七階段 §5 說它們不參與啟動，照檔案內容回報等於描述一個不可能發生的啟動）；空字串一律回報成 null。
+- [x] `AutomationQuery` 與 `AutomationSummaries`：投影型別與查詢。`AppItem` 不直接外洩，否則日後加一個欄位就等於公開一個欄位；不回報的是 `CustomIconPath`，它離開圖示快取沒什麼意義。URL 項目不回報 `Arguments` / `WorkingDirectory` / admin（第七階段 §5 說它們不參與啟動，照檔案內容回報等於描述一個不可能發生的啟動）；空字串一律回報成 null。
+  - `SortKey` 原本也以「內部欄位」為由不報，這個判斷是錯的：它是使用者在編輯對話框裡親手填的欄位，整理選單還有「依排序鍵」這一條，等於是 UI 有而介面沒有。後來補上讀與寫（§B4）。
 - [x] 搜尋要跑 `SearchRanking` 就得有 `IAppItemView`，而存檔的 `AppItem` 存的是 tag id、本身滿足不了那個介面；以 `TagOrdering.InWorkspaceOrder` 解析成共用的 `TagItem` 後用一個私有 adapter 包起來，順帶讓「workspace 順序、丟掉已刪標籤」這條既有不變量自動成立。
 - [x] `AutomationQuery.Page`：切頁並帶上總數。夾制而非驗證——越界的 offset 回空頁、超出上限的 limit 收到上限，呼叫端是 agent，為算錯的頁碼回一個錯誤沒有意義。
 - [x] 測試 52 項：`ItemLookup` 的歧義與大小寫、`AutomationRead` 對損毀／空檔／`null` 字面／鎖住的檔案各自回報哪一種失敗、share mode 的兩面、標籤篩選、分頁邊界、`WorkingDirectory` 的省略規則（含路徑帶無效字元時不得讓整份列表失敗）、投影與搜尋順序（含「最近啟動壓過比對品質」這條 UI 行為）。
@@ -217,27 +218,32 @@ MCP client ──stdio──> AceRun.Mcp.exe ──命名管線──> ace-run.e
 | 工具 | 註記 |
 |---|---|
 | `launch_item` | 核心用途。回傳實際解析到的項目，讓 client 能確認啟動的是哪一個 |
-| `add_item` | `kind` 必填 |
-| `update_item` | 省略的欄位不動，空字串清掉 |
+| `add_item` | `kind` 必填；可一併給 `tags` 與 `sortKey` |
+| `update_item` | 省略的欄位不動，空字串清掉；含 `sortKey` |
 | `delete_item` | `destructiveHint` |
 | `move_item` | 省略 `folder` 等於移出資料夾 |
 | `create_folder` / `rename_folder` | |
 | `delete_folder` | `destructiveHint`，且連裡面的項目一起刪 |
 | `set_item_tags` | 取代而非追加；空清單等於清空 |
-| `create_tag` | |
+| `create_tag` | 名稱重複會被拒 |
+| `update_tag` | 改名與換色，省略的不動 |
+| `delete_tag` | `destructiveHint`，並從所有帶著它的項目上移除 |
 | `switch_workspace` | 其餘動作類工具作用的目標由它決定 |
 | `show_window` / `hide_window` | |
 | `clear_recent_launches` | `destructiveHint`：這份清單也是托盤選單與 `search_items` 的排序輸入 |
 
-- [x] 共 20 個工具（A 期六個查詢 + B 期十四個動作），放在 `mcp/AceRun.Mcp/Tools/ActionTools.cs`，與 `QueryTools.cs` 分開：那一份整份都是 `ReadOnly` + `Idempotent`，這一份整份都不是。
+- [x] 共 22 個工具（A 期六個查詢 + B 期十六個動作），放在 `mcp/AceRun.Mcp/Tools/ActionTools.cs`，與 `QueryTools.cs` 分開：那一份整份都是 `ReadOnly` + `Idempotent`，這一份整份都不是。
 - [x] `add_item` 的驗證放 Core（`core/AceRun.Core/Automation/AutomationEdit.cs`）：App 項目檢查路徑存在，URL 走既有的 `UrlUtil.TryNormalize`，建立一律經 `ItemFactory`，不另造 `AppItem`。驗證全部在動手之前跑完，不做半套。
 - [x] **`kind` 必填，不從目標推論。** 項目型別建立時決定且不可事後切換（第七階段 §4），所以猜錯是永久的。一個單字的參數不值得拿這個換。
 - [x] **路徑必須存在。** app 自己的路徑來自 picker 或拖放，一定存在；這一條來自呼叫端的信念，而猜錯的代價落在使用者身上——他會發現一個按了沒反應的項目，而且不知道它從哪來。工作目錄同理（`ProcessStartInfo` 會在啟動時才丟例外）。讀取那側**不**檢查存在性：照實回報已經存好的東西是另一回事。
 - [x] 路徑前後成對的引號會被剝掉。引號在 Windows 檔名裡不合法，所以不會誤殺任何東西，而從命令列複製來的路徑常常帶著它們。
 - [x] URL 項目不接受 `arguments` / `workingDirectory` / `runAsAdmin`（`FieldNotApplicable`）。第七階段 §5 說它們不參與啟動，存一個永遠不會生效的值等於描述一個不可能發生的啟動。拒絕而非忽略：忽略會讓呼叫端以為設成功了。
 - [x] `update_item` 不接受改 `kind`（`KindNotEditable`）。工具本身沒有這個參數，這條只對直接打管線的呼叫端生效。
-- [x] 標籤一律以 id 指派（標籤是共用實例，第八階段）。`set_item_tags` 收 id 或名稱，解析完後經 `TagOrdering.InWorkspaceOrder` 排序再寫入，維持「同樣標籤的兩個磁磚上的點會對齊」這條不變量。
-- [x] `create_tag` 允許重複名稱，因為管理對話框允許。自動化不是發明 UI 沒有的規則的地方；代價落在之後用那個名字下指令的人身上，他會收到「這個名稱不唯一」並被要求給 id。
+- [x] 標籤一律以 id 指派（標籤是共用實例，第八階段）。`set_item_tags` 收 id 或名稱，解析完後經 `TagOrdering.InWorkspaceOrder` 排序再寫入，維持「同樣標籤的兩個磁磚上的點會對齊」這條不變量。`add_item` 也收 `tags`，而且是在建立之前就解析完：全中或全不中，第三個名字打錯不該留下帶著前兩個標籤的項目。解析出來的 id 寫在 model 上再交給 `AppItemViewModel`，由建構子負責排序。
+- [x] **`sortKey` 可讀可寫，而且 URL 項目也收。** 它不是啟動欄位——編輯對話框對 URL 項目一樣顯示那個輸入框，整理選單對兩種項目都照它排。寫入時照對話框的做法 `Trim()`，空字串等於清掉。
+- [x] `create_tag` 與 `update_tag` 都拒絕撞名。原本 `create_tag` 是允許的，理由寫著「管理對話框允許」——那是看錯了：對話框根本到不了撞名，新列給的是自動去重過的預設名字，改名在 commit 之前會檢查並退回舊名。允許撞名等於造出一個 UI 造不出來的狀態，而且之後每一個用那個名字下的指令都只會收到「不唯一」。比對規則取自 `ManageTagsDialog.IsTaken`（忽略大小寫、當前文化），放在 `AutomationEdit.NameIsTaken` 以便測試。
+- [x] `delete_tag` 做的是管理對話框關掉時做的那一對事：把標籤從工作區移掉，然後 `NormalizeAppTags()` 把每個項目的標籤清單對齊現有的工作區標籤。少了第二步，帶過那個標籤的項目會留著一個指向已刪標籤的 id。回答裡帶上受影響的項目數，因為那是 client 該先告訴使用者的數字。
+- [x] `update_tag` 不需要 `NormalizeAppTags()`：磁磚綁的就是那些標籤實例，改名與換色自己就會傳到每個帶它的項目上——和 `ManageTagsButton_Click` 的註解是同一件事。顏色為空白在這裡是 `InvalidColor`，不像 `create_tag` 當成預設色：一個指定了要改顏色卻沒說顏色的請求，不該被替它挑一個。
 - [x] `hide_window` 在既沒有托盤圖示也沒有全域快捷鍵時拒絕（`NoWayToRestore`）：那樣藏起來就沒有任何東西能把它叫回來。close-to-tray 為同一個理由有同一個守衛。
 - [x] `show_window` / `hide_window` 算「有改東西」，因此唯讀檔位下一併拒絕。唯讀的語意是「可以看，不要動」，而視窗出現在使用者螢幕上就是動。
 
@@ -271,7 +277,7 @@ MCP client ──stdio──> AceRun.Mcp.exe ──命名管線──> ace-run.e
 
 ## B7. B 期測試
 
-- [x] Core 新增 `AutomationCommandTests`（26 項）與 `AutomationEditTests`（30 項），另在 `ItemLookupTests` / `AutomationQueryTests` 補上項目解析與 `FolderOf`。全套 435 項通過。
+- [x] Core 新增 `AutomationCommandTests`（28 項）與 `AutomationEditTests`（34 項），另在 `ItemLookupTests` / `AutomationQueryTests` 補上項目解析與 `FolderOf`。全套 442 項通過。（兩個數字含後來補的排序鍵與撞名比對。）
 - [x] 框架的單行性有測試，而且是用一個值裡面含換行的請求去測——顯示名稱是從別處貼進來的，一個換行就會讓它變成兩則都解析不了的訊息。
 - [x] 列舉完整性有測試：`Validate()` 對每一個 `AutomationAction` 都不會落到 `Internal`（落到那裡代表有人加了命令卻沒決定它需要什麼參數），而 `ReadState` 是唯一 `ChangesSomething == false` 的那一個。
 - [x] 「空字串清掉、null 不動」在 round-trip 之後仍然分得開，有測試釘住。
@@ -287,6 +293,21 @@ MCP client ──stdio──> AceRun.Mcp.exe ──命名管線──> ace-run.e
   - 發佈版的佈局另外跑了一次：同資料夾的路徑解析、app 關著時由 `AceRun.Mcp.exe` 把它叫起來（1 秒，`--tray`，沒有第二個實例），以及「複製 MCP 設定」在兩個 exe 真的相鄰時給出正確的 JSON（開發建置下則是那句警告）。
   - 托盤選單讀不到不代表它壞了：`ContextMenuMode.PopupMenu` 做出來的是真的 Win32 選單，UI Automation 看它是一個空的 `#32768`。要驗內容就對那個視窗發 `MN_GETHMENU`（0x01E1）拿 `HMENU`，再用 `GetMenuItemCount` / `GetMenuStringW` 逐項讀；鍵盤也通，右鍵之後 `{UP}{ENTER}` 就是「結束」。
 - [x] 回歸重點驗過：搜尋框裡留著字（搜尋模式開著、結果列著）的時候下 `update_item`，改動確實落到磁碟——§B2 的「存檔一律走 `CommitSave()`」與 §B3 換掉的那三處，守的就是這條。
+- [x] §B3 抽掉核心的那些**既有 UI 入口**也各自回歸過一輪（同樣是真實資料目錄、先快照後還原，預先塞好幾筆測試資料）：新增資料夾對話框（打名字與留空兩種）、F2 改名（給新名字與留空兩種）、磚塊雙擊與選取後 Enter 兩條啟動路徑、刪項目與刪資料夾的確認對話框（取消與確認都按）、托盤的「最近の起動履歴をクリア」、以及工作區下拉切換。每一步都同時比對畫面與磁碟。
+  - 啟動特別試了指向不存在路徑的項目：`LaunchCore` 現在把例外回傳給呼叫端，而兩個 UI 呼叫端照舊忽略它——視窗沒事，最近清單也沒有多出一筆失敗的啟動。
+  - 兩條刪除路徑都確實釋放了圖示快取：被刪的項目與被連帶刪掉的資料夾內項目，`icons/<id>` 都不在了。
+  - 修掉的那三處用 UI 再驗一次：搜尋框裡確實有字（結果列出現、格線收起）的時候，新增資料夾、從側欄右鍵改名、從托盤清最近記錄，三者都落到磁碟。
+  - 測試工具的兩個坑：`SendKeys` 打字會經過注音輸入法（`ok` 進去變成 `ㄜ`），要塞搜尋字串就用 `ValuePattern.SetValue`——`SearchBox_TextChanged` 不看 change reason，程式化設定一樣會進搜尋模式。另外磚塊是 `DoubleTapped` 才啟動，單擊只選取，拿單擊去驗啟動會得到「什麼都沒發生」。
+
+- [x] 後來補上的排序鍵與標籤工具也走完同一套（真實資料目錄、先快照後還原，測試資料全部建在空的 `Links` 工作區裡，事後逐檔比對位元相同）。
+  - 冒煙腳本那一半（自備 app 端、對真實 `AceRun.Mcp.exe`）：22 個工具、四個 `destructiveHint`（多了 `delete_tag`）、`add_item` / `update_item` / `update_tag` / `delete_tag` 的參數與必填欄位，以及 `SortKey` / `Tags` / `Tag` 確實上了線，日文原樣往返。
+  - `sortKey`：`add_item` 建立時帶著它（App 與 Url 都試）、`update_item` 改成別的值、空字串清掉——三者都落到磁碟，`list_items` 也照實回報，清掉之後整個欄位從回應裡消失。
+  - `add_item` 的 `tags`：標籤確實上身。第二個標籤名字打錯的那一次整個被拒，磁碟上沒有留下一個半成品的項目——這就是「全中或全不中」那條。
+  - `update_tag`：一次呼叫同時改名與換色，標籤 id 不變、帶著它的項目仍然帶著它，而且之後打開標籤管理對話框顯示的就是新名字。那個對話框綁的是磁磚綁的同一批實例，所以這一條同時證明了「不需要 `NormalizeAppTags()`」。
+  - `delete_tag`：掛在一個項目上的那個回報「1 個項目」，沒掛在任何項目上的回報 0；項目留著但 `TagIds` 空了，工作區的標籤清單也空了。
+  - 拒絕的那一側：`create_tag` 與 `update_tag` 的撞名（前後補了空白的也算，因為先 `Trim()`）、`update_tag` 的空白顏色與未知顏色、空白名稱、找不到的標籤、以及什麼都沒改的 `update_tag`。全部拒完之後再讀一次磁碟，一個位元都沒動。
+  - `Busy` 再驗一次，這次是標籤管理對話框開著時下 `update_tag`：動作被拒而 `list_tags` 照答，關掉對話框之後同一個呼叫就通了。
+  - 圖示快取第一次是我量錯：檔名用的是 id 的「N」格式（沒有連字號），我拿帶連字號的 id 去 `Test-Path`，於是一個存在的快取被我讀成不存在。改對之後是新增後出現、刪除後消失。
 
 ---
 

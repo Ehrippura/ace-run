@@ -40,6 +40,15 @@ internal static class ActionTools
         + "name matching several items is an error that lists their ids, because picking one "
         + "would mean acting on the wrong item.";
 
+    private const string TagParam =
+        "Tag id or name, matched the way the item parameter is: without case, exactly first and "
+        + "then as a substring, and a name matching several tags is an error listing their ids.";
+
+    private const string SortKeyParam =
+        "Sort key: a free-form string the app orders items by when the user picks Organize → "
+        + "By Sort Key. Nothing else reads it, no tile shows it, and search does not match it. "
+        + "An empty string clears it.";
+
     [McpServerTool(Name = "launch_item", Title = "Launch an item", Destructive = false)]
     [Description("Starts a launch item through Ace Run, with its arguments, working directory and administrator setting — which is what makes a launch behave as it does from the window. Returns the item that was actually resolved, so the caller can confirm which one ran. Starts Ace Run first if it is not running.")]
     public static ItemSummary LaunchItem(
@@ -69,6 +78,9 @@ internal static class ActionTools
         string? workingDirectory = null,
         [Description("Run elevated. Launching such an item from automation needs a separate opt-in in Ace Run's settings.")]
         bool? runAsAdmin = null,
+        [Description("Tag ids or names to put on it. Each one has to exist already — create_tag first. Omit for an untagged item.")]
+        IReadOnlyList<string>? tags = null,
+        [Description(SortKeyParam)] string? sortKey = null,
         [Description(ActiveOnly)] string? workspace = null) =>
         Item(new AutomationRequest
         {
@@ -80,6 +92,8 @@ internal static class ActionTools
             Arguments = arguments,
             WorkingDirectory = workingDirectory,
             RunAsAdmin = runAsAdmin,
+            Tags = tags,
+            SortKey = sortKey,
             Workspace = workspace
         });
 
@@ -93,6 +107,7 @@ internal static class ActionTools
         [Description("New working directory; an empty string clears it, leaving the process default.")]
         string? workingDirectory = null,
         [Description("Whether to run elevated.")] bool? runAsAdmin = null,
+        [Description(SortKeyParam)] string? sortKey = null,
         [Description(ActiveOnly)] string? workspace = null) =>
         Item(new AutomationRequest
         {
@@ -103,6 +118,7 @@ internal static class ActionTools
             Arguments = arguments,
             WorkingDirectory = workingDirectory,
             RunAsAdmin = runAsAdmin,
+            SortKey = sortKey,
             Workspace = workspace
         });
 
@@ -187,7 +203,7 @@ internal static class ActionTools
         });
 
     [McpServerTool(Name = "create_tag", Title = "Create a tag", Destructive = false)]
-    [Description("Adds a tag to the open workspace. Tags belong to a workspace, not to the app. Assign it with set_item_tags.")]
+    [Description("Adds a tag to the open workspace. Tags belong to a workspace, not to the app. Assign it with set_item_tags, or name it in add_item. A name another tag in the workspace already has is refused, as it is in the app's manage dialog.")]
     public static TagSummary CreateTag(
         [Description("The tag's name.")] string name,
         [Description("Colour: Blue, Green, Red, Yellow, Purple or Gray. Omit for Blue.")] string? color = null,
@@ -202,6 +218,45 @@ internal static class ActionTools
         });
 
         return response.Tag ?? throw Empty();
+    }
+
+    [McpServerTool(Name = "update_tag", Title = "Rename or recolour a tag", Destructive = false)]
+    [Description("Renames a tag, changes its colour, or both. Every item carrying it follows, because items reference the tag rather than copying it. A name another tag in the workspace already has is refused.")]
+    public static TagSummary UpdateTag(
+        [Description(TagParam)] string tag,
+        [Description("New name. Omit to leave it as it is.")] string? name = null,
+        [Description("New colour: Blue, Green, Red, Yellow, Purple or Gray. Omit to leave it as it is.")]
+        string? color = null,
+        [Description(ActiveOnly)] string? workspace = null)
+    {
+        var response = AutomationClient.Send(new AutomationRequest
+        {
+            Command = nameof(AutomationAction.UpdateTag),
+            Tag = tag,
+            Name = name,
+            Color = color,
+            Workspace = workspace
+        });
+
+        return response.Tag ?? throw Empty();
+    }
+
+    [McpServerTool(Name = "delete_tag", Title = "Delete a tag", Destructive = true)]
+    [Description("Removes a tag from the open workspace and takes it off every item that carried it; the items themselves stay. There is no undo and the app asks nothing, so ask the user first — list_items with that tag says how many items it is on.")]
+    public static string DeleteTag(
+        [Description(TagParam)] string tag,
+        [Description(ActiveOnly)] string? workspace = null)
+    {
+        var response = AutomationClient.Send(new AutomationRequest
+        {
+            Command = nameof(AutomationAction.DeleteTag),
+            Tag = tag,
+            Workspace = workspace
+        });
+
+        var deleted = response.Tag ?? throw Empty();
+
+        return $"Deleted the tag '{deleted.Name}'; it was on {response.Count ?? 0} items.";
     }
 
     [McpServerTool(Name = "switch_workspace", Title = "Switch workspace", Destructive = false)]

@@ -302,6 +302,34 @@ public sealed class AutomationQueryTests
         Assert.Null(item.Arguments);
         Assert.Null(item.WorkingDirectory);
         Assert.Null(item.Tags);
+        Assert.Null(item.SortKey);
+    }
+
+    [Fact]
+    public void A_sort_key_is_reported_for_both_kinds_of_item()
+    {
+        // Left out of the projection at first as an internal field, which it is not: the user
+        // types it into the edit dialog by hand, and that dialog keeps the box visible for a
+        // URL item too.
+        var data = new AppData();
+        data.UngroupedItems.Add(new AppItem
+        {
+            DisplayName = "Game",
+            FilePath = @"C:\Games\game.exe",
+            SortKey = "010"
+        });
+        data.UngroupedItems.Add(new AppItem
+        {
+            Kind = ItemKind.Url,
+            DisplayName = "Docs",
+            FilePath = "https://example.com/docs",
+            SortKey = "020"
+        });
+
+        var items = AutomationQuery.Items(data, Ws);
+
+        Assert.Equal("010", items[0].SortKey);
+        Assert.Equal("020", items[1].SortKey);
     }
 
     [Fact]

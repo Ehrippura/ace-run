@@ -57,9 +57,11 @@ public sealed record ItemPage(
 /// What the automation interface says about a launch item.
 /// </summary>
 /// <remarks>
-/// A projection rather than the <see cref="Models.AppItem"/> itself: the stored item carries
-/// fields that mean nothing outside the app (<c>SortKey</c>, <c>CustomIconPath</c>), and
-/// exposing the model directly would publish every future field by default.
+/// A projection rather than the <see cref="Models.AppItem"/> itself, so that reporting an item
+/// cannot come to mean publishing every field a later version adds. What it leaves out is
+/// <c>CustomIconPath</c>, which says little without the icon cache it belongs to. <c>SortKey</c>
+/// was left out on that same reasoning and should not have been: the user types it into the edit
+/// dialog by hand, and the Organize menu has an entry that reads it.
 ///
 /// Every nullable field is omitted from the JSON rather than serialized as null. On a listing
 /// of a few hundred items those nulls are a real fraction of the payload, and the payload is
@@ -91,6 +93,13 @@ public sealed record ItemSummary
     /// <summary>Omitted unless true, which is the rare case.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool RunAsAdmin { get; init; }
+
+    /// <summary>
+    /// The user's ordering key, which only the Organize menu reads. Omitted when it is empty,
+    /// which is most items.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SortKey { get; init; }
 
     /// <summary>Tag names in workspace tag order. Omitted when the item has none.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

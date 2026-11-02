@@ -261,6 +261,27 @@ public sealed class AutomationCommandTests
     }
 
     [Fact]
+    public void UpdateTag_needs_the_tag_and_something_to_change()
+    {
+        var full = Full(AutomationAction.UpdateTag);
+
+        Assert.Equal(AutomationError.MissingArgument, (full with { Tag = "   " }).Validate());
+        Assert.Equal(
+            AutomationError.MissingArgument,
+            (full with { Name = null, Color = null }).Validate());
+        Assert.Equal(AutomationError.None, (full with { Name = null, Color = "Red" }).Validate());
+    }
+
+    [Fact]
+    public void DeleteTag_needs_the_tag_and_nothing_else()
+    {
+        var full = Full(AutomationAction.DeleteTag);
+
+        Assert.Equal(AutomationError.MissingArgument, (full with { Tag = null }).Validate());
+        Assert.Equal(AutomationError.None, (full with { Name = null, Color = null }).Validate());
+    }
+
+    [Fact]
     public void Folder_commands_need_the_folder_they_act_on()
     {
         Assert.Equal(
@@ -329,6 +350,7 @@ public sealed class AutomationCommandTests
         Target = @"C:\notepad.exe",
         Kind = nameof(ItemKind.App),
         Workspace = "Work",
+        Tag = "Done",
         Tags = new[] { "Done" }
     };
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using ace_run.Models;
 using ace_run.Services;
@@ -14,7 +15,8 @@ public sealed record ItemEdits(
     string? Target,
     string? Arguments,
     string? WorkingDirectory,
-    bool? RunAsAdmin);
+    bool? RunAsAdmin,
+    string? SortKey);
 
 /// <summary>
 /// Checking an automation write before anything is touched, and building the item it asked for.
@@ -70,6 +72,10 @@ public static class AutomationEdit
         var fieldError = ApplyLaunchFields(built, kind, request);
         if (fieldError != AutomationError.None) return fieldError;
 
+        // Outside ApplyLaunchFields because it is not a launch field: both kinds carry one.
+        if (request.SortKey is not null)
+            built.SortKey = request.SortKey.Trim();
+
         item = built;
         return AutomationError.None;
     }
@@ -80,7 +86,7 @@ public static class AutomationEdit
     /// </summary>
     public static AutomationError Edits(AutomationRequest request, ItemKind kind, out ItemEdits edits)
     {
-        edits = new ItemEdits(null, null, null, null, null);
+        edits = new ItemEdits(null, null, null, null, null, null);
 
         // The tool has no kind parameter, so this only fires for a caller driving the pipe
         // directly. Refused rather than ignored: an item is a file item or a URL item for life
@@ -121,7 +127,12 @@ public static class AutomationEdit
             workingDirectory = resolved;
         }
 
-        edits = new ItemEdits(name, target, request.Arguments, workingDirectory, request.RunAsAdmin);
+        // The sort key is trimmed the way the edit dialog trims it, and taken for a URL item
+        // as well: the Organize menu sorts both kinds by it (9-organize.md).
+        edits = new ItemEdits(
+            name, target, request.Arguments, workingDirectory, request.RunAsAdmin,
+            request.SortKey?.Trim());
+
         return AutomationError.None;
     }
 
@@ -130,6 +141,24 @@ public static class AutomationEdit
     {
         resolved = name?.Trim() ?? string.Empty;
         return resolved.Length == 0 ? AutomationError.InvalidName : AutomationError.None;
+    }
+
+    /// <summary>
+    /// Whether something is already called <paramref name="candidate"/>.
+    /// </summary>
+    /// <remarks>
+    /// Without case, in the current culture — the same comparison <c>ManageTagsDialog.IsTaken</c>
+    /// makes. It has to be the same one: a rename the dialog refuses must not be accepted here.
+    /// The caller leaves the row being renamed out of <paramref name="names"/>, because a tag
+    /// does not clash with itself.
+    /// </remarks>
+    public static bool NameIsTaken(IEnumerable<string> names, string candidate)
+    {
+        foreach (var name in names)
+            if (string.Equals(name, candidate, StringComparison.CurrentCultureIgnoreCase))
+                return true;
+
+        return false;
     }
 
     /// <summary>
